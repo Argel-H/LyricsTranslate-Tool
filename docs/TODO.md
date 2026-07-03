@@ -1,42 +1,42 @@
 # TODO
 
-## Mockups
-- [x] Responses
-    - [x] LRCDB json
-    - [x] MusicBrainz json
-    - [x] Deezer json
-    - [x] Odesli json
-    - [x] All data into a json
+## Done
+- [x] Fetch lyrics from LRCLIB with debounced search
+- [x] Fetch ISRC from MusicBrainz
+- [x] Fetch cover art, album, and artist data from Deezer (by ISRC and by name)
+- [x] Fetch streaming platform links from Odesli/Song.link
+- [x] Auto-fill metadata pipeline (search -> full metadata -> create project -> editor)
+- [x] Parse LRC timestamps into editable table rows
+- [x] Parse artist names (feat., ft., &, comma-separated)
+- [x] Editable lyric and translation fields
+- [x] Editable timestamps with +/- controls and min/max constraints
+- [x] Auto-save to IndexedDB (Dexie.js)
+- [x] Export to LRC (original and translated)
+- [x] Export to SRT (original and translated)
+- [x] Row activation on click, deactivation on outside click
+- [x] Tab between rows preserves active state
+- [x] Delete individual rows
+- [x] Add new rows
+- [x] Project CRUD (create, edit, delete) with confirmation modals
+- [x] Recent projects dashboard with search
+- [x] Empty project creation with manual form
+- [x] Dynamic artist management (add/remove)
+- [x] Dynamic social media entries (artist-linked, platform dropdowns)
+- [x] Language selection dropdowns in project setup
+- [x] MusicBrainz artist social media fetching (Instagram, Twitter, YouTube, etc.)
+- [x] Deezer artist links extraction from contributors
+- [x] i18n (English, Spanish, Portuguese)
+- [x] Settings modal (language switcher, reset database)
+- [x] About modal
+- [x] Translation progress bar (viewport top)
+- [x] Fetch artist social links from MusicBrainz relations
 
-## Logic
-- [x] Fetch Lyrics (LRCLIB)
-- [x] Fetch ISRC (MusicBrainz)
-- [ ] Fetch Streaming Site (Deezer)
-- [ ] Fetch Other Streaming Sites from a Streaming Site (Songlink/Odesli)
-- [ ] Map Responses
-- [ ] Save Page Content
-    - [ ] to SRT
-    - [ ] to LRC
-    - [ ] to my JSON
-- [ ] Read Input Lyrics
-    - [ ] from LRC
-    - [ ] from JSON
-    - [ ] from SRT
-
-## Components
-- [x] App Bar
-    - [x] Search Bar
-- [ ] Table
-    - [x] Fetched Lyrics to Table
-    - [ ] Editable Fields
-        - [ ] Lyrics & Translation
-        - [ ] Timestamps
-        - [ ] Save Edited Values to Map
-    - [ ] Pointer Feedback
-        - [ ] Selected (hover) Row
-        - [ ] Selected (hover) Cell
-- [ ] Artist Info
-- [ ] Bottom Bar
-    - [ ] Music Player
-        - [ ] Load a File
-    - [ ] Save Button
+## Pending
+- [ ] Auto-translate with SimplyTranslate AI (403 — blocked by API)
+- [ ] Music player integration
+- [ ] Read lyrics from imported LRC/SRT files
+- [ ] Patch Notes page
+- [ ] Undo/redo for editor changes
+- [ ] Keyboard shortcuts
+- [ ] Batch replace in lyrics
+- [ ] Dark/light theme toggle

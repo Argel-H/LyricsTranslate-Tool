@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+legacy/
+reference/
+graphify-out/
+DESIGN.md

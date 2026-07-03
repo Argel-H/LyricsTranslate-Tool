@@ -1,0 +1,103 @@
+export const pt = {
+  "sidebar.home": "Início",
+  "sidebar.patchNotes": "Notas de Versão",
+  "sidebar.about": "Sobre",
+  "sidebar.settings": "Configurações",
+
+  "common.appName": "LyricsTranslate Tool",
+  "dashboard.tagline": "Central de Tradução",
+  "dashboard.hero.title": "Começar",
+  "dashboard.hero.searchPlaceholder":
+    "Inicie um projeto buscando uma música...",
+  "dashboard.hero.or": "Ou",
+  "dashboard.hero.emptyProject": "Projeto Vazio",
+  "dashboard.recent.title": "Seus Projetos Recentes",
+  "dashboard.recent.viewAll": "Ver todos",
+  "dashboard.status.inProgress": "Em Progresso",
+  "dashboard.status.inReview": "Em Revisão",
+  "dashboard.emptyState":
+    "Pesquise uma música acima para criar seu primeiro projeto de tradução.",
+  "dashboard.creatingProject": "Criando Projeto",
+  "dashboard.fetchingLyrics": "Buscando letras e metadados...",
+  "dashboard.lookingUp": "Procurando ISRC e capa...",
+  "dashboard.creatingProjectDesc": "Criando projeto...",
+  "dashboard.deleteProject": "Excluir Projeto",
+  "dashboard.deleteConfirm":
+    'Tem certeza de que deseja excluir "%s"? Esta ação não pode ser desfeita.',
+
+  "editor.table.start": "Início",
+  "editor.table.end": "Fim",
+  "editor.table.lyric": "Letra",
+  "editor.table.translation": "Tradução",
+  "editor.fab.autoTranslate": "Auto-Traduzir Tudo",
+  "editor.translatePlaceholder": "Traduza esta linha...",
+  "editor.segmented.edit": "Editar",
+  "editor.segmented.save": "Salvar",
+  "editor.loading": "Carregando...",
+  "editor.notFound": "Projeto Não Encontrado",
+  "editor.notFoundDesc":
+    "Este projeto não existe ou foi excluído.",
+  "editor.backToDashboard": "Voltar ao Painel",
+  "editor.translating": "Traduzindo...",
+  "editor.emptyState":
+    "Ainda não há letras. Adicione sua primeira linha para começar.",
+  "editor.addFirstLine": "Adicionar Primeira Linha",
+  "editor.addNewLine": "Adicionar Nova Linha",
+
+  "setup.title": "Novo Projeto de Tradução",
+  "setup.editTitle": "Editar Projeto",
+  "setup.trackDetails": "Detalhes da Faixa",
+  "setup.songName": "Nome da Música",
+  "setup.albumName": "Nome do Álbum",
+  "setup.artists": "Artistas",
+  "setup.mainArtist": "Artista Principal",
+  "setup.addArtist": "Adicionar Artista",
+  "setup.coverArt": "Capa",
+  "setup.imageUrl": "URL da Imagem",
+  "setup.verify": "Verificar",
+  "setup.localization": "Configuração de Localização",
+  "setup.originLanguage": "Idioma Original",
+  "setup.translationLanguage": "Idioma de Tradução",
+  "setup.socialMedia": "Redes Sociais dos Artistas",
+  "setup.artist": "Artista",
+  "setup.platform": "Plataforma",
+  "setup.url": "URL",
+  "setup.addNewLink": "Adicionar Novo Link",
+  "setup.next": "Próximo",
+  "setup.sharedLink": "Link Compartilhado",
+  "setup.linkUrl": "URL do Link",
+  "setup.openLink": "Abrir link",
+  "setup.to": "para",
+  "setup.selectArtist": "Selecionar Artista",
+  "setup.noArtists": "Sem artistas",
+  "setup.noSocialLinks":
+    "Nenhum link de mídia social adicionado ainda.",
+  "setup.deleteProject": "Excluir Projeto",
+  "setup.deleteProjectTitle": "Excluir projeto",
+  "setup.deleteConfirm":
+    "Tem certeza de que deseja excluir este projeto? Esta ação não pode ser desfeita.",
+  "setup.artistNumber": "Artista #%d",
+
+  "settings.title": "Configurações",
+  "settings.language": "Idioma",
+  "settings.languageDescription":
+    "Escolha seu idioma preferido para a interface.",
+  "settings.resetDatabase": "Redefinir Banco de Dados",
+  "settings.resetDesc":
+    "Excluir todos os projetos e preferências. Isso não pode ser desfeito.",
+  "settings.resetAll": "Redefinir Todos os Dados",
+  "settings.resetConfirm":
+    "Isso excluirá permanentemente todos os projetos e preferências. Esta ação não pode ser desfeita.",
+  "settings.deleteEverything": "Excluir Tudo",
+
+  "about.title": "Sobre",
+  "about.description":
+    "Uma ferramenta criada para meu fluxo de trabalho de tradução de letras de músicas. Construído com React 19, TypeScript e tecnologias web modernas.",
+  "about.version": "Versão 1.0.0",
+  "about.madeWith": "Feito com ♡ por Argel H",
+
+  "common.cancel": "Cancelar",
+  "common.save": "Salvar",
+  "common.delete": "Excluir",
+  "common.searching": "Buscando...",
+} as const;

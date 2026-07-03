@@ -1,22 +1,38 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+@layer base {
+  :root {
+    --background: 20 19 23;
+    --foreground: 230 225 231;
+    --card: 32 31 35;
+    --card-foreground: 230 225 231;
+    --popover: 32 31 35;
+    --popover-foreground: 230 225 231;
+    --primary: 208 188 255;
+    --primary-foreground: 55 38 94;
+    --secondary: 204 194 220;
+    --secondary-foreground: 51 45 65;
+    --muted: 28 27 31;
+    --muted-foreground: 202 196 208;
+    --accent: 74 67 89;
+    --accent-foreground: 186 177 202;
+    --destructive: 255 180 171;
+    --destructive-foreground: 105 0 5;
+    --border: 148 143 154;
+    --input: 73 69 79;
+    --ring: 208 188 255;
+    --radius: 1rem;
+  }
 }
 
-body {
-  margin: 0;
-  display: flex;
-  /* place-items: center; */
-  min-width: 320px;
-  min-height: 100vh;
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
 }

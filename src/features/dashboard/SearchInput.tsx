@@ -1,0 +1,125 @@
+import { Search, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { useI18n } from "@/hooks/useI18n";
+
+interface SearchResult {
+  id: number;
+  trackName: string;
+  artistName: string;
+}
+
+interface SearchInputProps {
+  placeholder?: string;
+  value?: string;
+  onChange?: (value: string) => void;
+  className?: string;
+  results?: SearchResult[];
+  onSelect?: (index: number) => void;
+  isLoading?: boolean;
+}
+
+export function SearchInput({
+  placeholder = "Search...",
+  value,
+  onChange,
+  className,
+  results,
+  onSelect,
+  isLoading,
+}: SearchInputProps) {
+  const { t } = useI18n();
+  const [focused, setFocused] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+
+  const updatePosition = () => {
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      setDropdownStyle({
+        position: "fixed",
+        top: rect.bottom + 8,
+        left: rect.left,
+        width: rect.width,
+        zIndex: 9999,
+      });
+    }
+  };
+
+  useEffect(() => {
+    if (focused) {
+      updatePosition();
+      window.addEventListener("scroll", updatePosition, true);
+      window.addEventListener("resize", updatePosition);
+      return () => {
+        window.removeEventListener("scroll", updatePosition, true);
+        window.removeEventListener("resize", updatePosition);
+      };
+    }
+  }, [focused]);
+
+  const handleBlur = () => {
+    setTimeout(() => setFocused(false), 150);
+  };
+
+  const showDropdown =
+    focused && (isLoading || (results && results.length > 0));
+
+  return (
+    <div
+      ref={containerRef}
+      className={cn("w-full max-w-2xl relative group", className)}
+    >
+      <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+        {isLoading ? (
+          <Loader2 className="size-6 text-primary animate-spin" />
+        ) : (
+          <Search className="size-6 text-on-surface-variant group-focus-within:text-primary transition-colors" />
+        )}
+      </div>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange?.(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={handleBlur}
+        placeholder={placeholder}
+        className="block w-full pl-14 pr-6 py-5 bg-surface-container-highest border border-outline-variant/30 rounded-full text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm font-body-lg text-body-lg placeholder-on-surface-variant outline-none"
+      />
+      {showDropdown &&
+        createPortal(
+          <div
+            style={dropdownStyle}
+            className="bg-surface-container-high border border-outline-variant/20 rounded-md shadow-2xl overflow-hidden"
+          >
+            {isLoading ? (
+              <div className="p-4 text-center text-on-surface-variant font-body-md">
+                {t("common.searching")}
+              </div>
+            ) : results && results.length > 0 ? (
+              results.map((result, index) => (
+                <button
+                  key={result.id ?? index}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    setFocused(false);
+                    onSelect?.(index);
+                  }}
+                  className="w-full text-left px-5 py-4 hover:bg-surface-container-highest transition-colors border-b border-outline-variant/10 last:border-b-0 flex items-center gap-3"
+                >
+                  <Search className="size-4 text-on-surface-variant shrink-0" />
+                  <div className="min-w-0">
+                    <p className="font-body-md text-on-surface truncate">
+                      {result.artistName} — {result.trackName}
+                    </p>
+                  </div>
+                </button>
+              ))
+            ) : null}
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
