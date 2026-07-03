@@ -53,14 +53,46 @@ export function DropdownSelect({
     setOpen(false);
   };
 
+  const DropdownPanel = ({
+    options,
+    selectedValue,
+    onSelect,
+  }: {
+    options: string[];
+    selectedValue: string;
+    onSelect: (option: string) => void;
+  }) => (
+    <div className="absolute top-full left-0 mt-0 bg-surface-container-high border border-outline-variant/20 border-t-0 rounded-b-md rounded-t-none shadow-2xl z-50 w-full overflow-hidden">
+      <div className="max-h-48 overflow-y-auto">
+        {options.map((opt) => (
+          <button
+            key={opt}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onSelect(opt);
+            }}
+            className={cn(
+              "w-full text-left px-4 py-3 text-body-md text-on-surface hover:bg-surface-container-highest hover:text-on-surface transition-colors cursor-pointer",
+              opt === selectedValue &&
+                "bg-primary-container !text-on-primary-container",
+            )}
+          >
+            {opt}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+
   if (variant === "compact") {
     return (
       <div
         ref={containerRef}
         onClick={options ? handleClick : undefined}
         className={cn(
-          "relative bg-surface-container-high px-4 py-2 flex items-center gap-3 border border-outline-variant/50",
-          open ? "rounded-t-md rounded-b-none border-b-0" : "rounded-full",
+          "relative bg-surface-container-high px-4 py-2 flex items-center gap-3 border border-outline-variant/50 transition-all",
+          open ? "rounded-t-md rounded-b-none border-b-0 duration-150" : "rounded-full duration-500",
           options && "cursor-pointer",
           className,
         )}
@@ -79,27 +111,7 @@ export function DropdownSelect({
         </div>
         <ChevronDown className="size-4 text-on-surface-variant hover:text-on-surface" />
         {open && options && (
-          <div className="absolute top-full left-0 mt-0 bg-surface-container-high border border-outline-variant/20 rounded-b-md shadow-2xl z-50 w-full overflow-hidden">
-            <div className="max-h-48 overflow-y-auto">
-              {options.map((opt) => (
-                <button
-                  key={opt}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    handleSelect(opt);
-                  }}
-                  className={cn(
-                    "w-full text-left px-4 py-3 text-body-md text-on-surface hover:bg-surface-container-highest hover:text-on-surface transition-colors cursor-pointer",
-                    opt === value &&
-                      "bg-primary-container !text-on-primary-container",
-                  )}
-                >
-                  {opt}
-                </button>
-              ))}
-            </div>
-          </div>
+          <DropdownPanel options={options} selectedValue={value} onSelect={handleSelect} />
         )}
       </div>
     );
@@ -109,8 +121,8 @@ export function DropdownSelect({
     <div
       ref={containerRef}
       className={cn(
-        "relative bg-surface-container-high pl-5 pr-4 py-3 flex items-center gap-3 border border-outline-variant/50 hover:bg-surface-variant cursor-pointer group",
-        open ? "rounded-t-lg rounded-b-none border-b-0" : "rounded-full",
+        "relative bg-surface-container-high pl-5 pr-4 py-3 flex items-center gap-3 border border-outline-variant/50 hover:bg-surface-variant cursor-pointer group transition-all",
+        open ? "rounded-t-md rounded-b-none border-b-0 duration-150" : "rounded-full duration-500",
         className,
       )}
       onClick={handleClick}
@@ -136,27 +148,7 @@ export function DropdownSelect({
         <ChevronDown className="size-5 text-on-surface-variant ml-4 group-hover:text-on-surface" />
       )}
       {open && options && (
-        <div className="absolute top-full left-0 mt-0 bg-surface-container-high border border-outline-variant/20 rounded-b-md shadow-2xl z-50 w-full overflow-hidden">
-          <div className="max-h-48 overflow-y-auto">
-            {options.map((opt) => (
-              <button
-                key={opt}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  handleSelect(opt);
-                }}
-                className={cn(
-                  "w-full text-left px-4 py-3 text-body-md text-on-surface hover:bg-surface-container-highest hover:text-on-surface transition-colors cursor-pointer",
-                  opt === value &&
-                    "bg-primary-container !text-on-primary-container",
-                )}
-              >
-                {opt}
-              </button>
-            ))}
-          </div>
-        </div>
+        <DropdownPanel options={options} selectedValue={value} onSelect={handleSelect} />
       )}
     </div>
   );

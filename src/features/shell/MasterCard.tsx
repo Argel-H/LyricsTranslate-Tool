@@ -12,13 +12,13 @@ export function MasterCard({ children, bgColor = "bg-surface-container", classNa
   return (
     <div
       className={cn(
-        "flex-1 rounded-[40px] shadow-2xl flex flex-col overflow-hidden border border-outline-variant/20 relative",
+        "w-full rounded-[40px] flex flex-col border border-outline-variant/20 relative",
         bgColor,
         className
       )}
     >
       {header}
-      <div className="flex-1 overflow-y-auto px-6 md:px-12 py-10">
+      <div className="px-6 md:px-12 py-10">
         {children}
       </div>
     </div>

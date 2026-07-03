@@ -11,7 +11,7 @@ interface FloatingActionButtonProps {
 
 export function FloatingActionButton({ icon: Icon, label, onClick, className, disabled }: FloatingActionButtonProps) {
   return (
-    <div className="absolute bottom-8 right-8 z-50">
+    <div className="fixed bottom-8 right-8 z-50">
       <button
         onClick={disabled ? undefined : onClick}
         disabled={disabled}

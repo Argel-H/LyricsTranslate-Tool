@@ -1,6 +1,9 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import packageJson from "./package.json";
+
+const USER_AGENT = `${packageJson.name}/${packageJson.version} (lyricstranslate@tool.com)`;
 
 export default defineConfig({
   plugins: [react()],
@@ -37,10 +40,7 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api-musicbrainz/, ""),
         configure: (proxy) => {
           proxy.on("proxyReq", (proxyReq) => {
-            proxyReq.setHeader(
-              "User-Agent",
-              "LyricsTranslateTool/1.0.0 (lyricstranslate@tool.com)",
-            );
+            proxyReq.setHeader("User-Agent", USER_AGENT);
           });
         },
       },
@@ -50,16 +50,8 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api-musicbrainz-artist/, ""),
         configure: (proxy) => {
           proxy.on("proxyReq", (proxyReq) => {
-            // 1. Seteas el User-Agent obligatorio
-            proxyReq.setHeader(
-              "User-Agent",
-              "LyricsTranslateTool/1.0.0 (lyricstranslate@tool.com)",
-            );
-
-            // 2. Le dices explícitamente que esperas un JSON
+            proxyReq.setHeader("User-Agent", USER_AGENT);
             proxyReq.setHeader("Accept", "application/json");
-
-            // 3. EL TRUCO: Eliminamos las cabeceras de localhost que alertan a Cloudflare
             proxyReq.removeHeader("Origin");
             proxyReq.removeHeader("Referer");
           });

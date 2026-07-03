@@ -1,5 +1,6 @@
 import { db } from "./database";
 import type { Project, ProjectCreateInput, LyricLine } from "@/types/project";
+import type { ProjectStatus } from "@/lib/constants";
 
 export async function createProject(input: ProjectCreateInput): Promise<number> {
   const id = Date.now();
@@ -53,15 +54,8 @@ export async function updateLyricLine(
   const updatedLyrics = { ...project.lyrics };
   updatedLyrics[lineKey] = { ...updatedLyrics[lineKey]!, [field]: value };
 
-  const totalLines = Object.keys(updatedLyrics).length;
-  const translatedLines = Object.values(updatedLyrics).filter(l => l.translation.trim()).length;
-  const progress = totalLines > 0 ? Math.round((translatedLines / totalLines) * 100) : 0;
-
   await db.projects.update(projectId, {
     lyrics: updatedLyrics,
-    progress,
-    status: progress === 100 ? "in-review" : "in-progress",
-    updatedAt: Date.now(),
   });
 }
 
@@ -69,14 +63,19 @@ export async function updateAllLyrics(
   projectId: number,
   lyrics: Record<string, LyricLine>,
 ): Promise<void> {
-  const totalLines = Object.keys(lyrics).length;
-  const translatedLines = Object.values(lyrics).filter(l => l.translation.trim()).length;
-  const progress = totalLines > 0 ? Math.round((translatedLines / totalLines) * 100) : 0;
-
   await db.projects.update(projectId, {
     lyrics,
+  });
+}
+
+export async function updateProjectProgress(
+  projectId: number,
+  progress: number,
+  status: ProjectStatus,
+): Promise<void> {
+  await db.projects.update(projectId, {
     progress,
-    status: progress === 100 ? "in-review" : "in-progress",
+    status,
     updatedAt: Date.now(),
   });
 }

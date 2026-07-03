@@ -5,6 +5,7 @@ import { AppShell } from "@/features/shell/AppShell";
 import { MasterCard } from "@/features/shell/MasterCard";
 import { HeroSection } from "./HeroSection";
 import { ProjectCard } from "./ProjectCard";
+import { APP_NAME } from "@/lib/appConfig";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { fetchLyrics } from "@/services/lrclib";
 import { getFullMetadata } from "@/services/metadataAggregator";
@@ -99,6 +100,7 @@ export function DashboardPage() {
     id: r.id,
     trackName: r.trackName,
     artistName: r.artistName,
+    albumName: r.albumName,
   }));
 
   return (
@@ -106,21 +108,22 @@ export function DashboardPage() {
       <AppShell
         activePage="home"
         showTopbar={false}
+        sidebarBg="bg-surface-container-lowest"
         bodyBg="bg-surface-container-lowest"
         onOpenSettings={() => useModalStore.getState().openSettings()}
         onOpenAbout={() => useModalStore.getState().openAbout()}
       >
         <MasterCard
-          bgColor="bg-surface-container"
+          bgColor="!bg-surface-container"
           header={
-            <div className="px-8 md:px-12 py-8 flex justify-between items-center border-b border-outline-variant/10 bg-surface-container/50 backdrop-blur-sm sticky top-0 z-30">
+            <div className="px-8 md:px-12 py-8 flex justify-between items-center border-b border-outline-variant/10 bg-surface-container/70 backdrop-blur-sm sticky top-0 z-30 rounded-t-[40px]">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center text-on-primary font-headline-sm font-bold text-xl shadow-md">
                   L
                 </div>
                 <div>
                   <h1 className="font-headline-sm text-headline-sm font-black text-primary">
-                    {t("common.appName")}
+                    {APP_NAME}
                   </h1>
                   <p className="font-label-md text-label-md text-on-surface-variant">
                     {t("dashboard.tagline")}
@@ -164,7 +167,11 @@ export function DashboardPage() {
                         coverUrl={project.coverUrl ?? ""}
                         progress={project.progress}
                         status={status}
-                        statusLabel={status === "in-progress" ? t("dashboard.status.inProgress") : t("dashboard.status.inReview")}
+                        statusLabel={
+                          status === "in-progress"
+                            ? t("dashboard.status.inProgress")
+                            : t("dashboard.status.inReview")
+                        }
                         onClick={() => navigate(`/editor/${project.id}`)}
                         onEdit={() => handleEditProject(project.id)}
                         onOpen={() => handleOpenProject(project.id)}
@@ -214,7 +221,10 @@ export function DashboardPage() {
               {t("dashboard.deleteProject")}
             </h3>
             <p className="font-body-md text-on-surface-variant mb-6">
-              {t("dashboard.deleteConfirm").replace("%s", deleteTarget.trackName)}
+              {t("dashboard.deleteConfirm").replace(
+                "%s",
+                deleteTarget.trackName,
+              )}
             </p>
             <div className="flex gap-3 justify-end">
               <button

@@ -4,7 +4,6 @@ export const en = {
   "sidebar.about": "About",
   "sidebar.settings": "Settings",
 
-  "common.appName": "LyricsTranslate Tool",
   "dashboard.tagline": "Music Translation Hub",
   "dashboard.hero.title": "Get Started",
   "dashboard.hero.searchPlaceholder": "Start project searching for a song...",
@@ -89,7 +88,7 @@ export const en = {
   "about.title": "About",
   "about.description":
     "A tool created for my song lyrics translation workflow. Built with React 19, TypeScript, and modern web technologies.",
-  "about.version": "Version 1.0.0",
+  "about.version": "Version",
   "about.madeWith": "Made with ♡ by Argel H",
 
   "common.cancel": "Cancel",

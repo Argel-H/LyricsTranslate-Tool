@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { useCallback } from "react";
 import { TimeControl } from "./TimeControl";
 import { TranslationTextarea } from "./TranslationTextarea";
 import { Trash2 } from "lucide-react";
@@ -10,6 +11,10 @@ interface TableRowProps {
   translation: string;
   translationPlaceholder?: string;
   state?: "default" | "active" | "instrumental";
+  rowKey: string;
+  orderedKeys: string[];
+  onNavigateToRow: (targetKey: string, column: string) => void;
+  autoFocusColumn?: string | null;
   onTranslationChange?: (value: string) => void;
   onLyricChange?: (value: string) => void;
   onTranslationFocus?: () => void;
@@ -30,6 +35,10 @@ export function TableRow({
   translation,
   translationPlaceholder,
   state = "default",
+  rowKey,
+  orderedKeys,
+  onNavigateToRow,
+  autoFocusColumn,
   onTranslationChange,
   onLyricChange,
   onTranslationFocus,
@@ -44,15 +53,45 @@ export function TableRow({
 }: TableRowProps) {
   const isActive = state === "active";
   const isInstrumental = state === "instrumental";
-  const textareaState = isActive
-    ? "active"
-    : translation
-      ? "standard"
-      : "empty";
+  const textareaState = isActive ? "active" : "default";
+
+  const lyricRef = useCallback(
+    (node: HTMLTextAreaElement | null) => {
+      if (node && autoFocusColumn === "lyric") {
+        node.focus();
+        node.setSelectionRange(node.value.length, node.value.length);
+      }
+    },
+    [autoFocusColumn],
+  );
+
+  const translationRef = useCallback(
+    (node: HTMLTextAreaElement | null) => {
+      if (node && autoFocusColumn === "translation") {
+        node.focus();
+        node.setSelectionRange(node.value.length, node.value.length);
+      }
+    },
+    [autoFocusColumn],
+  );
+
+  const navigateVertically = (
+    event: React.KeyboardEvent<HTMLTextAreaElement>,
+    column: string,
+  ) => {
+    if (event.key !== "Tab") return;
+    const currentIndex = orderedKeys.indexOf(rowKey);
+    const direction = event.shiftKey ? -1 : 1;
+    const targetIndex = currentIndex + direction;
+    if (targetIndex < 0 || targetIndex >= orderedKeys.length) return;
+    event.preventDefault();
+    onNavigateToRow(orderedKeys[targetIndex], column);
+  };
 
   return (
     <div
       onClick={() => onRowClick?.()}
+      data-row-key={rowKey}
       className={cn(
         "grid grid-cols-[120px_120px_1fr_1fr] gap-4 p-md group relative",
         isActive
@@ -109,6 +148,9 @@ export function TableRow({
             onChange={(e) => onLyricChange?.(e.target.value)}
             onFocus={onTranslationFocus}
             onBlur={onTranslationBlur}
+            onKeyDown={(e) => navigateVertically(e, "lyric")}
+            data-column="lyric"
+            ref={lyricRef}
             className="w-full bg-surface-container rounded-3xl p-5 text-body-lg text-on-surface leading-relaxed min-h-[96px] focus:outline-none focus:ring-2 focus:ring-primary resize-none"
             rows={3}
           />
@@ -133,6 +175,9 @@ export function TableRow({
           onChange={onTranslationChange}
           onFocus={onTranslationFocus}
           onBlur={onTranslationBlur}
+          onKeyDown={(e) => navigateVertically(e, "translation")}
+          dataColumn="translation"
+          textareaRef={translationRef}
         />
       </div>
 

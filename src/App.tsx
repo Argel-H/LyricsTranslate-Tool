@@ -9,6 +9,7 @@ import { ProjectSetupPage } from "@/features/project-setup/ProjectSetupPage";
 import { EditorPage } from "@/features/editor/EditorPage";
 import { db } from "@/db/database";
 import { Globe, Trash2 } from "lucide-react";
+import { APP_NAME, APP_VERSION } from "@/lib/appConfig";
 
 function App() {
   const loadSettings = useSettingsStore((s) => s.loadSettings);
@@ -123,7 +124,7 @@ function App() {
       )}
 
       {/* About Modal — rendered once at App level */}
-      <Modal open={aboutOpen} onClose={closeAbout} title={`${t("about.title")} ${t("common.appName")}`}>
+      <Modal open={aboutOpen} onClose={closeAbout} title={`${t("about.title")} ${APP_NAME}`}>
         <div className="space-y-4 text-center">
           <div className="w-16 h-16 rounded-2xl bg-primary flex items-center justify-center text-on-primary font-headline-sm font-bold text-2xl shadow-md mx-auto">
             L
@@ -132,7 +133,7 @@ function App() {
             {t("about.description")}
           </p>
           <p className="font-label-md text-on-surface-variant">
-            {t("about.version")}
+            {t("about.version")} {APP_VERSION}
           </p>
           <p className="font-body-md text-on-surface-variant pt-2">
             {t("about.madeWith")}

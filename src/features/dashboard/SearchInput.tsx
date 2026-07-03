@@ -8,6 +8,7 @@ interface SearchResult {
   id: number;
   trackName: string;
   artistName: string;
+  albumName?: string;
 }
 
 interface SearchInputProps {
@@ -39,7 +40,7 @@ export function SearchInput({
       const rect = containerRef.current.getBoundingClientRect();
       setDropdownStyle({
         position: "fixed",
-        top: rect.bottom + 8,
+        top: rect.bottom,
         left: rect.left,
         width: rect.width,
         zIndex: 9999,
@@ -85,13 +86,18 @@ export function SearchInput({
         onFocus={() => setFocused(true)}
         onBlur={handleBlur}
         placeholder={placeholder}
-        className="block w-full pl-14 pr-6 py-5 bg-surface-container-highest border border-outline-variant/30 rounded-full text-on-surface focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm font-body-lg text-body-lg placeholder-on-surface-variant outline-none"
+        className={cn(
+          "block w-full pl-14 pr-6 py-5 bg-surface-container-highest border border-outline-variant/30 text-on-surface shadow-sm font-body-lg text-body-lg placeholder-on-surface-variant outline-none transition-all",
+          showDropdown
+            ? "rounded-t-md rounded-b-none border-b-0 duration-150"
+            : "rounded-full duration-500",
+        )}
       />
       {showDropdown &&
         createPortal(
           <div
             style={dropdownStyle}
-            className="bg-surface-container-high border border-outline-variant/20 rounded-md shadow-2xl overflow-hidden"
+            className="bg-surface-container-high border border-outline-variant/20 border-t-0 rounded-b-md rounded-t-none shadow-2xl overflow-y-auto overflow-x-hidden max-h-[280px]"
           >
             {isLoading ? (
               <div className="p-4 text-center text-on-surface-variant font-body-md">
@@ -113,6 +119,11 @@ export function SearchInput({
                     <p className="font-body-md text-on-surface truncate">
                       {result.artistName} — {result.trackName}
                     </p>
+                    {result.albumName && (
+                      <p className="font-label-md text-on-surface-variant truncate mt-0.5">
+                        {result.albumName}
+                      </p>
+                    )}
                   </div>
                 </button>
               ))

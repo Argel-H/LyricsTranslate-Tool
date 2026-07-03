@@ -4,7 +4,6 @@ export const pt = {
   "sidebar.about": "Sobre",
   "sidebar.settings": "Configurações",
 
-  "common.appName": "LyricsTranslate Tool",
   "dashboard.tagline": "Central de Tradução",
   "dashboard.hero.title": "Começar",
   "dashboard.hero.searchPlaceholder":
@@ -93,7 +92,7 @@ export const pt = {
   "about.title": "Sobre",
   "about.description":
     "Uma ferramenta criada para meu fluxo de trabalho de tradução de letras de músicas. Construído com React 19, TypeScript e tecnologias web modernas.",
-  "about.version": "Versão 1.0.0",
+  "about.version": "Versão",
   "about.madeWith": "Feito com ♡ por Argel H",
 
   "common.cancel": "Cancelar",

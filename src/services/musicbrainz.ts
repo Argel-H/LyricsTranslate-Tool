@@ -1,6 +1,8 @@
 import axios from "axios";
 import type { MusicBrainzRecording, MusicBrainzArtistRelation } from "@/types/music";
+import { APP_NAME, APP_VERSION } from "@/lib/appConfig";
 
+const USER_AGENT = `${APP_NAME.replace(/\s/g, "")}/${APP_VERSION}`;
 const MUSICBRAINZ_TRACK_ENDPOINT = "/api-musicbrainz/ws/2/recording/";
 
 export async function fetchISRC(
@@ -16,7 +18,7 @@ export async function fetchISRC(
           fmt: "json",
           limit: 1,
         },
-        headers: { "User-Agent": "LyricsTranslateTool/1.0" },
+        headers: { "User-Agent": USER_AGENT },
       },
     );
     const recording = response.data?.recordings?.[0];
@@ -54,7 +56,7 @@ export async function fetchArtistSocialLinks(
       `/api-musicbrainz-artist/ws/2/artist/${mbid}`,
       {
         params: { inc: "url-rels", fmt: "json" },
-        headers: { "User-Agent": "LyricsTranslateTool/1.0" },
+        headers: { "User-Agent": USER_AGENT },
       },
     );
     const links: Array<{ platform: string; url: string }> = [];

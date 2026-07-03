@@ -1,6 +1,12 @@
 import { create } from "zustand";
+import { calculateLyricsProgress } from "@/lib/progressUtils";
 import type { Project, LyricLine } from "@/types/project";
-import { getProject, updateLyricLine as dbUpdateLyric, updateAllLyrics as dbUpdateAllLyrics } from "@/db/projectRepository";
+import {
+  getProject,
+  updateLyricLine as dbUpdateLyric,
+  updateAllLyrics as dbUpdateAllLyrics,
+  updateProjectProgress,
+} from "@/db/projectRepository";
 
 interface ProjectState {
   currentProject: Project | null;
@@ -27,10 +33,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const updatedLyrics = { ...project.lyrics };
     if (!updatedLyrics[key]) return;
     updatedLyrics[key] = { ...updatedLyrics[key]!, [field]: value };
-    const totalLines = Object.keys(updatedLyrics).length;
-    const translatedLines = Object.values(updatedLyrics).filter(l => l.translation.trim()).length;
-    const progress = totalLines > 0 ? Math.round((translatedLines / totalLines) * 100) : 0;
-    const status = progress === 100 ? "in-review" as const : "in-progress" as const;
+
+    const { progress, status } = calculateLyricsProgress(updatedLyrics);
 
     set({
       currentProject: {
@@ -42,19 +46,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       },
     });
     await dbUpdateLyric(project.id, key, field, value);
+    await updateProjectProgress(project.id, progress, status);
   },
   updateAllLines: async (lyrics) => {
     const project = get().currentProject;
     if (!project) return;
-    const totalLines = Object.keys(lyrics).length;
-    const translatedLines = Object.values(lyrics).filter(l => l.translation.trim()).length;
-    const progress = totalLines > 0 ? Math.round((translatedLines / totalLines) * 100) : 0;
-    const status = progress === 100 ? "in-review" as const : "in-progress" as const;
+
+    const { progress, status } = calculateLyricsProgress(lyrics);
 
     set({
       currentProject: { ...project, lyrics, progress, status, updatedAt: Date.now() },
     });
     await dbUpdateAllLyrics(project.id, lyrics);
+    await updateProjectProgress(project.id, progress, status);
   },
   setProject: (project) => set({ currentProject: project }),
   clearProject: () => set({ currentProject: null }),

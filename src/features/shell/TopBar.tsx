@@ -15,7 +15,7 @@ export function TopBar({ title, onBack, bgColor = "bg-surface-container", action
   return (
     <header
       className={cn(
-        "flex justify-between items-center w-full px-8 md:px-12 py-4 shrink-0",
+        "sticky top-0 z-20 flex justify-between items-center w-full px-8 md:px-12 py-4 shrink-0",
         showBorder && "border-b border-outline-variant/10",
         bgColor,
         className
