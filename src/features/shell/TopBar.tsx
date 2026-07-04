@@ -22,7 +22,7 @@ export function TopBar({
   return (
     <header
       className={cn(
-        "sticky top-0 z-20 flex justify-between items-center w-full pr-8 -pl-4 md:pr-12 md:pl-6 md:-ml-[5.5rem] py-4 shrink-0 transition-colors duration-300",
+        "sticky top-0 z-20 flex justify-between items-center w-full pl-4 pr-8 md:pr-12 md:pl-6 pb-4 pt-6 shrink-0 transition-colors duration-300",
         showBorder && "border-b border-outline-variant/10",
         bgColor,
         className,

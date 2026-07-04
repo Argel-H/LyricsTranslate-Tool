@@ -1,6 +1,5 @@
 export const pt = {
   "sidebar.home": "Início",
-  "sidebar.patchNotes": "Notas de Versão",
   "sidebar.about": "Sobre",
   "sidebar.settings": "Configurações",
 
@@ -93,6 +92,7 @@ export const pt = {
   "about.description":
     "Uma ferramenta criada para meu fluxo de trabalho de tradução de letras de músicas. Construído com React 19, TypeScript e tecnologias web modernas.",
   "about.version": "Versão",
+  "about.viewChangelog": "Ver Registro de Alterações",
   "about.madeWith": "Feito com ♡ por Argel H",
 
   "common.cancel": "Cancelar",

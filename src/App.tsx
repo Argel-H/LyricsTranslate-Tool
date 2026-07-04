@@ -9,6 +9,7 @@ import { DashboardPage } from "@/features/dashboard/DashboardPage";
 import { ProjectSetupPage } from "@/features/project-setup/ProjectSetupPage";
 import { EditorPage } from "@/features/editor/EditorPage";
 import { AnimatedPage } from "@/components/shared/AnimatedPage";
+import { ChangelogModal } from "@/components/shared/ChangelogModal";
 import { db } from "@/db/database";
 import { Globe, Trash2 } from "lucide-react";
 import { APP_NAME, APP_VERSION } from "@/lib/appConfig";
@@ -34,8 +35,10 @@ function App() {
   const loadSettings = useSettingsStore((s) => s.loadSettings);
   const settingsOpen = useModalStore((s) => s.settingsOpen);
   const aboutOpen = useModalStore((s) => s.aboutOpen);
+  const changelogOpen = useModalStore((s) => s.changelogOpen);
   const closeSettings = useModalStore((s) => s.closeSettings);
   const closeAbout = useModalStore((s) => s.closeAbout);
+  const closeChangelog = useModalStore((s) => s.closeChangelog);
   const language = useSettingsStore((s) => s.language);
   const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
   const { t } = useI18n();
@@ -112,9 +115,20 @@ function App() {
           <p className="font-label-md text-on-surface-variant">
             {t("about.version")} {APP_VERSION}
           </p>
+          <button
+            onClick={() => {
+              closeAbout();
+              useModalStore.getState().openChangelog();
+            }}
+            className="text-primary hover:underline font-label-md mt-3"
+          >
+            {t("about.viewChangelog")}
+          </button>
           <p className="font-body-md text-on-surface-variant pt-2">{t("about.madeWith")}</p>
         </div>
       </Modal>
+
+      <ChangelogModal open={changelogOpen} onClose={closeChangelog} />
 
       {resetConfirmOpen && (
         <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/60 backdrop-blur-sm">

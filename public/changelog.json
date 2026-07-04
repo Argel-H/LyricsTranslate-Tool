@@ -1,0 +1,13 @@
+[
+  {
+    "version": "0.0.1",
+    "date": "2025-07-04",
+    "changes": [
+      "Initial release",
+      "Lyric editor with timestamp controls",
+      "LRC and SRT export",
+      "Multi-language interface (EN, ES, PT)",
+      "MusicBrainz, Deezer, and Odesli metadata integration"
+    ]
+  }
+]

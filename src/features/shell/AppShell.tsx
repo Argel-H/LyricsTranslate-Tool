@@ -1,28 +1,28 @@
-import { cn } from "@/lib/utils"
-import { Sidebar } from "./Sidebar"
-import { TopBar } from "./TopBar"
-import type { ReactNode } from "react"
-import { useEffect } from "react"
+import { cn } from "@/lib/utils";
+import { Sidebar } from "./Sidebar";
+import { TopBar } from "./TopBar";
+import type { ReactNode } from "react";
+import { useEffect } from "react";
 
 interface AppShellProps {
-  children: ReactNode
-  title?: string
-  activePage?: "home" | "patch-notes" | "about" | "settings"
-  variant?: "standard" | "dashboard"
-  onBack?: () => void
-  onOpenSettings?: () => void
-  onOpenAbout?: () => void
-  actions?: ReactNode
-  sidebarBg?: string
-  topbarBg?: string
-  showTopbar?: boolean
-  showTopbarBorder?: boolean
-  bodyBg?: string
-  className?: string
+  children: ReactNode;
+  title?: string;
+  activePage?: "home" | "about" | "settings";
+  variant?: "standard" | "dashboard";
+  onBack?: () => void;
+  onOpenSettings?: () => void;
+  onOpenAbout?: () => void;
+  actions?: ReactNode;
+  sidebarBg?: string;
+  topbarBg?: string;
+  showTopbar?: boolean;
+  showTopbarBorder?: boolean;
+  bodyBg?: string;
+  className?: string;
 }
 
-export function AppShell({ 
-  children, 
+export function AppShell({
+  children,
   title,
   activePage,
   variant = "standard",
@@ -35,34 +35,53 @@ export function AppShell({
   showTopbar: showTopbarProp,
   showTopbarBorder = true,
   bodyBg = "bg-surface-container-low",
-  className 
+  className,
 }: AppShellProps) {
-  const showTopbar = showTopbarProp ?? (variant === "standard")
+  const showTopbar = showTopbarProp ?? variant === "standard";
 
   useEffect(() => {
-    document.body.classList.add(bodyBg)
-    return () => { document.body.classList.remove(bodyBg) }
-  }, [bodyBg])
+    document.body.classList.add(bodyBg);
+    return () => {
+      document.body.classList.remove(bodyBg);
+    };
+  }, [bodyBg]);
 
   return (
-    <div className={cn("font-body-lg text-body-lg min-h-screen flex", bodyBg, className)}>
-      <Sidebar activePage={activePage} bgColor={sidebarBg} onOpenSettings={onOpenSettings} onOpenAbout={onOpenAbout} />
-      
-      <div className="flex-1 flex flex-col lg:ml-20">
-        {showTopbar && title && (
-          <TopBar 
-            title={title} 
-            onBack={onBack} 
-            bgColor={topbarBg}
-            showBorder={showTopbarBorder}
-            actions={actions} 
-          />
+    <div
+      className={cn(
+        "font-body-lg text-body-lg min-h-screen flex flex-col",
+        bodyBg,
+        className,
+      )}
+    >
+      <Sidebar
+        activePage={activePage}
+        bgColor={sidebarBg}
+        showLogo={!showTopbar}
+        className={showTopbar ? "top-[5rem] h-[calc(100vh-5rem)]" : undefined}
+        onOpenSettings={onOpenSettings}
+        onOpenAbout={onOpenAbout}
+      />
+
+      {showTopbar && title && (
+        <TopBar
+          title={title}
+          onBack={onBack}
+          bgColor={topbarBg}
+          showBorder={showTopbarBorder}
+          actions={actions}
+        />
+      )}
+
+      <main
+        className={cn(
+          "flex-1 pr-6 pb-24 md:pb-16 flex transition-colors duration-300 lg:ml-20",
+          !showTopbar && "pt-10 md:pt-5",
+          bodyBg,
         )}
-        
-        <main className={cn("flex-1 pr-6 pb-24 md:pb-16 flex transition-colors duration-300", !showTopbar && "pt-10 md:pt-5", bodyBg)}>
-          {children}
-        </main>
-      </div>
+      >
+        {children}
+      </main>
     </div>
-  )
+  );
 }

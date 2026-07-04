@@ -1,6 +1,5 @@
 export const en = {
   "sidebar.home": "Home",
-  "sidebar.patchNotes": "Patch Notes",
   "sidebar.about": "About",
   "sidebar.settings": "Settings",
 
@@ -89,6 +88,7 @@ export const en = {
   "about.description":
     "A tool created for my song lyrics translation workflow. Built with React 19, TypeScript, and modern web technologies.",
   "about.version": "Version",
+  "about.viewChangelog": "View Changelog",
   "about.madeWith": "Made with ♡ by Argel H",
 
   "common.cancel": "Cancel",
