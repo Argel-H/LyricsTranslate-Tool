@@ -17,7 +17,7 @@ export function NavButton({
   return (
     <button
       className={cn(
-        "w-16 h-16 flex flex-col items-center justify-center gap-1 rounded-2xl transition-all cursor-pointer group",
+        "w-16 h-16 flex flex-col items-center justify-center gap-1 rounded-2xl cursor-pointer group pressable",
         active
           ? "bg-secondary-container text-on-secondary-container hover:bg-primary-container hover:!text-on-primary-container [&_svg]:fill-current"
           : "text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface",

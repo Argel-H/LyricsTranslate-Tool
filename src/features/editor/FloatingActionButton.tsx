@@ -16,7 +16,7 @@ export function FloatingActionButton({ icon: Icon, label, onClick, className, di
         onClick={disabled ? undefined : onClick}
         disabled={disabled}
         className={cn(
-          "h-16 px-8 rounded-full bg-tertiary-container text-on-tertiary-container shadow-2xl flex items-center gap-3 hover:brightness-110 transition-all hover:scale-105 active:scale-95 border border-tertiary-container/50",
+          "h-16 px-8 rounded-full bg-tertiary-container text-on-tertiary-container shadow-2xl flex items-center gap-3 hover:brightness-110 transition-[filter] border border-tertiary-container/50 pressable ripple",
           disabled && "opacity-50 pointer-events-none",
           className
         )}

@@ -35,8 +35,7 @@ export function RoundedInput({ label, value, onChange, onClear, readOnly, classN
           </button>
         )}
       </div>
-      {/* Animated underline on hover/focus */}
-      <div className="absolute bottom-0 left-1/4 right-1/4 h-px bg-primary scale-x-0 group-hover:scale-x-100 group-focus-within:scale-x-100 transition-transform duration-300 ease-out origin-center rounded-full" />
+      <div className="absolute bottom-0 left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-primary to-transparent scale-x-0 group-hover:scale-x-100 group-focus-within:scale-x-100 transition-transform duration-300 ease-out origin-center rounded-full" />
     </div>
   )
 }

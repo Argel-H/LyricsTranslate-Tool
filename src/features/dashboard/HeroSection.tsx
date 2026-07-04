@@ -41,7 +41,7 @@ export function HeroSection({
         </div>
         <Button
           onClick={onCreateEmpty}
-          className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-primary-container !text-on-primary-container rounded-full font-label-lg text-label-lg hover:shadow-md hover:bg-primary hover:!text-on-primary transition-all duration-300 h-auto"
+          className="inline-flex items-center justify-center gap-2 px-8 py-4 bg-primary-container !text-on-primary-container rounded-[1rem] font-label-lg text-label-lg hover:shadow-md hover:bg-primary hover:!text-on-primary transition-all duration-300 h-auto"
         >
           <Plus className="size-5" />
           {t("dashboard.hero.emptyProject")}

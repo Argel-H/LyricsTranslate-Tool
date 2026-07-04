@@ -59,7 +59,7 @@ export function AppShell({
           />
         )}
         
-        <main className={cn("flex-1 pr-6 pb-24 md:pb-16 flex", !showTopbar && "pt-10 md:pt-5", bodyBg)}>
+        <main className={cn("flex-1 pr-6 pb-24 md:pb-16 flex transition-colors duration-300", !showTopbar && "pt-10 md:pt-5", bodyBg)}>
           {children}
         </main>
       </div>

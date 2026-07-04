@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import type { ComponentType, SVGProps } from "react";
 import { ChevronDown, X as XIcon } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
 interface DropdownSelectProps {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
@@ -53,36 +54,42 @@ export function DropdownSelect({
     setOpen(false);
   };
 
-  const DropdownPanel = ({
-    options,
-    selectedValue,
-    onSelect,
-  }: {
-    options: string[];
-    selectedValue: string;
-    onSelect: (option: string) => void;
-  }) => (
-    <div className="absolute top-full left-0 mt-0 bg-surface-container-high border border-outline-variant/20 border-t-0 rounded-b-md rounded-t-none shadow-2xl z-50 w-full overflow-hidden">
-      <div className="max-h-48 overflow-y-auto">
-        {options.map((opt) => (
-          <button
-            key={opt}
-            onMouseDown={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onSelect(opt);
-            }}
-            className={cn(
-              "w-full text-left px-4 py-3 text-body-md text-on-surface hover:bg-surface-container-highest hover:text-on-surface transition-colors cursor-pointer",
-              opt === selectedValue &&
-                "bg-primary-container !text-on-primary-container",
-            )}
-          >
-            {opt}
-          </button>
-        ))}
-      </div>
-    </div>
+  const underline = (
+    <div className="absolute bottom-0 left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-primary to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out origin-center rounded-full" />
+  );
+
+  const dropdownPanel = options && (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0, transition: { duration: 0.18, ease: [0.4, 0, 0.2, 1] } }}
+          exit={{ opacity: 0, y: -4, transition: { duration: 0.1, ease: "easeIn" } }}
+          className="absolute top-full left-0 mt-0 bg-surface-container-high border border-outline-variant/20 border-t-0 rounded-b-md rounded-t-none shadow-2xl z-50 w-full overflow-hidden"
+        >
+          <div className="max-h-48 overflow-y-auto">
+            {options.map((opt) => (
+              <button
+                key={opt}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleSelect(opt);
+                }}
+                className={cn(
+                  "w-full text-left px-4 py-3 text-body-md transition-colors cursor-pointer",
+                  opt === value
+                    ? "bg-primary-container text-on-primary-container"
+                    : "text-on-surface hover:bg-surface-container-highest",
+                )}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 
   if (variant === "compact") {
@@ -91,7 +98,7 @@ export function DropdownSelect({
         ref={containerRef}
         onClick={options ? handleClick : undefined}
         className={cn(
-          "relative bg-surface-container-high px-4 py-2 flex items-center gap-3 border border-outline-variant/50 transition-all",
+          "relative bg-surface-container-high px-4 py-2 flex items-center gap-3 border border-outline-variant/50 transition-all group",
           open ? "rounded-t-md rounded-b-none border-b-0 duration-150" : "rounded-full duration-500",
           options && "cursor-pointer",
           className,
@@ -110,9 +117,8 @@ export function DropdownSelect({
           />
         </div>
         <ChevronDown className="size-4 text-on-surface-variant hover:text-on-surface" />
-        {open && options && (
-          <DropdownPanel options={options} selectedValue={value} onSelect={handleSelect} />
-        )}
+        {underline}
+        {dropdownPanel}
       </div>
     );
   }
@@ -147,9 +153,8 @@ export function DropdownSelect({
       ) : (
         <ChevronDown className="size-5 text-on-surface-variant ml-4 group-hover:text-on-surface" />
       )}
-      {open && options && (
-        <DropdownPanel options={options} selectedValue={value} onSelect={handleSelect} />
-      )}
+      {underline}
+      {dropdownPanel}
     </div>
   );
 }

@@ -242,10 +242,7 @@ export function ProjectSetupPage() {
                       label={
                         i === 0
                           ? t("setup.mainArtist")
-                          : t("setup.artistNumber").replace(
-                              "%d",
-                              String(i + 1),
-                            )
+                          : t("setup.artistNumber").replace("%d", String(i + 1))
                       }
                       value={artist}
                       onChange={(v) => updateArtist(i, v)}
@@ -279,12 +276,12 @@ export function ProjectSetupPage() {
                   onChange={setCoverUrl}
                   className="flex-grow"
                 />
-                <Button
+                {/*<Button
                   variant="secondary"
                   className="bg-primary-container !text-on-primary-container font-label-lg text-label-lg py-3 px-6 rounded-full hover:shadow-md transition-all h-[52px]"
                 >
                   {t("setup.verify")}
-                </Button>
+                </Button>*/}
               </div>
               <div className="w-full aspect-square bg-surface-container-highest rounded-3xl flex items-center justify-center mt-2 relative overflow-hidden border border-outline-variant/30">
                 {coverUrl ? (
@@ -312,6 +309,7 @@ export function ProjectSetupPage() {
                   value={originLanguage}
                   options={LANGUAGES}
                   onChange={setOriginLanguage}
+                  className="!rounded-tr-md"
                 />
                 <span className="font-body-lg text-on-surface-variant mx-2">
                   {t("setup.to")}
@@ -322,6 +320,7 @@ export function ProjectSetupPage() {
                   value={translationLanguage}
                   options={LANGUAGES}
                   onChange={setTranslationLanguage}
+                  className="!rounded-bl-md"
                 />
               </div>
             </SectionCard>
@@ -407,7 +406,7 @@ export function ProjectSetupPage() {
               <Button
                 variant="secondary"
                 onClick={addSocialEntry}
-                className="bg-primary-container !text-on-primary-container font-label-lg text-label-lg py-3 px-8 rounded-full flex items-center justify-center gap-2 self-center hover:bg-primary hover:text-on-primary transition-all mt-4 h-auto"
+                className="bg-primary-container !text-on-primary-container font-label-lg text-label-lg py-3 px-8 rounded-sm flex items-center justify-center gap-2 self-center hover:bg-primary hover:text-on-primary transition-all mt-4 h-auto"
               >
                 <Plus className="size-4" />
                 {t("setup.addNewLink")}

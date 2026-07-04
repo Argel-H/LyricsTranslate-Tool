@@ -31,7 +31,7 @@ export const pt = {
   "editor.fab.autoTranslate": "Auto-Traduzir Tudo",
   "editor.translatePlaceholder": "Traduza esta linha...",
   "editor.segmented.edit": "Editar",
-  "editor.segmented.save": "Salvar",
+  "editor.segmented.save": "Exportar",
   "editor.loading": "Carregando...",
   "editor.notFound": "Projeto Não Encontrado",
   "editor.notFoundDesc":
@@ -63,7 +63,7 @@ export const pt = {
   "setup.url": "URL",
   "setup.addNewLink": "Adicionar Novo Link",
   "setup.next": "Próximo",
-  "setup.sharedLink": "Link Compartilhado",
+  "setup.sharedLink": "Link para Plataformas de Streaming",
   "setup.linkUrl": "URL do Link",
   "setup.openLink": "Abrir link",
   "setup.to": "para",

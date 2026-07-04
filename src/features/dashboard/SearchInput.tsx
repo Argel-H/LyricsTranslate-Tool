@@ -2,6 +2,7 @@ import { Search, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { useI18n } from "@/hooks/useI18n";
 
 interface SearchResult {
@@ -20,6 +21,12 @@ interface SearchInputProps {
   onSelect?: (index: number) => void;
   isLoading?: boolean;
 }
+
+const dropdownAnimation = {
+  initial: { opacity: 0, y: -6 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.18, ease: [0.4, 0, 0.2, 1] as const } },
+  exit: { opacity: 0, y: -4, transition: { duration: 0.1, ease: "easeIn" as const } },
+};
 
 export function SearchInput({
   placeholder = "Search...",
@@ -43,7 +50,7 @@ export function SearchInput({
         top: rect.bottom,
         left: rect.left,
         width: rect.width,
-        zIndex: 9999,
+        zIndex: 50,
       });
     }
   };
@@ -64,8 +71,7 @@ export function SearchInput({
     setTimeout(() => setFocused(false), 150);
   };
 
-  const showDropdown =
-    focused && (isLoading || (results && results.length > 0));
+  const showDropdown = focused && (isLoading || (results && results.length > 0));
 
   return (
     <div
@@ -93,44 +99,49 @@ export function SearchInput({
             : "rounded-full duration-500",
         )}
       />
-      {showDropdown &&
-        createPortal(
-          <div
-            style={dropdownStyle}
-            className="bg-surface-container-high border border-outline-variant/20 border-t-0 rounded-b-md rounded-t-none shadow-2xl overflow-y-auto overflow-x-hidden max-h-[280px]"
-          >
-            {isLoading ? (
-              <div className="p-4 text-center text-on-surface-variant font-body-md">
-                {t("common.searching")}
-              </div>
-            ) : results && results.length > 0 ? (
-              results.map((result, index) => (
-                <button
-                  key={result.id ?? index}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    setFocused(false);
-                    onSelect?.(index);
-                  }}
-                  className="w-full text-left px-5 py-4 hover:bg-surface-container-highest transition-colors border-b border-outline-variant/10 last:border-b-0 flex items-center gap-3"
-                >
-                  <Search className="size-4 text-on-surface-variant shrink-0" />
-                  <div className="min-w-0">
-                    <p className="font-body-md text-on-surface truncate">
-                      {result.artistName} — {result.trackName}
-                    </p>
-                    {result.albumName && (
-                      <p className="font-label-md text-on-surface-variant truncate mt-0.5">
-                        {result.albumName}
+      <div className="absolute bottom-0 left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-primary to-transparent scale-x-0 group-hover:scale-x-100 group-focus-within:scale-x-100 transition-transform duration-300 ease-out origin-center rounded-full" />
+      {createPortal(
+        <AnimatePresence>
+          {showDropdown && (
+            <motion.div
+              style={dropdownStyle}
+              {...dropdownAnimation}
+              onMouseDown={(e) => e.preventDefault()}
+              className="bg-surface-container-high border border-outline-variant/20 border-t-0 rounded-b-md rounded-t-none shadow-2xl overflow-y-scroll overflow-x-hidden max-h-[280px]"
+            >
+              {isLoading ? (
+                <div className="p-4 text-center text-on-surface-variant font-body-md">
+                  {t("common.searching")}
+                </div>
+              ) : results && results.length > 0 ? (
+                results.map((result, index) => (
+                  <button
+                    key={result.id ?? index}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      onSelect?.(index);
+                    }}
+                    className="w-full text-left px-5 py-4 hover:bg-surface-container-highest transition-colors border-b border-outline-variant/10 last:border-b-0 flex items-center gap-3"
+                  >
+                    <Search className="size-4 text-on-surface-variant shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-body-md text-on-surface truncate">
+                        {result.artistName} — {result.trackName}
                       </p>
-                    )}
-                  </div>
-                </button>
-              ))
-            ) : null}
-          </div>,
-          document.body,
-        )}
+                      {result.albumName && (
+                        <p className="font-label-md text-on-surface-variant truncate mt-0.5">
+                          {result.albumName}
+                        </p>
+                      )}
+                    </div>
+                  </button>
+                ))
+              ) : null}
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body,
+      )}
     </div>
   );
 }
