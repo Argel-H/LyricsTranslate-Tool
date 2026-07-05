@@ -1,7 +1,8 @@
 import axios from "axios";
 import type { PlatformLinks } from "@/types/music";
+import { API } from "@/lib/apiConfig";
 
-const ODESLI_ENDPOINT = "/api-odesli/v1-alpha.1/links";
+const ODESLI_ENDPOINT = `${API.odesli}/v1-alpha.1/links`;
 
 export interface OdesliResult {
   platforms: PlatformLinks;

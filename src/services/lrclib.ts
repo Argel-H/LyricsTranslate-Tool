@@ -1,7 +1,8 @@
 import axios from "axios";
 import type { LRCLibResult } from "@/types/music";
+import { API } from "@/lib/apiConfig";
 
-const LRCLIB_ENDPOINT = "/api-lrclib/api/search?q=";
+const LRCLIB_ENDPOINT = `${API.lrclib}/api/search?q=`;
 
 export async function fetchLyrics(
   query: string,

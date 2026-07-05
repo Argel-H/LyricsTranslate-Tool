@@ -96,12 +96,14 @@ export function DashboardPage() {
     getAllProjects().then(setProjects);
   };
 
-  const formatResults = searchResults?.map((r) => ({
-    id: r.id,
-    trackName: r.trackName,
-    artistName: r.artistName,
-    albumName: r.albumName,
-  }));
+  const formatResults = Array.isArray(searchResults)
+    ? searchResults.map((r) => ({
+        id: r.id,
+        trackName: r.trackName,
+        artistName: r.artistName,
+        albumName: r.albumName,
+      }))
+    : undefined;
 
   return (
     <>

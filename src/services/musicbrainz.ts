@@ -1,9 +1,10 @@
 import axios from "axios";
 import type { MusicBrainzRecording, MusicBrainzArtistRelation } from "@/types/music";
 import { APP_NAME, APP_VERSION } from "@/lib/appConfig";
+import { API } from "@/lib/apiConfig";
 
 const USER_AGENT = `${APP_NAME.replace(/\s/g, "")}/${APP_VERSION}`;
-const MUSICBRAINZ_TRACK_ENDPOINT = "/api-musicbrainz/ws/2/recording/";
+const MUSICBRAINZ_BASE = API.musicbrainz;
 
 export async function fetchISRC(
   artistName: string,
@@ -11,7 +12,7 @@ export async function fetchISRC(
 ): Promise<{ isrc: string | null; artistMbids: string[] }> {
   try {
     const response = await axios.get<{ recordings?: MusicBrainzRecording[] }>(
-      MUSICBRAINZ_TRACK_ENDPOINT,
+      `${MUSICBRAINZ_BASE}/ws/2/recording/`,
       {
         params: {
           query: `artist:'${artistName}' AND recording:'${trackName}'`,
@@ -53,7 +54,7 @@ export async function fetchArtistSocialLinks(
 ): Promise<Array<{ platform: string; url: string }>> {
   try {
     const response = await axios.get<{ relations?: MusicBrainzArtistRelation[] }>(
-      `/api-musicbrainz-artist/ws/2/artist/${mbid}`,
+      `${MUSICBRAINZ_BASE}/ws/2/artist/${mbid}`,
       {
         params: { inc: "url-rels", fmt: "json" },
         headers: { "User-Agent": USER_AGENT },

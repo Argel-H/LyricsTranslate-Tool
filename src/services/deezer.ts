@@ -1,7 +1,8 @@
 import axios from "axios";
 import type { DeezerTrack } from "@/types/music";
+import { API } from "@/lib/apiConfig";
 
-const DEEZER_BASE = "/api-deezer";
+const DEEZER_BASE = API.deezer;
 
 export interface DeezerResult {
   link: string;

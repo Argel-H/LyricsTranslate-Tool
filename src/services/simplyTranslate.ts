@@ -1,7 +1,8 @@
 import axios from "axios";
 import type { SimplyTranslateResponse } from "@/types/music";
+import { API } from "@/lib/apiConfig";
 
-const TRANSLATE_ENDPOINT = "/api-translate/translate";
+const TRANSLATE_ENDPOINT = `${API.translate}/translate`;
 
 export async function translateText(
   text: string,
