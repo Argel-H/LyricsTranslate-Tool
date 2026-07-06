@@ -82,10 +82,6 @@ function platformFromUrl(url: string): string | null {
   }
 }
 
-function normalizeAppleMusicUrl(url: string): string {
-  return url.replace(/music\.apple\.com\/[a-z]{2}\//, "music.apple.com/us/");
-}
-
 export async function fetchArtistSocialLinks(
   mbid: string,
 ): Promise<Array<{ platform: string; url: string }>> {
@@ -99,16 +95,14 @@ export async function fetchArtistSocialLinks(
     const seen = new Set<string>();
     const links: Array<{ platform: string; url: string }> = [];
     response.data?.relations?.forEach((rel) => {
-      let resource = rel.url?.resource;
+      const resource = rel.url?.resource;
       if (!resource) return;
-      resource = normalizeAppleMusicUrl(resource);
-      if (seen.has(resource)) return;
       const typePlatform = RELATION_TYPE_MAP[rel.type];
       const platform = (typePlatform && typePlatform !== "Streaming" && typePlatform !== "Social")
         ? typePlatform
         : platformFromUrl(resource);
-      if (platform) {
-        seen.add(resource);
+      if (platform && !seen.has(platform)) {
+        seen.add(platform);
         links.push({ platform, url: resource });
       }
     });
