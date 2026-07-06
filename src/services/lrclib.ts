@@ -9,9 +9,13 @@ export async function fetchLyrics(
   options?: { signal?: AbortSignal },
 ): Promise<LRCLibResult[]> {
   if (!query.trim()) return [];
-  const response = await axios.get<LRCLibResult[]>(
-    `${LRCLIB_ENDPOINT}${encodeURIComponent(query)}`,
-    { signal: options?.signal },
-  );
-  return response.data;
+  try {
+    const response = await axios.get<LRCLibResult[]>(
+      `${LRCLIB_ENDPOINT}${encodeURIComponent(query)}`,
+      { signal: options?.signal },
+    );
+    return response.data;
+  } catch {
+    return [];
+  }
 }
