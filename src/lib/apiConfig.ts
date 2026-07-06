@@ -1,6 +1,6 @@
 const isDev = import.meta.env.DEV;
 
-const WORKER_URL = "https://subs-tool.fernandohu93.workers.dev";
+const WORKER_URL = "https://subs-tool-endpoints.iamargelh.mov";
 
 export const API = {
   lrclib: "https://lrclib.net",

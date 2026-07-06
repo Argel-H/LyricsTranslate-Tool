@@ -89,6 +89,7 @@ export function ProjectSetupPage() {
     defaultTranslationLang,
   );
   const [socialEntries, setSocialEntries] = useState<SocialEntry[]>([]);
+  const [activeArtistTab, setActiveArtistTab] = useState(0);
   const [deleteOpen, setDeleteOpen] = useState(false);
 
   useEffect(() => {
@@ -100,6 +101,19 @@ export function ProjectSetupPage() {
           setCoverUrl(project.coverUrl ?? "");
           setAlbumName(project.albumName ?? "");
           setSongLinkUrl(project.songLinkUrl ?? "");
+          const recommended = (project.recommendedSocialLinks ?? []).map(
+            (link) => {
+              const artistIndex = link.artistName
+                ? Math.max(0, project.artistName.indexOf(link.artistName))
+                : 0;
+              return {
+                artistIndex,
+                platform: link.platform,
+                url: link.url,
+              };
+            },
+          );
+          setSocialEntries(recommended);
           setOriginLanguage(project.originLanguage ?? "English");
           setTranslationLanguage(
             project.translationLanguage ?? defaultTranslationLang,
@@ -134,7 +148,7 @@ export function ProjectSetupPage() {
   const addSocialEntry = () => {
     setSocialEntries([
       ...socialEntries,
-      { artistIndex: 0, platform: "Spotify", url: "" },
+      { artistIndex: activeArtistTab, platform: "Spotify", url: "" },
     ]);
   };
 
@@ -177,6 +191,14 @@ export function ProjectSetupPage() {
         translationLanguage,
         albumName: input.albumName,
         songLinkUrl: input.songLinkUrl,
+        recommendedSocialLinks:
+          socialEntries.length > 0
+            ? socialEntries.map((e) => ({
+                platform: e.platform,
+                url: e.url,
+                artistName: artists[e.artistIndex],
+              }))
+            : undefined,
       });
       navigate(`/editor/${editId}`);
     } else {
@@ -345,64 +367,109 @@ export function ProjectSetupPage() {
             </SectionCard>
 
             <SectionCard title={t("setup.socialMedia")} gap="lg">
-              {socialEntries.length === 0 && (
+              {artists.filter((a) => a.trim()).length > 1 && (
+                <div className="flex gap-2 flex-wrap">
+                  {artists
+                    .filter((a) => a.trim())
+                    .map((artist, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setActiveArtistTab(i)}
+                        className={`px-4 py-2 rounded-full font-label-md transition-colors ${
+                          activeArtistTab === i
+                            ? "bg-primary-container text-on-primary-container"
+                            : "bg-surface-container-highest text-on-surface-variant hover:bg-surface-container-high"
+                        }`}
+                      >
+                        {artist}
+                      </button>
+                    ))}
+                </div>
+              )}
+              {socialEntries.filter((e) => e.artistIndex === activeArtistTab)
+                .length === 0 && (
                 <p className="text-on-surface-variant font-body-md text-center py-4">
                   {t("setup.noSocialLinks")}
                 </p>
               )}
-              {socialEntries.map((entry, i) => {
-                const artistOptions = artists
-                  .filter((a) => a.trim())
-                  .map((a) => a.trim());
-                return (
-                  <div
-                    key={i}
-                    className="flex flex-col gap-sm p-lg bg-surface-container-low rounded-3xl border border-outline-variant/30"
-                  >
-                    <div className="grid grid-cols-[1fr_1fr_auto] gap-md items-center">
-                      <DropdownSelect
-                        icon={User}
-                        label={t("setup.artist")}
-                        value={
-                          artistOptions[entry.artistIndex] ??
-                          t("setup.selectArtist")
-                        }
-                        options={
-                          artistOptions.length > 0
-                            ? artistOptions
-                            : [t("setup.noArtists")]
-                        }
-                        onChange={(v) => {
-                          const idx = artistOptions.indexOf(v);
-                          if (idx >= 0)
-                            updateSocialEntry(i, "artistIndex", idx);
-                        }}
-                        variant="compact"
-                      />
-                      <DropdownSelect
-                        icon={Link}
-                        label={t("setup.platform")}
-                        value={entry.platform}
-                        options={PLATFORMS}
-                        onChange={(v) => updateSocialEntry(i, "platform", v)}
-                        variant="compact"
-                      />
-                      <button
-                        onClick={() => removeSocialEntry(i)}
-                        className="size-9 rounded-lg bg-error-container/30 hover:bg-error-container text-error hover:text-on-error-container flex items-center justify-center transition-colors"
-                      >
-                        <X className="size-4" />
-                      </button>
+              {socialEntries
+                .filter((e) => e.artistIndex === activeArtistTab)
+                .map((entry, i) => {
+                  const globalIndex = socialEntries.indexOf(entry);
+                  const artistOptions = artists
+                    .filter((a) => a.trim())
+                    .map((a) => a.trim());
+                  return (
+                    <div
+                      key={i}
+                      className="flex flex-col gap-sm p-lg bg-surface-container-low rounded-3xl border border-outline-variant/30"
+                    >
+                      <div className="grid grid-cols-[1fr_1fr_auto] gap-md items-center">
+                        <DropdownSelect
+                          icon={User}
+                          label={t("setup.artist")}
+                          value={
+                            artistOptions[entry.artistIndex] ??
+                            t("setup.selectArtist")
+                          }
+                          options={
+                            artistOptions.length > 0
+                              ? artistOptions
+                              : [t("setup.noArtists")]
+                          }
+                          onChange={(v) => {
+                            const idx = artistOptions.indexOf(v);
+                            if (idx >= 0)
+                              updateSocialEntry(
+                                globalIndex,
+                                "artistIndex",
+                                idx,
+                              );
+                          }}
+                          variant="compact"
+                        />
+                        <DropdownSelect
+                          icon={Link}
+                          label={t("setup.platform")}
+                          value={entry.platform}
+                          options={PLATFORMS}
+                          onChange={(v) =>
+                            updateSocialEntry(globalIndex, "platform", v)
+                          }
+                          variant="compact"
+                        />
+                        <button
+                          onClick={() => removeSocialEntry(globalIndex)}
+                          className="size-9 rounded-lg bg-error-container/30 hover:bg-error-container text-error hover:text-on-error-container flex items-center justify-center transition-colors"
+                        >
+                          <X className="size-4" />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1">
+                          <RoundedInput
+                            label={t("setup.url")}
+                            value={entry.url}
+                            onChange={(v) =>
+                              updateSocialEntry(globalIndex, "url", v)
+                            }
+                            className="mt-2"
+                          />
+                        </div>
+                        {entry.url.trim() && (
+                          <a
+                            href={entry.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="size-9 rounded-sm bg-primary-container/30 hover:bg-primary-container text-primary hover:text-on-primary-container flex items-center justify-center transition-colors shrink-0 mt-2"
+                          >
+                            <ExternalLink className="size-4" />
+                          </a>
+                        )}
+                      </div>
                     </div>
-                    <RoundedInput
-                      label={t("setup.url")}
-                      value={entry.url}
-                      onChange={(v) => updateSocialEntry(i, "url", v)}
-                      className="mt-2"
-                    />
-                  </div>
-                );
-              })}
+                  );
+                })}
               <Button
                 variant="secondary"
                 onClick={addSocialEntry}

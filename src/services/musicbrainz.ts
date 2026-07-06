@@ -1,15 +1,13 @@
 import axios from "axios";
 import type { MusicBrainzRecording, MusicBrainzArtistRelation } from "@/types/music";
-import { APP_NAME, APP_VERSION } from "@/lib/appConfig";
 import { API } from "@/lib/apiConfig";
 
-const USER_AGENT = `${APP_NAME.replace(/\s/g, "")}/${APP_VERSION}`;
 const MUSICBRAINZ_BASE = API.musicbrainz;
 
 export async function fetchISRC(
   artistName: string,
   trackName: string,
-): Promise<{ isrc: string | null; artistMbids: string[] }> {
+): Promise<{ isrc: string | null; artistMbids: string[]; artistNames: string[] }> {
   try {
     const response = await axios.get<{ recordings?: MusicBrainzRecording[] }>(
       `${MUSICBRAINZ_BASE}/ws/2/recording/`,
@@ -19,19 +17,22 @@ export async function fetchISRC(
           fmt: "json",
           limit: 1,
         },
-        headers: { "User-Agent": USER_AGENT },
       },
     );
     const recording = response.data?.recordings?.[0];
     const isrc = recording?.isrcs?.[0] ?? null;
     const artistMbids: string[] = [];
+    const artistNames: string[] = [];
     recording?.["artist-credit"]?.forEach((ac) => {
-      if (ac.artist?.id) artistMbids.push(ac.artist.id);
+      if (ac.artist?.id) {
+        artistMbids.push(ac.artist.id);
+        artistNames.push(ac.name);
+      }
     });
-    return { isrc, artistMbids };
+    return { isrc, artistMbids, artistNames };
   } catch (err) {
     console.error("fetchISRC failed:", err);
-    return { isrc: null, artistMbids: [] };
+    return { isrc: null, artistMbids: [], artistNames: [] };
   }
 }
 
@@ -81,6 +82,10 @@ function platformFromUrl(url: string): string | null {
   }
 }
 
+function normalizeAppleMusicUrl(url: string): string {
+  return url.replace(/music\.apple\.com\/[a-z]{2}\//, "music.apple.com/us/");
+}
+
 export async function fetchArtistSocialLinks(
   mbid: string,
 ): Promise<Array<{ platform: string; url: string }>> {
@@ -89,16 +94,20 @@ export async function fetchArtistSocialLinks(
       `${MUSICBRAINZ_BASE}/ws/2/artist/${mbid}`,
       {
         params: { inc: "url-rels", fmt: "json" },
-        headers: { "User-Agent": USER_AGENT },
       },
     );
     const seen = new Set<string>();
     const links: Array<{ platform: string; url: string }> = [];
     response.data?.relations?.forEach((rel) => {
-      const resource = rel.url?.resource;
-      if (!resource || seen.has(resource)) return;
-      const platform = RELATION_TYPE_MAP[rel.type] ?? platformFromUrl(resource);
-      if (platform && platform !== "Streaming" && platform !== "Social") {
+      let resource = rel.url?.resource;
+      if (!resource) return;
+      resource = normalizeAppleMusicUrl(resource);
+      if (seen.has(resource)) return;
+      const typePlatform = RELATION_TYPE_MAP[rel.type];
+      const platform = (typePlatform && typePlatform !== "Streaming" && typePlatform !== "Social")
+        ? typePlatform
+        : platformFromUrl(resource);
+      if (platform) {
         seen.add(resource);
         links.push({ platform, url: resource });
       }

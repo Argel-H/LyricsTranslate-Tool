@@ -24,7 +24,7 @@ export interface Project {
   albumName?: string;
   songLinkUrl?: string;
   artistLinks?: Array<{ name: string; url: string }>;
-  recommendedSocialLinks?: Array<{ platform: string; url: string }>;
+  recommendedSocialLinks?: Array<{ platform: string; url: string; artistName?: string }>;
   createdAt: number;
   updatedAt: number;
 }
@@ -41,5 +41,5 @@ export interface ProjectCreateInput {
   albumName?: string;
   songLinkUrl?: string;
   artistLinks?: Array<{ name: string; url: string }>;
-  recommendedSocialLinks?: Array<{ platform: string; url: string }>;
+  recommendedSocialLinks?: Array<{ platform: string; url: string; artistName?: string }>;
 }

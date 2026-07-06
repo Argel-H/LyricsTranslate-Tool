@@ -21,10 +21,11 @@ export async function createProject(input: ProjectCreateInput): Promise<number> 
     albumName: input.albumName,
     songLinkUrl: input.songLinkUrl,
     artistLinks: input.artistLinks,
+    recommendedSocialLinks: input.recommendedSocialLinks,
     createdAt: now,
     updatedAt: now,
   };
-  await db.projects.add(project);
+  await db.projects.add(JSON.parse(JSON.stringify(project)));
   return id;
 }
 
@@ -38,7 +39,7 @@ export async function getAllProjects(): Promise<Project[]> {
 
 export async function updateProject(
   id: number,
-  updates: Partial<Pick<Project, "title" | "status" | "progress" | "coverUrl" | "streamingSites" | "originLanguage" | "translationLanguage" | "artistName" | "trackName" | "albumName" | "songLinkUrl">>,
+  updates: Partial<Pick<Project, "title" | "status" | "progress" | "coverUrl" | "streamingSites" | "originLanguage" | "translationLanguage" | "artistName" | "trackName" | "albumName" | "songLinkUrl" | "recommendedSocialLinks" | "artistLinks">>,
 ): Promise<void> {
   await db.projects.update(id, { ...updates, updatedAt: Date.now() });
 }

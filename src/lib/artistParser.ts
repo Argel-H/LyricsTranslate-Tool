@@ -3,7 +3,7 @@ export function getArtistName(artistName: string): string[] {
     /\sfeat\.\s/i,
     /\sft\.\s/i,
     /\s&\s/,
-    /\s,\s/,
+    /,\s*/,
   ];
 
   let matchedPhrase: RegExp | null = null;
