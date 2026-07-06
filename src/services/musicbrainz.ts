@@ -47,7 +47,39 @@ const RELATION_TYPE_MAP: Record<string, string> = {
   soundcloud: "SoundCloud",
   spotify: "Spotify",
   "apple music": "Apple Music",
+  "free streaming": "Streaming",
+  streaming: "Streaming",
+  "social network": "Social",
 };
+
+function platformFromUrl(url: string): string | null {
+  try {
+    const domain = new URL(url).hostname.replace("www.", "");
+    const patterns: [string, string][] = [
+      ["twitter.com", "Twitter/X"],
+      ["x.com", "Twitter/X"],
+      ["facebook.com", "Facebook"],
+      ["instagram.com", "Instagram"],
+      ["tiktok.com", "TikTok"],
+      ["youtube.com", "YouTube"],
+      ["soundcloud.com", "SoundCloud"],
+      ["spotify.com", "Spotify"],
+      ["deezer.com", "Deezer"],
+      ["music.apple.com", "Apple Music"],
+      ["bandcamp.com", "Bandcamp"],
+      ["tidal.com", "Tidal"],
+      ["music.amazon.com", "Amazon Music"],
+      ["patreon.com", "Patreon"],
+      ["genius.com", "Genius"],
+    ];
+    for (const [pattern, platform] of patterns) {
+      if (domain.includes(pattern)) return platform;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export async function fetchArtistSocialLinks(
   mbid: string,
@@ -60,11 +92,15 @@ export async function fetchArtistSocialLinks(
         headers: { "User-Agent": USER_AGENT },
       },
     );
+    const seen = new Set<string>();
     const links: Array<{ platform: string; url: string }> = [];
     response.data?.relations?.forEach((rel) => {
-      const platform = RELATION_TYPE_MAP[rel.type];
-      if (platform && rel.url?.resource) {
-        links.push({ platform, url: rel.url.resource });
+      const resource = rel.url?.resource;
+      if (!resource || seen.has(resource)) return;
+      const platform = RELATION_TYPE_MAP[rel.type] ?? platformFromUrl(resource);
+      if (platform && platform !== "Streaming" && platform !== "Social") {
+        seen.add(resource);
+        links.push({ platform, url: resource });
       }
     });
     return links;

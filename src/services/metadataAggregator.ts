@@ -3,8 +3,9 @@ import { fetchDeezerByISRC, fetchDeezerByName } from "./deezer";
 import { fetchOdesliUrls } from "./odesli";
 import { processLyricsMap } from "@/lib/lyricsParser";
 import { getArtistName } from "@/lib/artistParser";
+import { API } from "@/lib/apiConfig";
 import type { LyricLine, ProjectCreateInput } from "@/types/project";
-import type { LRCLibResult } from "@/types/music";
+import type { LRCLibResult, DeezerTrack } from "@/types/music";
 
 export async function getFullMetadata(
   artistName: string,
@@ -58,22 +59,28 @@ export async function getFullMetadata(
 
   // Layer 1: Deezer (richest data)
   if (isrc) {
-    const deezer = await fetchDeezerByISRC(isrc);
-    if (deezer) {
-      coverUrl = deezer.cover;
-      if (!albumName) albumName = deezer.albumName;
-      // Deezer artists override LRCLIB (hierarchy rule)
-      if (deezer.artists && deezer.artists.length > 0) {
-        artistNames = deezer.artists;
+    if (API.metadata) {
+      const deezer = await fetchMetadataFromWorker(isrc);
+      if (deezer) {
+        coverUrl = deezer.cover;
+        if (!albumName) albumName = deezer.albumName;
+        if (deezer.artists && deezer.artists.length > 0) artistNames = deezer.artists;
+        if (deezer.artistLinks) artistLinks = deezer.artistLinks;
+        if (deezer.streamingSites) streamingSites = deezer.streamingSites;
+        if (deezer.songLinkUrl) songLinkUrl = deezer.songLinkUrl;
       }
-      // Collect artist links from Deezer
-      if (deezer.artistLinks) {
-        artistLinks = deezer.artistLinks;
-      }
-      const odesli = await fetchOdesliUrls(deezer.link);
-      if (odesli) {
-        streamingSites = odesli.platforms;
-        songLinkUrl = odesli.pageUrl;
+    } else {
+      const deezer = await fetchDeezerByISRC(isrc);
+      if (deezer) {
+        coverUrl = deezer.cover;
+        if (!albumName) albumName = deezer.albumName;
+        if (deezer.artists && deezer.artists.length > 0) artistNames = deezer.artists;
+        if (deezer.artistLinks) artistLinks = deezer.artistLinks;
+        const odesli = await fetchOdesliUrls(deezer.link);
+        if (odesli) {
+          streamingSites = odesli.platforms;
+          songLinkUrl = odesli.pageUrl;
+        }
       }
     }
   }
@@ -111,4 +118,43 @@ export async function getFullMetadata(
     artistLinks,
     recommendedSocialLinks: socialMediaLinks.length > 0 ? socialMediaLinks : undefined,
   };
+}
+
+async function fetchMetadataFromWorker(isrc: string) {
+  try {
+    const res = await fetch(`${API.metadata}?isrc=${encodeURIComponent(isrc)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const track: DeezerTrack | undefined = data?.deezer;
+    if (!track) return null;
+    const artists: string[] = [];
+    const artistLinks: Array<{ name: string; url: string }> = [];
+    if (track.artist?.name) {
+      artists.push(track.artist.name);
+      if (track.artist.link) artistLinks.push({ name: track.artist.name, url: track.artist.link });
+    }
+    track.contributors?.forEach((c: DeezerTrack["contributors"][number]) => {
+      if (c.name !== track.artist?.name) artists.push(c.name);
+      if (c.link) artistLinks.push({ name: c.name, url: c.link });
+    });
+    const odesli = data?.odesli;
+    return {
+      cover: track.album?.cover_xl ?? "",
+      albumName: track.album?.title,
+      artists: artists.length > 0 ? artists : undefined,
+      artistLinks: artistLinks.length > 0 ? artistLinks : undefined,
+      streamingSites: odesli?.linksByPlatform ? {
+        deezer: odesli.linksByPlatform?.deezer?.url ?? null,
+        appleMusic: odesli.linksByPlatform?.appleMusic?.url ?? null,
+        spotify: odesli.linksByPlatform?.spotify?.url ?? null,
+        youtube: odesli.linksByPlatform?.youtube?.url ?? null,
+        amazonMusic: odesli.linksByPlatform?.amazonMusic?.url ?? null,
+        soundcloud: odesli.linksByPlatform?.soundcloud?.url ?? null,
+        tidal: odesli.linksByPlatform?.tidal?.url ?? null,
+      } : undefined,
+      songLinkUrl: odesli?.pageUrl,
+    };
+  } catch {
+    return null;
+  }
 }

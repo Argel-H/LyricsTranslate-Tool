@@ -60,7 +60,7 @@ export const en = {
   "setup.addNewLink": "Add New Link",
   "setup.next": "Next",
   "setup.sharedLink": "Streaming Platforms Link",
-  "setup.linkUrl": "Link URL",
+  "setup.linkUrl": "Song URL",
   "setup.openLink": "Open link",
   "setup.to": "to",
   "setup.selectArtist": "Select Artist",

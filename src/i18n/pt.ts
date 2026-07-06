@@ -63,7 +63,7 @@ export const pt = {
   "setup.addNewLink": "Adicionar Novo Link",
   "setup.next": "Próximo",
   "setup.sharedLink": "Link para Plataformas de Streaming",
-  "setup.linkUrl": "URL do Link",
+  "setup.linkUrl": "URL da Canção",
   "setup.openLink": "Abrir link",
   "setup.to": "para",
   "setup.selectArtist": "Selecionar Artista",
