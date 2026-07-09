@@ -23,7 +23,7 @@ describe("findExistingTranslation", () => {
    * The song has "Ballerina dressed in black" at lines 28, 46, 64
    * and "I'm sorry, what's your excuse?" at multiple lines.
    */
-  const lyricsMap = processLyricsMap(MOCK_LRC_RAW)!;
+  const lyricsMap = processLyricsMap(MOCK_LRC_RAW!)!;
   const lyrics = mapToRecord(lyricsMap);
 
   it("returns null when no lines have translations", () => {
@@ -46,7 +46,7 @@ describe("findExistingTranslation", () => {
     expect(ballerinaEntries.length).toBeGreaterThanOrEqual(3);
 
     // Translate the first occurrence
-    const [firstKey, firstLine] = ballerinaEntries[0]!;
+    const [, firstLine] = ballerinaEntries[0]!;
     firstLine.translation = "Bailarina vestida de negro";
 
     // Check that the second occurrence gets a suggestion
@@ -73,7 +73,7 @@ describe("findExistingTranslation", () => {
     const ballerinaEntries = Object.entries(lyrics).filter(
       ([, line]) => line.lyric === "Ballerina dressed in black",
     );
-    const [firstKey, firstLine] = ballerinaEntries[0]!;
+    const [, firstLine] = ballerinaEntries[0]!;
     firstLine.translation = "Bailarina vestida de negro";
 
     const [secondKey] = ballerinaEntries[1]!;
@@ -87,7 +87,7 @@ describe("findExistingTranslation", () => {
     const ballerinaEntries = Object.entries(lyrics).filter(
       ([, line]) => line.lyric === "Ballerina dressed in black",
     );
-    const [firstKey, firstLine] = ballerinaEntries[0]!;
+    const [, firstLine] = ballerinaEntries[0]!;
     firstLine.translation = "Bailarina vestida de negro";
 
     const [secondKey] = ballerinaEntries[1]!;
@@ -109,7 +109,7 @@ describe("findExistingTranslation", () => {
     const ballerinaEntries = Object.entries(lyrics).filter(
       ([, line]) => line.lyric === "Ballerina dressed in black",
     );
-    const [firstKey, firstLine] = ballerinaEntries[0]!;
+    const [, firstLine] = ballerinaEntries[0]!;
     firstLine.translation = "Bailarina vestida de negro";
 
     // Search for a lyric that doesn't exist
@@ -125,7 +125,7 @@ describe("findExistingTranslation", () => {
     expect(sorryEntries.length).toBeGreaterThanOrEqual(2);
 
     // Translate the LAST occurrence (not the first)
-    const [lastKey, lastLine] = sorryEntries[sorryEntries.length - 1]!;
+    const [, lastLine] = sorryEntries[sorryEntries.length - 1]!;
     lastLine.translation = "Lo siento, ¿cuál es tu excusa?";
 
     // Check that the FIRST occurrence gets the suggestion
@@ -137,7 +137,7 @@ describe("findExistingTranslation", () => {
 });
 
 describe("findAllTranslations", () => {
-  const lyricsMap = processLyricsMap(MOCK_LRC_RAW)!;
+  const lyricsMap = processLyricsMap(MOCK_LRC_RAW!)!;
   const lyrics = mapToRecord(lyricsMap);
 
   it("returns empty array when no lines have translations", () => {
@@ -154,7 +154,7 @@ describe("findAllTranslations", () => {
     const ballerinaEntries = Object.entries(lyrics).filter(
       ([, line]) => line.lyric === "Ballerina dressed in black",
     );
-    const [firstKey, firstLine] = ballerinaEntries[0]!;
+    const [, firstLine] = ballerinaEntries[0]!;
     firstLine.translation = "Bailarina vestida de negro";
 
     const [secondKey] = ballerinaEntries[1]!;
@@ -226,7 +226,7 @@ describe("findAllTranslations", () => {
     );
     expect(sorryEntries.length).toBeGreaterThanOrEqual(2);
 
-    const [firstKey, firstLine] = sorryEntries[0]!;
+    const [, firstLine] = sorryEntries[0]!;
     const [, lastLine] = sorryEntries[sorryEntries.length - 1]!;
     firstLine.translation = "Perdona, ¿cuál es tu excusa?";
     lastLine.translation = "Lo siento, ¿cuál es tu excusa?";
