@@ -1,5 +1,17 @@
 export default {
   async fetch(request) {
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+          "Access-Control-Allow-Headers": "*",
+          "Access-Control-Max-Age": "86400",
+        },
+      });
+    }
+
     const url = new URL(request.url);
     const path = url.pathname;
     const isrc = url.searchParams.get("isrc");
@@ -13,6 +25,9 @@ export default {
     }
     if (path.startsWith("/odesli")) {
       return proxy(request, `https://api.song.link${path.replace("/odesli", "")}${url.search}`);
+    }
+    if (path === "/ai") {
+      return proxy(request, request.headers.get("X-Target-URL") || "");
     }
 
     return new Response("Not found", { status: 404 });
@@ -43,13 +58,13 @@ async function handleMetadata(isrc) {
 }
 
 async function proxy(request, targetUrl) {
-  const response = await fetch(targetUrl, {
-    method: request.method,
-    headers: request.headers,
-  });
-  const headers = new Headers(response.headers);
-  headers.set("Access-Control-Allow-Origin", "*");
-  return new Response(response.body, { status: response.status, headers });
+  if (!targetUrl) return new Response("Missing target URL", { status: 400 });
+  const headers = new Headers(request.headers);
+  headers.delete("X-Target-URL");
+  const response = await fetch(targetUrl, { method: request.method, headers, body: request.body });
+  const resHeaders = new Headers(response.headers);
+  resHeaders.set("Access-Control-Allow-Origin", "*");
+  return new Response(response.body, { status: response.status, headers: resHeaders });
 }
 
 function json(data, status = 200) {

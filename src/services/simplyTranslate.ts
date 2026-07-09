@@ -1,43 +1,131 @@
-import axios from "axios";
-import type { SimplyTranslateResponse } from "@/types/music";
 import { API } from "@/lib/apiConfig";
+import type { AIProvider } from "@/lib/aiConfig";
 
-const TRANSLATE_ENDPOINT = `${API.translate}/translate`;
-
-export async function translateText(
-  text: string,
-  from: string,
-  to: string,
-): Promise<string> {
-  const response = await axios.post<SimplyTranslateResponse>(
-    TRANSLATE_ENDPOINT,
-    { text, from, to },
-    { headers: { "Content-Type": "application/json" } },
-  );
-  return response.data.result;
+interface AIConfig {
+  provider: AIProvider;
+  apiKey: string;
 }
 
-export async function batchTranslate(
-  lines: Array<{ lyric: string; key: string }>,
-  from: string,
-  to: string,
-  onProgress?: (current: number, total: number) => void,
-): Promise<Record<string, string>> {
-  const translations: Record<string, string> = {};
-  for (let i = 0; i < lines.length; i++) {
-    const { lyric, key } = lines[i]!;
-    if (!lyric.trim() || (lyric.includes("[") && lyric.includes("]"))) {
-      continue;
-    }
-    try {
-      translations[key] = await translateText(lyric, from, to);
-      onProgress?.(i + 1, lines.length);
-      if (i < lines.length - 1) {
-        await new Promise((r) => setTimeout(r, 700));
-      }
-    } catch {
-      // skip failed translations
-    }
+// ─── Prompt Building ───────────────────────────────────────────────
+
+interface TranslationPromptContext {
+  lrcContent: string;
+  songTitle: string;
+  artistName: string;
+  targetLanguage: string;
+}
+
+function buildGenericRules(ctx: TranslationPromptContext): string[] {
+  return [
+    "You are a professional translator specialized in song localization.",
+    `Your task is to translate the provided lyrics from the .lrc file into Neutral ${ctx.targetLanguage}.`,
+    "",
+    "Context:",
+    `- Song Title: ${ctx.songTitle}`,
+    `- Artist: ${ctx.artistName}`,
+    "",
+    "Instructions:",
+    "1. Translate using an interpretative/communicative approach that feels poetic and singable. Prioritize natural rhythm and emotional impact over literal accuracy. The translation should read as if it was originally written in the target language.",
+    `2. Use Neutral ${ctx.targetLanguage} that is natural and easy to understand for any speaker. Adapt slang and idioms to their closest culturally equivalent expression without forced literalism.`,
+    "3. When consecutive lines form a continuous thought or sentence, make them flow seamlessly — do not force each line to stand alone if context connects them.",
+    "4. Do NOT invent or insert words, adverbs, or time markers that are not present or clearly implied in the original lyric.",
+    "5. When quoted speech or dialogue spans multiple lines, place quotation marks on all continuation lines, not just the first.",
+    "6. Use connectors where they add emotional weight — do not strip them out just to save syllables.",
+    "7. Vocalizations like 'yeah', 'oh', 'ooh' should be translated contextually depending on tone. Do not leave them in the source language.",
+    "8. STRICTLY maintain the original .lrc time tags (e.g., [00:12.34]) exactly as they appear in the input. Do not alter, add, or remove any timestamps.",
+    "9. Output ONLY the translated .lrc content. Do not include any introductory text, explanations, notes, or concluding remarks.",
+  ];
+}
+
+function buildDeepSeekRules(ctx: TranslationPromptContext): string[] {
+  return [
+    "",
+    `CRITICAL: you are translating song lyrics into ${ctx.targetLanguage}, not translating a document. Apply these rules:`,
+    "- Use natural, idiomatic expressions appropriate for the target language. Avoid literal translations.",
+    "- Match the emotional tone and intensity of the original lyrics. Use culturally appropriate intensifiers.",
+    "- Keep lines short and rhythmic. Remove filler words where the original meaning is preserved without them.",
+    "- Maintain vocalizations ('Ooh', 'Yeah', 'Ah') unless there is a clear cultural equivalent in the target language.",
+    "- When the original uses slang or informal language, use equivalent informal register in the target language.",
+    "- Final test: Read the translation out loud. Delete any line that sounds like machine translation.",
+  ];
+}
+
+function buildTranslationPrompt(
+  lrcContent: string,
+  songTitle: string,
+  artistName: string,
+  targetLanguage: string,
+  provider: AIProvider,
+): string {
+  const ctx: TranslationPromptContext = { lrcContent, songTitle, artistName, targetLanguage };
+  const parts: string[] = [
+    ...buildGenericRules(ctx),
+  ];
+
+  if (provider === "deepseek") {
+    parts.push(...buildDeepSeekRules(ctx));
   }
-  return translations;
+
+  parts.push("", "Input .lrc:", lrcContent);
+  return parts.join("\n");
+}
+
+// ─── AI Provider Calls ─────────────────────────────────────────────
+
+async function callGoogleGemini(prompt: string, apiKey: string): Promise<string | null> {
+  const targetUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
+  const response = await fetch(`${API.proxy}/ai`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Goog-Api-Key": apiKey,
+      "X-Target-URL": targetUrl,
+    },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+    }),
+  });
+  if (!response.ok || response.status === 204) return null;
+  const data = await response.json();
+  return data.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
+}
+
+async function callDeepSeek(prompt: string, apiKey: string): Promise<string | null> {
+  const targetUrl = "https://api.deepseek.com/v1/chat/completions";
+  const response = await fetch(`${API.proxy}/ai`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+      "X-Target-URL": targetUrl,
+    },
+    body: JSON.stringify({
+      model: "deepseek-chat",
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+  if (!response.ok || response.status === 204) return null;
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content ?? null;
+}
+
+// ─── Public API ────────────────────────────────────────────────────
+
+export async function translateLyrics(
+  lrcContent: string,
+  songTitle: string,
+  artistName: string,
+  targetLanguage: string,
+  config: AIConfig,
+): Promise<string | null> {
+  try {
+    const prompt = buildTranslationPrompt(lrcContent, songTitle, artistName, targetLanguage, config.provider);
+    if (config.provider === "google") {
+      return await callGoogleGemini(prompt, config.apiKey);
+    }
+    return await callDeepSeek(prompt, config.apiKey);
+  } catch (err) {
+    console.error("translateLyrics error:", err);
+    return null;
+  }
 }

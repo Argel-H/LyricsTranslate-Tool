@@ -4,7 +4,7 @@ import { API } from "@/lib/apiConfig";
 
 const MUSICBRAINZ_BASE = API.musicbrainz;
 
-export async function fetchISRC(
+export async function searchMusicBrainzRecording(
   artistName: string,
   trackName: string,
 ): Promise<{ isrc: string | null; artistMbids: string[]; artistNames: string[] }> {
@@ -31,7 +31,7 @@ export async function fetchISRC(
     });
     return { isrc, artistMbids, artistNames };
   } catch (err) {
-    console.error("fetchISRC failed:", err);
+    console.error("searchMusicBrainzRecording failed:", err);
     return { isrc: null, artistMbids: [], artistNames: [] };
   }
 }

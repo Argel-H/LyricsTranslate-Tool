@@ -36,6 +36,9 @@ export const es = {
   "editor.notFoundDesc": "Este proyecto no existe o fue eliminado.",
   "editor.backToDashboard": "Volver al Panel",
   "editor.translating": "Traduciendo...",
+  "editor.translatingDesc": "Espera mientras se traducen tus letras.",
+  "editor.translateErrorTitle": "Error de Traducción",
+  "editor.translateError": "No se pudieron traducir las letras. Intenta de nuevo más tarde.",
   "editor.emptyState":
     "Aún no hay letras. Agrega tu primera línea para empezar.",
   "editor.addFirstLine": "Agregar Primera Línea",
@@ -77,6 +80,11 @@ export const es = {
   "settings.title": "Ajustes",
   "settings.language": "Idioma",
   "settings.languageDescription": "Elige tu idioma preferido para la interfaz.",
+  "settings.aiTranslation": "Traducción IA",
+  "settings.aiProvider": "Proveedor",
+  "settings.aiApiKey": "Clave API",
+  "settings.aiSave": "Guardar",
+  "settings.aiSaved": "Guardado",
   "settings.resetDatabase": "Restablecer Base de Datos",
   "settings.resetDesc":
     "Eliminar todos los proyectos y preferencias. Esto no se puede deshacer.",
@@ -93,7 +101,9 @@ export const es = {
   "about.madeWith": "Hecho con ♡ por Argel H",
 
   "common.cancel": "Cancelar",
+  "common.ok": "OK",
   "common.save": "Guardar",
   "common.delete": "Eliminar",
   "common.searching": "Buscando...",
+  "common.noResults": "Sin resultados",
 } as const;

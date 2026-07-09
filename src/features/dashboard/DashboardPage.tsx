@@ -6,8 +6,9 @@ import { MasterCard } from "@/features/shell/MasterCard";
 import { HeroSection } from "./HeroSection";
 import { ProjectCard } from "./ProjectCard";
 import { APP_NAME } from "@/lib/appConfig";
-import { ArrowRight, Loader2 } from "lucide-react";
-import { fetchLyrics } from "@/services/lrclib";
+import { ArrowRight } from "lucide-react";
+import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
+import { searchLrcLib } from "@/services/lrclib";
 import { getFullMetadata } from "@/services/metadataAggregator";
 import {
   createProject,
@@ -17,7 +18,8 @@ import {
 import { useDebounce } from "@/hooks/useDebounce";
 import { useModalStore } from "@/stores/modalStore";
 import { useI18n } from "@/hooks/useI18n";
-import type { Project, ProjectStatus } from "@/types/project";
+import type { Project } from "@/types/project";
+import type { ProjectStatus } from "@/lib/constants";
 import type { LRCLibResult } from "@/types/music";
 
 export function DashboardPage() {
@@ -39,7 +41,7 @@ export function DashboardPage() {
     LRCLibResult[]
   >({
     queryKey: ["lrclib-search", debouncedSearch],
-    queryFn: () => fetchLyrics(debouncedSearch),
+    queryFn: () => searchLrcLib(debouncedSearch),
     enabled: debouncedSearch.trim().length > 1,
     staleTime: 60_000,
   });
@@ -201,15 +203,15 @@ export function DashboardPage() {
       {creatingProject && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-surface-container-high rounded-3xl p-8 shadow-2xl border border-outline-variant/20 max-w-sm w-full mx-4 flex flex-col items-center gap-4">
-            <Loader2 className="size-10 text-primary animate-spin" />
+            <M3LoadingIndicator size={40} style={{ color: "rgb(208, 188, 255)" }} />
             <p className="font-title-lg text-title-lg text-on-surface text-center">
               {t("dashboard.creatingProject")}
             </p>
             <p className="font-body-md text-body-md text-on-surface-variant text-center">
               {loadingStatus}
             </p>
-            <div className="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden mt-2">
-              <div className="h-full bg-primary rounded-full animate-pulse w-2/3" />
+            <div className="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden mt-2">
+              <div className="h-full bg-primary rounded-full animate-m3-loading-bar" />
             </div>
           </div>
         </div>

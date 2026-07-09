@@ -4,7 +4,7 @@ import { API } from "@/lib/apiConfig";
 
 const LRCLIB_ENDPOINT = `${API.lrclib}/api/search?q=`;
 
-export async function fetchLyrics(
+export async function searchLrcLib(
   query: string,
   options?: { signal?: AbortSignal },
 ): Promise<LRCLibResult[]> {

@@ -35,34 +35,6 @@ export const LRC_LINE_KEY_PADDING = 2;
 
 export const DROPDOWN_MAX_HEIGHT_PX = 370;
 
-export const PREFERENCES_SINGLETON_ID = "singleton" as const;
-
-export const LANGUAGE_NAMES = [
-  "English", "Spanish", "Portuguese", "French", "German",
-  "Italian", "Japanese", "Korean", "Chinese", "Arabic",
-  "Russian", "Hindi",
-] as const;
-
-export const PLATFORM_NAMES = [
-  "Spotify", "Apple Music", "Deezer", "YouTube", "SoundCloud",
-  "Tidal", "Amazon Music", "Instagram", "Twitter/X", "TikTok",
-  "Facebook", "Website",
-] as const;
-
-export const RELATION_TYPE_MAP: Record<string, string> = {
-  instagram: "Instagram",
-  twitter: "Twitter/X",
-  facebook: "Facebook",
-  youtube: "YouTube",
-  "youtube channel": "YouTube",
-  tiktok: "TikTok",
-  bandcamp: "Bandcamp",
-  "official homepage": "Website",
-  soundcloud: "SoundCloud",
-  spotify: "Spotify",
-  "apple music": "Apple Music",
-};
-
 export const EXPORT_FORMATS = ["lrc", "srt"] as const;
 
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];

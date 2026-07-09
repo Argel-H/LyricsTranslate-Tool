@@ -1,59 +1,111 @@
 import type { LyricLine } from "@/types/project";
 
-const HEX_TIMECODES: RegExp[] = [
+/** Recognized LRC timestamp formats: mm:ss.cs and mm:ss:cs formats */
+const LRC_TIMESTAMP_PATTERNS: RegExp[] = [
   /\[(\d{2}:\d{2}\.\d{2,3})\]/,
   /\[(\d{2}:\d{2}:\d{2}\.\d{2,3})\]/,
 ];
 
-interface LineItem {
-  line: string;
-  code: RegExp;
-  timecode: string;
+const DEFAULT_TIMESTAMP = "00:00.00";
+
+interface ParsedLrcLine {
+  timestamp: string;
+  text: string;
 }
 
-export function processLyricsMap(lyricsString: string): Map<string, LyricLine> | null {
-  const lines = lyricsString.replaceAll("\n\n", "\n \n").split("\n");
-  const lrcMap = new Map<string, LyricLine>();
-  let timeStampFound = false;
-  let noResultCount = 0;
-  let loopNumber = 1;
-  const hexLen = HEX_TIMECODES.length;
-  let count = 0;
+/**
+ * Determines whether an LRC string contains at least one timestamp line.
+ * Lines without any timestamp pattern are considered plain text.
+ */
+function hasTimestamps(lines: string[]): boolean {
+  for (const line of lines) {
+    for (const pattern of LRC_TIMESTAMP_PATTERNS) {
+      if (pattern.test(line)) return true;
+    }
+  }
+  return false;
+}
 
-  const saveLineItem = ({ line, code, timecode }: LineItem) => {
-    const newLine = line.replace(code, "");
-    const lyric = newLine === " " ? newLine : newLine.trim();
-    const key = `lrc_${String(count).padStart(2, "0")}`;
-    lrcMap.set(key, {
-      time_start: timecode,
-      time_end: timecode,
-      lyric,
+/**
+ * Parses raw LRC content (synced or plain) into an array of structured lines.
+ * - If the content has LRC timestamps, each line's timestamp is extracted.
+ * - If the content is plain text (no timestamps), all lines get "00:00.00".
+ * - Empty lines between stanzas are preserved as lines with empty text.
+ */
+export function parseLrcContent(raw: string): ParsedLrcLine[] {
+  const lines = splitPreservingEmptyLines(raw);
+
+  if (hasTimestamps(lines)) {
+    return parseSyncedLines(lines);
+  }
+  return lines.map((text) => ({ timestamp: DEFAULT_TIMESTAMP, text }));
+}
+
+/**
+ * Splits raw LRC text into lines, preserving intentional empty lines
+ * (double newlines indicate a stanza break, replaced with a single blank line).
+ */
+function splitPreservingEmptyLines(raw: string): string[] {
+  return raw.replaceAll("\n\n", "\n \n").split("\n");
+}
+
+/**
+ * Parses synced (timestamped) LRC lines, extracting timestamps and text.
+ * Lines without timestamps are skipped once timestamped lines have been found.
+ */
+function parseSyncedLines(lines: string[]): ParsedLrcLine[] {
+  const result: ParsedLrcLine[] = [];
+
+  for (const line of lines) {
+    let matched = false;
+    for (const pattern of LRC_TIMESTAMP_PATTERNS) {
+      const match = line.match(pattern);
+      if (match?.[1]) {
+        const text = line.replace(pattern, "").trim();
+        result.push({ timestamp: match[1], text: text || " " });
+        matched = true;
+        break;
+      }
+    }
+    // If no timestamp matched but we've already found timestamped lines,
+    // this is a non-timestamped line (e.g. blank stanza break) — skip it.
+    if (!matched && result.length === 0) {
+      // No timestamps found at all yet — this shouldn't happen because
+      // hasTimestamps() gates entry to this function, but handle gracefully.
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Converts an array of parsed LRC lines into the Map<string, LyricLine>
+ * format used by the editor, generating sequential keys like "lrc_00", "lrc_01", etc.
+ */
+export function toLyricLineMap(parsedLines: ParsedLrcLine[]): Map<string, LyricLine> {
+  const map = new Map<string, LyricLine>();
+
+  parsedLines.forEach((line, index) => {
+    const key = `lrc_${String(index).padStart(2, "0")}`;
+    map.set(key, {
+      time_start: line.timestamp,
+      time_end: line.timestamp,
+      lyric: line.text === " " ? line.text : line.text.trim(),
       translation: "",
       comment: "",
     });
-    count++;
-  };
+  });
 
-  for (const code of HEX_TIMECODES) {
-    noResultCount = 0;
-    if (timeStampFound) break;
-    for (const line of lines) {
-      const match = line.match(code);
-      if (!match) {
-        if (noResultCount >= 2 && hexLen !== loopNumber) break;
-        if (hexLen === loopNumber) {
-          saveLineItem({ line, code, timecode: "00:00.00" });
-        } else {
-          noResultCount++;
-        }
-      } else {
-        saveLineItem({ line, code, timecode: match[1]! });
-        timeStampFound = true;
-      }
-    }
-    loopNumber++;
-  }
+  return map;
+}
 
-  if (lrcMap.size === 0) return null;
-  return lrcMap;
+/**
+ * Legacy wrapper — parses raw lyrics string into a Map.
+ * Kept for backward compatibility with existing callers.
+ * Returns null if the input produces no parsed lines.
+ */
+export function processLyricsMap(lyricsString: string): Map<string, LyricLine> | null {
+  const lines = parseLrcContent(lyricsString);
+  if (lines.length === 0) return null;
+  return toLyricLineMap(lines);
 }

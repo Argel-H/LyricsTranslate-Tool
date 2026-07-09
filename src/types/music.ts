@@ -42,17 +42,13 @@ export interface MusicBrainzRecording {
   "artist-credit"?: Array<{
     name: string;
     joinphrase?: string;
-    artist?: { id: string; name: string };
+    artist?: {
+      id: string;
+      name: string;
+      aliases?: Array<{ name: string; type?: string }>;
+    };
   }>;
   releases?: Array<{ id: string; title: string }>;
-}
-
-export interface SimplyTranslateResponse {
-  result: string;
-  from: string;
-  to: string;
-  confidence: number;
-  timestamp: string;
 }
 
 export interface MusicBrainzArtistRelation {

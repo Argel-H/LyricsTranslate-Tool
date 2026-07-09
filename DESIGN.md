@@ -55,18 +55,21 @@ spacing: { xs: 4px, sm: 8px, md: 16px, lg: 24px, xl: 32px, gutter: 24px }
 **State:** Zustand (client state), TanStack Query (server state), Dexie.js (IndexedDB persistence).
 **Icons:** lucide-react (navigation/actions), Material Symbols font (status indicators).
 **Routing:** react-router-dom v7.
+**Loading:** @alerix/m3-loading-indicator (Canvas + spring physics, 7 morphing Material Design shapes).
 
 ## Project Structure
 ```
 src/
 ├── types/          Shared TypeScript interfaces (Project, LyricLine, API responses)
-├── services/       API clients (LRCLIB, MusicBrainz, Deezer, Odesli, SimplyTranslate)
+├── services/       API clients + metadata pipeline (LRCLIB, MusicBrainz, Deezer, Odesli, SimplyTranslate)
 ├── db/             Dexie.js schema + repositories (projects, preferences)
 ├── stores/         Zustand stores (project, settings, modal)
 ├── i18n/           Translation strings (en.ts, es.ts, pt.ts)
-├── hooks/          useDebounce, useI18n
-├── lib/            utils (cn), lyricsParser, artistParser
+├── hooks/          useDebounce, useI18n, useProjectCreation, useProjectSearch
+├── lib/            utils (cn), lyricsParser, artistParser, timeUtils, progressUtils
+├── test/mocks/     API mock fixtures for integration tests
 ├── components/ui/  shadcn/ui primitives (button, input, select, etc.)
+├── components/shared/ AnimatedPage, ChangelogModal, ConfirmDialog, LoadingOverlay, SettingsModal
 ├── features/
 │   ├── shell/      AppShell, Sidebar, TopBar, MasterCard, NavButton, Modal
 │   ├── dashboard/  DashboardPage, HeroSection, SearchInput, ProjectCard, etc.
@@ -87,9 +90,9 @@ src/
 | `/editor/:id` | EditorPage | Top Bar + Master Card | Lyric/translation table, auto-translate, timestamps |
 
 ## Data Flow
-1. **Search → Auto-fill:** User searches → LRCLIB (debounced) → click result → fetch full metadata (MusicBrainz ISRC → Deezer cover/artists/album → Odesli streaming links) → create project in Dexie → navigate to `/editor/:id`
+1. **Search → Auto-fill:** User searches → LRCLIB (debounced) → click result → `getFullMetadata()` pipeline: ① `extractLyricsFromLrc` → ② `resolveArtistsViaMusicBrainz` (ISRC, MBIDs) → ③ `resolveSocialMediaLinks` → ④ `resolveCoverFromDeezer` (cover, album, artists, streaming via Odesli) → ⑤ `fallbackToDeezerByName` (if ISRC fails) → ⑥ `ensureArtistNames` → ⑦ `buildProjectInput` → create project in Dexie → navigate to `/editor/:id`
 2. **Empty Project:** User clicks "Empty Project" → `/new-project` → form with dropdowns, dynamic artists, social media → create project → `/editor/:id`
-3. **Editor:** Load project from Dexie → render TableRow per lyric line. Click row → activates (pink bar, time controls). Edit lyrics/translations → auto-save to Dexie. Tab between rows → focus follows. Delete row via trash icon. Auto-translate via SimplyTranslate AI (disabled — 403).
+3. **Editor:** Load project from Dexie → render TableRow per lyric line. Click row → activates (pink bar, time controls). Edit lyrics/translations → auto-save to Dexie. Tab between rows → focus follows. Delete row via trash icon. Auto-translate via Gemini or DeepSeek (requires API key in Settings).
 4. **Sidebar:** Home, Settings (modal), About (modal). Only highlighted on `/`.
 
 ## API Proxies (Vite dev server)
@@ -102,11 +105,21 @@ src/
 | `/api-odesli` | `https://api.song.link` |
 | `/api-translate` | `https://api.simplytranslate.ai` |
 
-## Metadata Hierarchy
-Extraction priority:
-1. **Deezer** (richest): cover art, album name, all artists (contributors), artist Deezer links
-2. **MusicBrainz**: ISRC, artist MBIDs → fetch social media links (Instagram, Twitter, YouTube, etc.)
-3. **LRCLIB**: synced/plain lyrics, album name, parsed artist names
+## Metadata Extraction Pipeline
+
+`getFullMetadata()` runs a 7-step pipeline with `ExtractionContext` state flowing through each step:
+
+| Step | Source | Extracts |
+|------|--------|----------|
+| ① `extractLyricsFromLrc` | LRCLIB | lyrics (Map), album name |
+| ② `resolveArtistsViaMusicBrainz` | MusicBrainz | ISRC, artist MBIDs, primary artist names |
+| ③ `resolveSocialMediaLinks` | MusicBrainz | Social media per artist MBID (Instagram, Twitter, YouTube, TikTok, etc.) |
+| ④ `resolveCoverFromDeezer` | Deezer (ISRC) + Worker/Odesli | cover art, album, artists, streaming links |
+| ⑤ `fallbackToDeezerByName` | Deezer (name search) | Fallback cover/album/streaming if ISRC fails |
+| ⑥ `ensureArtistNames` | LRCLIB fallback | Last-resort artist names if all else fails |
+| ⑦ `buildProjectInput` | — | Assembles final `ProjectCreateInput` |
+
+**Production path:** Steps ④-⑤ use the Cloudflare Worker (`/metadata?isrc=...`) which bundles Deezer + Odesli into one response, bypassing Cloudflare protection on the APIs.
 
 ## Components
 

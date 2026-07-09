@@ -1,4 +1,5 @@
-import { Search, Loader2 } from "lucide-react";
+import { Search } from "lucide-react";
+import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
@@ -71,7 +72,7 @@ export function SearchInput({
     setTimeout(() => setFocused(false), 150);
   };
 
-  const showDropdown = focused && (isLoading || (results && results.length > 0));
+  const showDropdown = focused && (isLoading || results !== undefined);
 
   return (
     <div
@@ -79,11 +80,7 @@ export function SearchInput({
       className={cn("w-full max-w-2xl relative group", className)}
     >
       <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
-        {isLoading ? (
-          <Loader2 className="size-6 text-primary animate-spin" />
-        ) : (
-          <Search className="size-6 text-on-surface-variant group-focus-within:text-primary transition-colors" />
-        )}
+        <Search className="size-6 text-on-surface-variant group-focus-within:text-primary transition-colors" />
       </div>
       <input
         type="text"
@@ -110,8 +107,8 @@ export function SearchInput({
               className="bg-surface-container-high border border-outline-variant/20 border-t-0 rounded-b-md rounded-t-none shadow-2xl overflow-y-scroll overflow-x-hidden max-h-[280px]"
             >
               {isLoading ? (
-                <div className="p-4 text-center text-on-surface-variant font-body-md">
-                  {t("common.searching")}
+                <div className="flex items-center justify-center py-8">
+                  <M3LoadingIndicator size={72} style={{ color: "rgb(208, 188, 255)" }} />
                 </div>
               ) : results && results.length > 0 ? (
                 results.map((result, index) => (
@@ -136,7 +133,11 @@ export function SearchInput({
                     </div>
                   </button>
                 ))
-              ) : null}
+              ) : (
+                <div className="p-6 text-center text-on-surface-variant font-body-md">
+                  {t("common.noResults")}
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>,

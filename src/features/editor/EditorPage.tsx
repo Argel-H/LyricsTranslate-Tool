@@ -6,10 +6,11 @@ import { TableRow } from "./TableRow";
 import { SegmentedButton } from "./SegmentedButton";
 import { FloatingActionButton } from "./FloatingActionButton";
 import { useProjectStore } from "@/stores/projectStore";
-import { useSettingsStore } from "@/stores/settingsStore";
 import { useModalStore } from "@/stores/modalStore";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { useI18n } from "@/hooks/useI18n";
-import { batchTranslate } from "@/services/simplyTranslate";
+import { translateLyrics } from "@/services/simplyTranslate";
+import { processLyricsMap } from "@/lib/lyricsParser";
 import {
   Edit,
   Save,
@@ -19,6 +20,7 @@ import {
   Download,
   FileText,
 } from "lucide-react";
+import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 
 export function EditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -26,10 +28,11 @@ export function EditorPage() {
   const { t } = useI18n();
   const { currentProject, isLoading, loadProject, updateLine, updateAllLines } =
     useProjectStore();
-  const language = useSettingsStore((s) => s.language);
+  const aiProvider = useSettingsStore((s) => s.aiProvider);
+  const apiKeys = useSettingsStore((s) => s.apiKeys);
+  const aiApiKey = aiProvider ? apiKeys[aiProvider] : undefined;
   const [translating, setTranslating] = useState(false);
-  const [translateProgress, setTranslateProgress] = useState(0);
-  const [translateTotal, setTranslateTotal] = useState(0);
+  const [translateError, setTranslateError] = useState<string | null>(null);
   const [activeLineKey, setActiveLineKey] = useState<string | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
@@ -40,37 +43,63 @@ export function EditorPage() {
     }
   }, [id, loadProject]);
 
-  const targetLang = language === "es" ? "es" : language === "pt" ? "pt" : "es";
-
   const handleAutoTranslate = async () => {
     if (!currentProject) return;
     const lyrics = currentProject.lyrics;
     const entries = Object.entries(lyrics);
-    const linesToTranslate = entries
-      .filter(([, line]) => {
-        if (!line.lyric.trim()) return false;
-        if (line.lyric.includes("[") && line.lyric.includes("]")) return false;
-        return true;
-      })
-      .map(([key, line]) => ({ lyric: line.lyric, key }));
+    if (entries.length === 0) return;
+
+    const sorted = entries
+      .slice()
+      .sort(([, a], [, b]) => a.time_start.localeCompare(b.time_start));
+    const lrcContent = sorted
+      .map(([, line]) => `[${line.time_start}] ${line.lyric}`)
+      .join("\n");
+
+    const targetLanguage = currentProject.translationLanguage || "Spanish";
+    const artistName = currentProject.artistName.join(", ");
 
     setTranslating(true);
-    setTranslateTotal(linesToTranslate.length);
-    setTranslateProgress(0);
+    setTranslateError(null);
 
     try {
-      const translations = await batchTranslate(
-        linesToTranslate,
-        "auto",
-        targetLang,
-        (current) => setTranslateProgress(current),
+      const config = { provider: aiProvider!, apiKey: aiApiKey };
+      const result = await translateLyrics(
+        lrcContent,
+        currentProject.trackName,
+        artistName,
+        targetLanguage,
+        config,
       );
+
+      if (!result) {
+        setTranslateError(t("editor.translateError"));
+        return;
+      }
+
+      const parsedMap = processLyricsMap(result);
+      if (!parsedMap) {
+        setTranslateError(t("editor.translateError"));
+        return;
+      }
+
+      // Merge translations by matching timestamps
       const updatedLyrics = { ...lyrics };
-      for (const [key, translation] of Object.entries(translations)) {
-        if (updatedLyrics[key]) {
-          updatedLyrics[key] = { ...updatedLyrics[key]!, translation };
+      const parsedEntries = Array.from(parsedMap.values());
+      const originalEntries = Object.entries(lyrics);
+
+      for (const [originalKey, originalLine] of originalEntries) {
+        const translation = parsedEntries.find(
+          (p) => p.time_start === originalLine.time_start,
+        );
+        if (translation?.lyric.trim()) {
+          updatedLyrics[originalKey] = {
+            ...originalLine,
+            translation: translation.lyric,
+          };
         }
       }
+
       await updateAllLines(updatedLyrics);
     } catch {
       // silent
@@ -248,7 +277,7 @@ export function EditorPage() {
       <AppShell title={t("editor.loading")} bodyBg="bg-surface-container">
         <MasterCard bgColor="bg-surface-container-lowest">
           <div className="flex items-center justify-center h-full">
-            <Loader2 className="size-8 text-primary animate-spin" />
+            <M3LoadingIndicator size={40} style={{ color: "rgb(208, 188, 255)" }} />
           </div>
         </MasterCard>
       </AppShell>
@@ -319,21 +348,11 @@ export function EditorPage() {
         <MasterCard bgColor="bg-surface-container-lowest">
           <div className="max-w-[1400px] mx-auto w-full flex flex-col gap-lg pb-32">
               {translating && (
-                <div className="bg-surface-container rounded-3xl p-4 border border-primary/20">
-                  <div className="flex items-center gap-3 mb-2">
-                    <Loader2 className="size-5 text-primary animate-spin" />
-                    <span className="font-label-lg text-on-surface">
-                      {t("editor.translating")} {translateProgress} /{" "}
-                      {translateTotal}
-                    </span>
-                  </div>
-                  <div className="w-full h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all duration-300"
-                      style={{
-                        width: `${translateTotal > 0 ? (translateProgress / translateTotal) * 100 : 0}%`,
-                      }}
-                    />
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                  <div className="bg-surface-container-high rounded-3xl p-8 shadow-2xl border border-outline-variant/20 flex flex-col items-center gap-4">
+                    <M3LoadingIndicator size={40} style={{ color: "rgb(208, 188, 255)" }} />
+                    <span className="font-title-lg text-on-surface">{t("editor.translating")}</span>
+                    <span className="font-body-md text-on-surface-variant">{t("editor.translatingDesc")}</span>
                   </div>
                 </div>
               )}
@@ -431,16 +450,18 @@ export function EditorPage() {
               </div>
             </div>
 
-            <FloatingActionButton
-              icon={translating ? Loader2 : Sparkles}
-              label={
-                translating
-                  ? `${t("editor.translating")} (${translateProgress}/${translateTotal})`
-                  : t("editor.fab.autoTranslate")
-              }
-              onClick={handleAutoTranslate}
-              disabled={true}
-            />
+            {aiProvider && aiApiKey && (
+              <FloatingActionButton
+                icon={translating ? Loader2 : Sparkles}
+                label={
+                  translating
+                    ? t("editor.translating")
+                    : t("editor.fab.autoTranslate")
+                }
+                onClick={handleAutoTranslate}
+                disabled={translating}
+              />
+            )}
           </MasterCard>
       </AppShell>
 
@@ -501,6 +522,21 @@ export function EditorPage() {
               className="w-full py-2.5 rounded-full font-label-lg text-on-surface-variant hover:bg-surface-container-highest transition-colors"
             >
               Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {translateError && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-surface-container-high rounded-3xl p-6 shadow-2xl border border-outline-variant/20 max-w-sm w-full mx-4">
+            <h3 className="font-title-lg text-on-surface mb-2">{t("editor.translateErrorTitle")}</h3>
+            <p className="font-body-md text-on-surface-variant mb-6">{translateError}</p>
+            <button
+              onClick={() => setTranslateError(null)}
+              className="w-full py-2.5 rounded-full font-label-lg bg-primary-container text-on-primary-container hover:bg-primary hover:text-on-primary transition-all"
+            >
+              {t("common.ok")}
             </button>
           </div>
         </div>

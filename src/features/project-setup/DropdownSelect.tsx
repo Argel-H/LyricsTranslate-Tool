@@ -71,8 +71,7 @@ export function DropdownSelect({
             {options.map((opt) => (
               <button
                 key={opt}
-                onMouseDown={(e) => {
-                  e.preventDefault();
+                onClick={(e) => {
                   e.stopPropagation();
                   handleSelect(opt);
                 }}
@@ -116,7 +115,7 @@ export function DropdownSelect({
             className="bg-transparent border-none p-0 text-on-surface font-body-md focus:ring-0 outline-none select-none cursor-pointer"
           />
         </div>
-        <ChevronDown className="size-4 text-on-surface-variant hover:text-on-surface" />
+        <ChevronDown className="size-4 text-on-surface-variant hover:text-on-surface ml-auto" />
         {underline}
         {dropdownPanel}
       </div>
@@ -151,7 +150,7 @@ export function DropdownSelect({
           <XIcon className="size-5" />
         </button>
       ) : (
-        <ChevronDown className="size-5 text-on-surface-variant ml-4 group-hover:text-on-surface" />
+        <ChevronDown className="size-5 text-on-surface-variant ml-auto group-hover:text-on-surface" />
       )}
       {underline}
       {dropdownPanel}

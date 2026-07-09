@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Modal } from "@/features/shell/Modal";
+import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 
 interface ChangelogEntry {
   version: string;
@@ -68,7 +69,7 @@ export function ChangelogModal({ open, onClose }: ChangelogModalProps) {
       <div className="space-y-6">
         {loading && (
           <div className="flex items-center justify-center py-8">
-            <div className="size-6 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+            <M3LoadingIndicator size={24} style={{ color: "rgb(208, 188, 255)" }} />
             <span className="ml-3 font-body-md text-on-surface-variant">
               Loading...
             </span>

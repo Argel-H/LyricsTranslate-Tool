@@ -1,7 +1,7 @@
 {
   "name": "lyrics-translate-tool",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.2",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,6 +12,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@alerix/m3-loading-indicator": "^1.0.5",
     "@radix-ui/react-progress": "^1.1.11",
     "@radix-ui/react-select": "^2.3.2",
     "@radix-ui/react-separator": "^1.1.11",

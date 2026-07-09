@@ -1,3 +1,5 @@
+import type { ProjectStatus } from "@/lib/constants";
+
 export interface LyricLine {
   time_start: string;
   time_end: string;
@@ -5,8 +7,6 @@ export interface LyricLine {
   translation: string;
   comment: string;
 }
-
-export type ProjectStatus = "in-progress" | "in-review";
 
 export interface Project {
   id: number;

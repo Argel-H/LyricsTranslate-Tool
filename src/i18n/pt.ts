@@ -37,6 +37,9 @@ export const pt = {
     "Este projeto não existe ou foi excluído.",
   "editor.backToDashboard": "Voltar ao Painel",
   "editor.translating": "Traduzindo...",
+  "editor.translatingDesc": "Aguarde enquanto suas letras estão sendo traduzidas.",
+  "editor.translateErrorTitle": "Erro de Tradução",
+  "editor.translateError": "Não foi possível traduzir as letras. Tente novamente mais tarde.",
   "editor.emptyState":
     "Ainda não há letras. Adicione sua primeira linha para começar.",
   "editor.addFirstLine": "Adicionar Primeira Linha",
@@ -80,6 +83,11 @@ export const pt = {
   "settings.language": "Idioma",
   "settings.languageDescription":
     "Escolha seu idioma preferido para a interface.",
+  "settings.aiTranslation": "Tradução IA",
+  "settings.aiProvider": "Fornecedor",
+  "settings.aiApiKey": "Chave API",
+  "settings.aiSave": "Salvar",
+  "settings.aiSaved": "Salvo",
   "settings.resetDatabase": "Redefinir Banco de Dados",
   "settings.resetDesc":
     "Excluir todos os projetos e preferências. Isso não pode ser desfeito.",
@@ -96,7 +104,9 @@ export const pt = {
   "about.madeWith": "Feito com ♡ por Argel H",
 
   "common.cancel": "Cancelar",
+  "common.ok": "OK",
   "common.save": "Salvar",
   "common.delete": "Excluir",
   "common.searching": "Buscando...",
+  "common.noResults": "Sem resultados",
 } as const;

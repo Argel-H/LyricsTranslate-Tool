@@ -7,13 +7,15 @@ export interface ProgressResult {
 }
 
 export function calculateLyricsProgress(lyrics: Record<string, LyricLine>): ProgressResult {
-  const totalLines = Object.keys(lyrics).length;
-  if (totalLines === 0) return { progress: 0, status: PROJECT_STATUS.IN_PROGRESS };
+  const translatableLines = Object.values(lyrics).filter(
+    (line) => line.lyric.trim().length > 0,
+  );
+  if (translatableLines.length === 0) return { progress: 0, status: PROJECT_STATUS.IN_PROGRESS };
 
-  const translatedLines = Object.values(lyrics).filter(
+  const translatedLines = translatableLines.filter(
     (line) => line.translation.trim().length > 0,
   ).length;
-  const progress = Math.round((translatedLines / totalLines) * 100);
+  const progress = Math.round((translatedLines / translatableLines.length) * 100);
   const status = progress === 100 ? PROJECT_STATUS.IN_REVIEW : PROJECT_STATUS.IN_PROGRESS;
 
   return { progress, status };

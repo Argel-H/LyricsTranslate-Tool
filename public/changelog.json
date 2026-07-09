@@ -1,5 +1,17 @@
 [
   {
+    "version": "0.0.2",
+    "date": "2025-07-09",
+    "changes": [
+      "Material 3 Expressive loading indicator with 7 morphing shapes",
+      "AI provider selection for auto translation (Draft intention)",
+      "Worker proxy correctly returns Odesli streaming links",
+      "Search: 'no results' feedback and larger loading indicator",
+      "Internal: metadata extraction refactored into 7-step pipeline",
+      "Internal: lyrics parser rewritten with clear naming"
+    ]
+  },
+  {
     "version": "0.0.1",
     "date": "2025-07-04",
     "changes": [

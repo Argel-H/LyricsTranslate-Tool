@@ -35,6 +35,9 @@ export const en = {
   "editor.notFoundDesc": "This project doesn't exist or was deleted.",
   "editor.backToDashboard": "Back to Dashboard",
   "editor.translating": "Translating...",
+  "editor.translatingDesc": "Please wait while your lyrics are being translated.",
+  "editor.translateErrorTitle": "Translation Failed",
+  "editor.translateError": "Could not translate the lyrics. Please try again later.",
   "editor.emptyState": "No lyrics yet. Add your first line to get started.",
   "editor.addFirstLine": "Add First Line",
   "editor.addNewLine": "Add New Line",
@@ -76,6 +79,11 @@ export const en = {
   "settings.language": "Language",
   "settings.languageDescription":
     "Choose your preferred language for the interface.",
+  "settings.aiTranslation": "AI Translation",
+  "settings.aiProvider": "Provider",
+  "settings.aiApiKey": "API Key",
+  "settings.aiSave": "Save",
+  "settings.aiSaved": "Saved",
   "settings.resetDatabase": "Reset Database",
   "settings.resetDesc":
     "Delete all projects and preferences. This cannot be undone.",
@@ -92,7 +100,9 @@ export const en = {
   "about.madeWith": "Made with ♡ by Argel H",
 
   "common.cancel": "Cancel",
+  "common.ok": "OK",
   "common.save": "Save",
   "common.delete": "Delete",
   "common.searching": "Searching...",
+  "common.noResults": "No results",
 } as const;

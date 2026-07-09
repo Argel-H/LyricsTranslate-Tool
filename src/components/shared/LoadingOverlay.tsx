@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 
 interface LoadingOverlayProps {
   title: string;
@@ -9,7 +9,7 @@ export function LoadingOverlay({ title, description }: LoadingOverlayProps) {
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-surface-container-high rounded-3xl p-8 shadow-2xl border border-outline-variant/20 max-w-sm w-full mx-4 flex flex-col items-center gap-4">
-        <Loader2 className="size-10 text-primary animate-spin" />
+        <M3LoadingIndicator size={40} style={{ color: "rgb(208, 188, 255)" }} />
         <p className="font-title-lg text-title-lg text-on-surface text-center">{title}</p>
         {description && (
           <p className="font-body-md text-body-md text-on-surface-variant text-center">

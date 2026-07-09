@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/useDebounce";
-import { fetchLyrics } from "@/services/lrclib";
+import { searchLrcLib } from "@/services/lrclib";
 import { DEBOUNCE_SEARCH_MS } from "@/lib/constants";
 import type { LRCLibResult } from "@/types/music";
 
@@ -32,7 +32,7 @@ export function useProjectSearch(): UseProjectSearchReturn {
     LRCLibResult[]
   >({
     queryKey: ["lrclib-search", debouncedSearch],
-    queryFn: () => fetchLyrics(debouncedSearch),
+    queryFn: () => searchLrcLib(debouncedSearch),
     enabled: debouncedSearch.trim().length > 1,
     staleTime: 60_000,
   });

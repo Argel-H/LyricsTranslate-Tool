@@ -4,6 +4,8 @@ import type { Project } from "@/types/project";
 export interface UserPreferences {
   id: "singleton";
   language: "en" | "es" | "pt";
+  apiKeys?: Record<string, string>;
+  aiProvider?: string | null;
 }
 
 export class LyricsTranslateDB extends Dexie {
