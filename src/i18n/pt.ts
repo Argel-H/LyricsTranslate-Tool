@@ -27,7 +27,7 @@ export const pt = {
   "editor.table.end": "Fim",
   "editor.table.lyric": "Letra",
   "editor.table.translation": "Tradução",
-  "editor.fab.autoTranslate": "Auto-Traduzir Tudo",
+  "editor.fab.autoTranslate": "Auto-Traduzir Rascunho",
   "editor.translatePlaceholder": "Traduza esta linha...",
   "editor.segmented.edit": "Editar",
   "editor.segmented.save": "Exportar",

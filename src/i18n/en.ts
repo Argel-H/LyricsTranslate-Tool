@@ -26,7 +26,7 @@ export const en = {
   "editor.table.end": "End",
   "editor.table.lyric": "Lyric",
   "editor.table.translation": "Translation",
-  "editor.fab.autoTranslate": "Auto-Translate All",
+  "editor.fab.autoTranslate": "Auto-Translate Draft",
   "editor.translatePlaceholder": "Translate this line...",
   "editor.segmented.edit": "Edit",
   "editor.segmented.save": "Export",
@@ -35,9 +35,11 @@ export const en = {
   "editor.notFoundDesc": "This project doesn't exist or was deleted.",
   "editor.backToDashboard": "Back to Dashboard",
   "editor.translating": "Translating...",
-  "editor.translatingDesc": "Please wait while your lyrics are being translated.",
+  "editor.translatingDesc":
+    "Please wait while your lyrics are being translated.",
   "editor.translateErrorTitle": "Translation Failed",
-  "editor.translateError": "Could not translate the lyrics. Please try again later.",
+  "editor.translateError":
+    "Could not translate the lyrics. Please try again later.",
   "editor.emptyState": "No lyrics yet. Add your first line to get started.",
   "editor.addFirstLine": "Add First Line",
   "editor.addNewLine": "Add New Line",

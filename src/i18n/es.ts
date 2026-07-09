@@ -27,7 +27,7 @@ export const es = {
   "editor.table.end": "Fin",
   "editor.table.lyric": "Letra",
   "editor.table.translation": "Traducción",
-  "editor.fab.autoTranslate": "Auto-Traducir Todo",
+  "editor.fab.autoTranslate": "Auto-Traducir Borrador",
   "editor.translatePlaceholder": "Traduce esta línea...",
   "editor.segmented.edit": "Editar",
   "editor.segmented.save": "Exportar",
@@ -38,7 +38,8 @@ export const es = {
   "editor.translating": "Traduciendo...",
   "editor.translatingDesc": "Espera mientras se traducen tus letras.",
   "editor.translateErrorTitle": "Error de Traducción",
-  "editor.translateError": "No se pudieron traducir las letras. Intenta de nuevo más tarde.",
+  "editor.translateError":
+    "No se pudieron traducir las letras. Intenta de nuevo más tarde.",
   "editor.emptyState":
     "Aún no hay letras. Agrega tu primera línea para empezar.",
   "editor.addFirstLine": "Agregar Primera Línea",
