@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { AppShell } from "@/features/shell/AppShell";
 import { MasterCard } from "@/features/shell/MasterCard";
@@ -11,6 +11,7 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { useI18n } from "@/hooks/useI18n";
 import { translateLyrics } from "@/services/simplyTranslate";
 import { processLyricsMap } from "@/lib/lyricsParser";
+import { findAllTranslations } from "@/lib/suggestionUtils";
 import {
   Edit,
   Save,
@@ -34,6 +35,7 @@ export function EditorPage() {
   const [translating, setTranslating] = useState(false);
   const [translateError, setTranslateError] = useState<string | null>(null);
   const [activeLineKey, setActiveLineKey] = useState<string | null>(null);
+  const [focusedColumn, setFocusedColumn] = useState<string | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
 
@@ -192,26 +194,20 @@ export function EditorPage() {
     }
   };
 
-  const handleRowClick = (key: string) => {
+  const handleRowClick = (key: string, column?: string) => {
     setActiveLineKey(key);
+    if (column) {
+      setFocusedColumn(column);
+    }
   };
-
-  const [autoFocusColumn, setAutoFocusColumn] = useState<string | null>(null);
 
   const handleVerticalTabNavigation = useCallback(
     (targetKey: string, column: string) => {
-      setAutoFocusColumn(column);
+      setFocusedColumn(column);
       setActiveLineKey(targetKey);
     },
     [],
   );
-
-  useEffect(() => {
-    if (autoFocusColumn) {
-      const timer = setTimeout(() => setAutoFocusColumn(null), 0);
-      return () => clearTimeout(timer);
-    }
-  }, [autoFocusColumn]);
 
   // Export helpers
   const generateLRC = (useTranslation: boolean): string => {
@@ -272,9 +268,22 @@ export function EditorPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [activeLineKey]);
 
+  const lyricsEntries = currentProject ? Object.entries(currentProject.lyrics) : [];
+  const title = currentProject
+    ? `${currentProject.artistName.join(", ")} - ${currentProject.trackName}`
+    : "";
+
+  // Memoize all suggestions for all lines to avoid calling hooks inside .map()
+  const allSuggestions = useMemo(() => {
+    if (!currentProject) return [];
+    return lyricsEntries.map(([key, line]) =>
+      findAllTranslations(line.lyric, key, currentProject.lyrics)
+    );
+  }, [lyricsEntries, currentProject]);
+
   if (isLoading) {
     return (
-      <AppShell title={t("editor.loading")} bodyBg="bg-surface-container">
+      <AppShell title={title} onBack={() => navigate("/")} bodyBg="bg-surface-container">
         <MasterCard bgColor="bg-surface-container-lowest">
           <div className="flex items-center justify-center h-full">
             <M3LoadingIndicator size={40} style={{ color: "rgb(208, 188, 255)" }} />
@@ -307,9 +316,6 @@ export function EditorPage() {
       </AppShell>
     );
   }
-
-  const lyricsEntries = Object.entries(currentProject.lyrics);
-  const title = `${currentProject.artistName.join(", ")} - ${currentProject.trackName}`;
 
   return (
     <>
@@ -383,7 +389,7 @@ export function EditorPage() {
                       </button>
                     </div>
                   )}
-                  {lyricsEntries.map(([key, line]) => {
+                  {lyricsEntries.map(([key, line], index) => {
                     const isInstrumental =
                       line.lyric.includes("[") && line.lyric.includes("]");
                     const isActive = activeLineKey === key;
@@ -392,6 +398,7 @@ export function EditorPage() {
                       : isActive
                         ? ("active" as const)
                         : ("default" as const);
+                    const suggestions = allSuggestions[index];
 
                     return (
                       <TableRow
@@ -399,7 +406,6 @@ export function EditorPage() {
                         rowKey={key}
                         orderedKeys={lyricsEntries.map(([k]) => k)}
                         onNavigateToRow={handleVerticalTabNavigation}
-                        autoFocusColumn={isActive ? autoFocusColumn : null}
                         timeStart={line.time_start}
                         timeEnd={line.time_end}
                         lyric={line.lyric}
@@ -409,15 +415,23 @@ export function EditorPage() {
                             ? t("editor.translatePlaceholder")
                             : undefined
                         }
+                        suggestions={suggestions}
                         state={state}
-                        onRowClick={() => handleRowClick(key)}
-                        onTranslationFocus={() => handleRowClick(key)}
+                        focusedColumn={focusedColumn}
+                        onRowClick={(column) => handleRowClick(key, column)}
+                        onTranslationFocus={() => setFocusedColumn("translation")}
                         onTranslationChange={(value) =>
                           updateLine(key, "translation", value)
                         }
                         onLyricChange={(value) =>
                           updateLine(key, "lyric", value)
                         }
+                        onLyricFocus={() => setFocusedColumn("lyric")}
+                        onLyricBlur={(relatedTarget) => {
+                          if (tableRef.current && relatedTarget instanceof Node && !tableRef.current.contains(relatedTarget)) {
+                            setFocusedColumn(null);
+                          }
+                        }}
                         onTimeStartAdd={() =>
                           handleTimeAdjust(key, "time_start", 1)
                         }
