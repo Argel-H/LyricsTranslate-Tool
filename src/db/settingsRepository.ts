@@ -22,13 +22,13 @@ export async function saveAiProvider(provider: AIProvider): Promise<void> {
   await db.preferences.put({ ...prefs, aiProvider: provider });
 }
 
-export async function saveAiKey(provider: AIProvider, apiKey: string): Promise<void> {
+export async function saveAiKey(provider: NonNullable<AIProvider>, apiKey: string): Promise<void> {
   const prefs = await getPreferences();
   const apiKeys = { ...prefs.apiKeys, [provider]: apiKey };
   await db.preferences.put({ ...prefs, apiKeys });
 }
 
-export async function removeAiKey(provider: AIProvider): Promise<void> {
+export async function removeAiKey(provider: NonNullable<AIProvider>): Promise<void> {
   const prefs = await getPreferences();
   const apiKeys = { ...prefs.apiKeys };
   delete apiKeys[provider];

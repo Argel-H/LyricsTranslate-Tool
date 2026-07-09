@@ -27,10 +27,12 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     set({ aiProvider: provider });
   },
   saveApiKey: async (provider, apiKey) => {
+    if (!provider) return;
     await saveAiKey(provider, apiKey);
     set({ apiKeys: { ...get().apiKeys, [provider]: apiKey } });
   },
   deleteApiKey: async (provider) => {
+    if (!provider) return;
     await removeAiKey(provider);
     const keys = { ...get().apiKeys };
     delete keys[provider];

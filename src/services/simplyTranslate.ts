@@ -3,7 +3,7 @@ import type { AIProvider } from "@/lib/aiConfig";
 
 interface AIConfig {
   provider: AIProvider;
-  apiKey: string;
+  apiKey: string | undefined;
 }
 
 // ─── Prompt Building ───────────────────────────────────────────────
@@ -119,6 +119,7 @@ export async function translateLyrics(
   config: AIConfig,
 ): Promise<string | null> {
   try {
+    if (!config.apiKey) return null;
     const prompt = buildTranslationPrompt(lrcContent, songTitle, artistName, targetLanguage, config.provider);
     if (config.provider === "google") {
       return await callGoogleGemini(prompt, config.apiKey);
