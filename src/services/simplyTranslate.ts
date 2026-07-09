@@ -6,6 +6,16 @@ interface AIConfig {
   apiKey: string | undefined;
 }
 
+export interface AutoTranslateInput {
+  songTitle: string;
+  artistName: string;
+  targetLanguage: string;
+  /** Lines provided for LLM context — the LLM must NOT translate these */
+  contextLines: Array<{ timestamp: string; original: string; translated?: string; locked?: boolean }>;
+  /** Lines the LLM must translate */
+  targetLines: Array<{ timestamp: string; original: string }>;
+}
+
 // ─── Prompt Building ───────────────────────────────────────────────
 
 interface TranslationPromptContext {
@@ -72,7 +82,7 @@ function buildTranslationPrompt(
 
 // ─── AI Provider Calls ─────────────────────────────────────────────
 
-async function callGoogleGemini(prompt: string, apiKey: string): Promise<string | null> {
+export async function callGoogleGemini(prompt: string, apiKey: string): Promise<string | null> {
   const targetUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
   const response = await fetch(`${API.proxy}/ai`, {
     method: "POST",
@@ -90,7 +100,7 @@ async function callGoogleGemini(prompt: string, apiKey: string): Promise<string 
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? null;
 }
 
-async function callDeepSeek(prompt: string, apiKey: string): Promise<string | null> {
+export async function callDeepSeek(prompt: string, apiKey: string): Promise<string | null> {
   const targetUrl = "https://api.deepseek.com/v1/chat/completions";
   const response = await fetch(`${API.proxy}/ai`, {
     method: "POST",
@@ -107,6 +117,50 @@ async function callDeepSeek(prompt: string, apiKey: string): Promise<string | nu
   if (!response.ok || response.status === 204) return null;
   const data = await response.json();
   return data.choices?.[0]?.message?.content ?? null;
+}
+
+// ─── Auto-Translate Prompt Builder ─────────────────────────────────
+
+export function buildAutoTranslatePrompt(input: AutoTranslateInput, provider: AIProvider): string {
+  const ctx: TranslationPromptContext = {
+    lrcContent: "", // not used in the new format
+    songTitle: input.songTitle,
+    artistName: input.artistName,
+    targetLanguage: input.targetLanguage,
+  };
+
+  const parts: string[] = [...buildGenericRules(ctx)];
+  if (provider === "deepseek") {
+    parts.push(...buildDeepSeekRules(ctx));
+  }
+
+  // Context section
+  parts.push("");
+  parts.push("Context (DO NOT translate — use for consistency only):");
+  if (input.contextLines.length > 0) {
+    for (const line of input.contextLines) {
+      if (line.translated) {
+        parts.push(`[${line.timestamp}] ${line.original} → ${line.translated}`);
+      } else {
+        parts.push(`[${line.timestamp}] ${line.original}`);
+      }
+    }
+  } else {
+    parts.push("(no context lines)");
+  }
+
+  // Target section
+  parts.push("");
+  parts.push("Lines to translate:");
+  if (input.targetLines.length > 0) {
+    for (const line of input.targetLines) {
+      parts.push(`[${line.timestamp}] ${line.original}`);
+    }
+  } else {
+    parts.push("(no lines to translate — return empty)");
+  }
+
+  return parts.join("\n");
 }
 
 // ─── Public API ────────────────────────────────────────────────────

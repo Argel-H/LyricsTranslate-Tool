@@ -34,3 +34,8 @@ export async function removeAiKey(provider: NonNullable<AIProvider>): Promise<vo
   delete apiKeys[provider];
   await db.preferences.put({ ...prefs, apiKeys });
 }
+
+export async function saveOverwriteTranslations(enabled: boolean): Promise<void> {
+  const prefs = await getPreferences();
+  await db.preferences.put({ ...prefs, overwriteTranslations: enabled });
+}

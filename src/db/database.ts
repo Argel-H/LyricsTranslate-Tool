@@ -6,6 +6,7 @@ export interface UserPreferences {
   language: "en" | "es" | "pt";
   apiKeys?: Record<string, string>;
   aiProvider?: string | null;
+  overwriteTranslations?: boolean; // NEW
 }
 
 export class LyricsTranslateDB extends Dexie {

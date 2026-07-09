@@ -30,12 +30,16 @@
 - [x] About modal
 - [x] Translation progress bar (viewport top)
 - [x] Fetch artist social links from MusicBrainz relations
+- [x] Auto-translate with Google Gemini and DeepSeek AI
+- [x] Row locking (protect lines from auto-translate)
+- [x] Overwrite translations toggle (global setting)
+- [x] Translation suggestions (reuse existing translations)
+- [x] Circular Tab navigation between rows (wrap from last→first)
+- [x] Patch Notes page
 
 ## Pending
-- [ ] Auto-translate with SimplyTranslate AI (403 — blocked by API)
 - [ ] Music player integration
 - [ ] Read lyrics from imported LRC/SRT files
-- [ ] Patch Notes page
 - [ ] Undo/redo for editor changes
 - [ ] Keyboard shortcuts
 - [ ] Batch replace in lyrics

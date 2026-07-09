@@ -36,7 +36,7 @@ export const es = {
   "editor.notFoundDesc": "Este proyecto no existe o fue eliminado.",
   "editor.backToDashboard": "Volver al Panel",
   "editor.translating": "Traduciendo...",
-  "editor.translatingDesc": "Espera mientras se traducen tus letras.",
+  "editor.translatingDesc": "Espera mientras se traducen tus letras con %s.",
   "editor.translateErrorTitle": "Error de Traducción",
   "editor.translateError":
     "No se pudieron traducir las letras. Intenta de nuevo más tarde.",
@@ -94,6 +94,10 @@ export const es = {
     "Esto eliminará permanentemente todos los proyectos y preferencias. Esta acción no se puede deshacer.",
   "settings.deleteEverything": "Eliminar Todo",
 
+  "settings.overwriteTranslations": "Sobrescribir traducciones existentes",
+  "settings.overwriteTranslationsDesc":
+    "Cuando está activado, la auto-traducción reemplaza todas las líneas no bloqueadas. Cuando está desactivado, solo se traducen las líneas vacías.",
+
   "about.title": "Acerca de",
   "about.description":
     "Una herramienta creada para mi workflow de traducción de letras de canciones. Construido con React 19, TypeScript y tecnologías web modernas.",
@@ -107,4 +111,10 @@ export const es = {
   "common.delete": "Eliminar",
   "common.searching": "Buscando...",
   "common.noResults": "Sin resultados",
+
+  "editor.lockTooltip":
+    "Bloquear esta línea - no será sobrescrita por la auto-traducción",
+  "editor.unlockTooltip": "Desbloquear esta línea",
+  "settings.tabGeneral": "General",
+  "settings.tabAI": "Traducción IA",
 } as const;

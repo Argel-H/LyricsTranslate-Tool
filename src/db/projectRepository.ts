@@ -60,6 +60,21 @@ export async function updateLyricLine(
   });
 }
 
+export async function updateLyricLineLock(
+  projectId: number,
+  lineKey: string,
+  locked: boolean,
+): Promise<void> {
+  const project = await db.projects.get(projectId);
+  if (!project?.lyrics[lineKey]) return;
+  const updatedLyrics = { ...project.lyrics };
+  updatedLyrics[lineKey] = { ...updatedLyrics[lineKey]!, locked };
+
+  await db.projects.update(projectId, {
+    lyrics: updatedLyrics,
+  });
+}
+
 export async function updateAllLyrics(
   projectId: number,
   lyrics: Record<string, LyricLine>,

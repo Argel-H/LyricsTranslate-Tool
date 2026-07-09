@@ -24,7 +24,7 @@ npm run dev
 | Frontend | React 19 + TypeScript (strict) |
 | Build | Vite 8 |
 | UI | Tailwind CSS 3 + shadcn/ui |
-| State | Zustand (client), TanStack Query (server) |
+| State | Zustand |
 | Persistence | Dexie.js (IndexedDB) |
 | Routing | react-router-dom v7 |
 | Icons | lucide-react + Material Symbols |
@@ -35,9 +35,13 @@ npm run dev
 - Search songs via LRCLIB and auto-fill metadata from Deezer, MusicBrainz, and Odesli
 - Manual project creation with dynamic artists and social media links
 - Editable lyric/translation table with timestamp controls
-- Tab navigation between rows
+- Circular Tab navigation between rows (wraps last→first, first→last)
 - Export to LRC and SRT (original or translated)
 - Translation progress indicator
+- AI auto-translation (Google Gemini / DeepSeek)
+- Row locking and overwrite control
+- Translation suggestions with keyboard cycling
+- Tabbed settings modal (General / AI Translation)
 - 3 languages (English, Spanish, Portuguese)
 
 ## API Services
@@ -48,7 +52,7 @@ npm run dev
 | MusicBrainz | ISRC lookup, artist social media links |
 | Deezer | Cover art, album name, artist list, artist links |
 | Odesli/Song.link | Streaming platform links, shared link |
-| SimplyTranslate AI | Auto-translation (currently disabled) |
+| Google Gemini / DeepSeek | AI auto-translation of lyrics |
 
 All services are accessed through Vite dev server proxies to avoid CORS issues.
 
@@ -69,7 +73,7 @@ src/
     dashboard/    Search, project cards, hero section
     editor/       Lyric table, time controls, export
     project-setup/ Form, dropdowns, social media
-    settings/     Language selector (standalone page)
+    settings/     Settings modal (tabbed: General, AI Translation)
 ```
 
 ## Routes

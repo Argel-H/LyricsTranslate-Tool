@@ -9,9 +9,11 @@ import { useProjectStore } from "@/stores/projectStore";
 import { useModalStore } from "@/stores/modalStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useI18n } from "@/hooks/useI18n";
-import { translateLyrics } from "@/services/simplyTranslate";
+import { buildAutoTranslatePrompt, callGoogleGemini, callDeepSeek } from "@/services/simplyTranslate";
+import type { AutoTranslateInput } from "@/services/simplyTranslate";
 import { processLyricsMap } from "@/lib/lyricsParser";
 import { findAllTranslations } from "@/lib/suggestionUtils";
+import { AI_PROVIDERS } from "@/lib/aiConfig";
 import {
   Edit,
   Save,
@@ -32,6 +34,7 @@ export function EditorPage() {
   const aiProvider = useSettingsStore((s) => s.aiProvider);
   const apiKeys = useSettingsStore((s) => s.apiKeys);
   const aiApiKey = aiProvider ? apiKeys[aiProvider] : undefined;
+  const overwriteTranslations = useSettingsStore((s) => s.overwriteTranslations);
   const [translating, setTranslating] = useState(false);
   const [translateError, setTranslateError] = useState<string | null>(null);
   const [activeLineKey, setActiveLineKey] = useState<string | null>(null);
@@ -51,12 +54,48 @@ export function EditorPage() {
     const entries = Object.entries(lyrics);
     if (entries.length === 0) return;
 
+    // Sort by timestamp
     const sorted = entries
       .slice()
       .sort(([, a], [, b]) => a.time_start.localeCompare(b.time_start));
-    const lrcContent = sorted
-      .map(([, line]) => `[${line.time_start}] ${line.lyric}`)
-      .join("\n");
+
+    // Separate lines into context vs target based on lock + overwrite settings
+    const contextLines: Array<{ timestamp: string; original: string; translated?: string; locked?: boolean }> = [];
+    const targetLines: Array<{ timestamp: string; original: string }> = [];
+
+    for (const [, line] of sorted) {
+      // Skip instrumental/comment lines (lines with brackets)
+      if (line.lyric.startsWith("[") && line.lyric.endsWith("]")) continue;
+
+      if (line.locked) {
+        // Locked lines are ALWAYS context-only
+        contextLines.push({
+          timestamp: line.time_start,
+          original: line.lyric,
+          translated: line.translation || undefined,
+          locked: true,
+        });
+      } else if (!overwriteTranslations && line.translation?.trim()) {
+        // Overwrite OFF + has translation → context only (for consistency)
+        contextLines.push({
+          timestamp: line.time_start,
+          original: line.lyric,
+          translated: line.translation,
+          locked: false,
+        });
+      } else {
+        // Needs translation: blank line OR overwrite ON with unlocked line
+        targetLines.push({
+          timestamp: line.time_start,
+          original: line.lyric,
+        });
+      }
+    }
+
+    // If nothing to translate, don't call the API
+    if (targetLines.length === 0) {
+      return; // Silently skip — all lines are either locked or already translated
+    }
 
     const targetLanguage = currentProject.translationLanguage || "Spanish";
     const artistName = currentProject.artistName.join(", ");
@@ -65,14 +104,23 @@ export function EditorPage() {
     setTranslateError(null);
 
     try {
-      const config = { provider: aiProvider!, apiKey: aiApiKey };
-      const result = await translateLyrics(
-        lrcContent,
-        currentProject.trackName,
+      const promptInput: AutoTranslateInput = {
+        songTitle: currentProject.trackName,
         artistName,
         targetLanguage,
-        config,
-      );
+        contextLines,
+        targetLines,
+      };
+
+      const prompt = buildAutoTranslatePrompt(promptInput, aiProvider!);
+
+      // Call the AI provider with the pre-built prompt
+      let result: string | null = null;
+      if (aiProvider === "google") {
+        result = await callGoogleGemini(prompt, aiApiKey!);
+      } else if (aiProvider === "deepseek") {
+        result = await callDeepSeek(prompt, aiApiKey!);
+      }
 
       if (!result) {
         setTranslateError(t("editor.translateError"));
@@ -85,12 +133,17 @@ export function EditorPage() {
         return;
       }
 
-      // Merge translations by matching timestamps
+      // Only update UNLOCKED lines that were in the target set
       const updatedLyrics = { ...lyrics };
       const parsedEntries = Array.from(parsedMap.values());
-      const originalEntries = Object.entries(lyrics);
+      const targetTimestamps = new Set(targetLines.map((l) => l.timestamp));
 
-      for (const [originalKey, originalLine] of originalEntries) {
+      for (const [originalKey, originalLine] of Object.entries(lyrics)) {
+        // Skip locked lines
+        if (originalLine.locked) continue;
+        // Only update lines that were sent for translation
+        if (!targetTimestamps.has(originalLine.time_start)) continue;
+
         const translation = parsedEntries.find(
           (p) => p.time_start === originalLine.time_start,
         );
@@ -139,6 +192,11 @@ export function EditorPage() {
     delete lyrics[key];
     if (activeLineKey === key) setActiveLineKey(null);
     await updateAllLines(lyrics);
+  };
+
+  const handleToggleLock = async (key: string) => {
+    const { toggleLineLock } = useProjectStore.getState();
+    await toggleLineLock(key);
   };
 
   // Parse "MM:SS.ms" → milliseconds
@@ -358,14 +416,16 @@ export function EditorPage() {
                   <div className="bg-surface-container-high rounded-3xl p-8 shadow-2xl border border-outline-variant/20 flex flex-col items-center gap-4">
                     <M3LoadingIndicator size={40} style={{ color: "rgb(208, 188, 255)" }} />
                     <span className="font-title-lg text-on-surface">{t("editor.translating")}</span>
-                    <span className="font-body-md text-on-surface-variant">{t("editor.translatingDesc")}</span>
+                    <span className="font-body-md text-on-surface-variant">
+                      {t("editor.translatingDesc").replace("%s", AI_PROVIDERS.find(p => p.value === aiProvider)?.label ?? "AI")}
+                    </span>
                   </div>
                 </div>
               )}
 
               <div
                 ref={tableRef}
-                className="bg-surface-container-low rounded-[32px] overflow-hidden flex flex-col shadow-lg border border-outline-variant/10"
+                className="bg-surface-container-low rounded-[32px] overflow-visible flex flex-col shadow-lg border border-outline-variant/10"
               >
                 <div className="grid grid-cols-[120px_120px_1fr_1fr] gap-4 p-md bg-surface-container-low border-b border-outline-variant/20 sticky top-0 z-10 text-on-surface-variant font-label-md text-label-md uppercase tracking-widest px-6">
                   <div className="px-2">{t("editor.table.start")}</div>
@@ -444,6 +504,9 @@ export function EditorPage() {
                         onTimeEndRemove={() =>
                           handleTimeAdjust(key, "time_end", -1)
                         }
+                        isLocked={line.locked ?? false}
+                        onToggleLock={() => handleToggleLock(key)}
+                        showLock={!!(aiProvider && aiApiKey)}
                         onDelete={() => handleDeleteLine(key)}
                       />
                     );

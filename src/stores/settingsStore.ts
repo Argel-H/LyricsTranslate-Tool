@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { LanguageCode } from "@/lib/constants";
 import type { AIProvider } from "@/lib/aiConfig";
-import { getPreferences, saveLanguage, saveAiKey, removeAiKey, saveAiProvider } from "@/db/settingsRepository";
+import { getPreferences, saveLanguage, saveAiKey, removeAiKey, saveAiProvider, saveOverwriteTranslations } from "@/db/settingsRepository";
 
 interface SettingsState {
   language: LanguageCode;
@@ -12,12 +12,15 @@ interface SettingsState {
   saveApiKey: (provider: AIProvider, apiKey: string) => Promise<void>;
   deleteApiKey: (provider: AIProvider) => Promise<void>;
   loadSettings: () => Promise<void>;
+  overwriteTranslations: boolean;
+  setOverwriteTranslations: (enabled: boolean) => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   language: "en",
   aiProvider: null,
   apiKeys: {},
+  overwriteTranslations: false,
   setLanguage: async (lang) => {
     await saveLanguage(lang);
     set({ language: lang });
@@ -38,12 +41,17 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     delete keys[provider];
     set({ apiKeys: keys });
   },
+  setOverwriteTranslations: async (enabled) => {
+    await saveOverwriteTranslations(enabled);
+    set({ overwriteTranslations: enabled });
+  },
   loadSettings: async () => {
     const prefs = await getPreferences();
     set({
       language: prefs.language,
       apiKeys: prefs.apiKeys ?? {},
       aiProvider: (prefs.aiProvider as AIProvider) ?? null,
+      overwriteTranslations: prefs.overwriteTranslations ?? false,
     });
   },
 }));

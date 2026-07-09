@@ -36,7 +36,7 @@ export const en = {
   "editor.backToDashboard": "Back to Dashboard",
   "editor.translating": "Translating...",
   "editor.translatingDesc":
-    "Please wait while your lyrics are being translated.",
+    "Please wait while your lyrics are translated with %s.",
   "editor.translateErrorTitle": "Translation Failed",
   "editor.translateError":
     "Could not translate the lyrics. Please try again later.",
@@ -94,6 +94,10 @@ export const en = {
     "This will permanently delete all projects and preferences. This action cannot be undone.",
   "settings.deleteEverything": "Delete Everything",
 
+  "settings.overwriteTranslations": "Overwrite existing translations",
+  "settings.overwriteTranslationsDesc":
+    "When enabled, auto-translate replaces all unlocked lines. When disabled, only blank lines are translated.",
+
   "about.title": "About",
   "about.description":
     "A tool created for my song lyrics translation workflow. Built with React 19, TypeScript, and modern web technologies.",
@@ -107,4 +111,10 @@ export const en = {
   "common.delete": "Delete",
   "common.searching": "Searching...",
   "common.noResults": "No results",
+
+  "editor.lockTooltip":
+    "Lock this line - it won't be overwritten by auto-translate",
+  "editor.unlockTooltip": "Unlock this line",
+  "settings.tabGeneral": "General",
+  "settings.tabAI": "AI Translation",
 } as const;

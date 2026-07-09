@@ -6,6 +6,7 @@ import {
   updateLyricLine as dbUpdateLyric,
   updateAllLyrics as dbUpdateAllLyrics,
   updateProjectProgress,
+  updateLyricLineLock,
 } from "@/db/projectRepository";
 
 interface ProjectState {
@@ -14,6 +15,7 @@ interface ProjectState {
   loadProject: (id: number) => Promise<void>;
   updateLine: (key: string, field: keyof LyricLine, value: string) => Promise<void>;
   updateAllLines: (lyrics: Record<string, LyricLine>) => Promise<void>;
+  toggleLineLock: (key: string) => Promise<void>;
   setProject: (project: Project) => void;
   clearProject: () => void;
 }
@@ -59,6 +61,19 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     });
     await dbUpdateAllLyrics(project.id, lyrics);
     await updateProjectProgress(project.id, progress, status);
+  },
+  toggleLineLock: async (key) => {
+    const project = get().currentProject;
+    if (!project) return;
+    const line = project.lyrics[key];
+    if (!line) return;
+    const newLocked = !line.locked;
+    const updatedLyrics = { ...project.lyrics };
+    updatedLyrics[key] = { ...line, locked: newLocked };
+    set({
+      currentProject: { ...project, lyrics: updatedLyrics, updatedAt: Date.now() },
+    });
+    await updateLyricLineLock(project.id, key, newLocked);
   },
   setProject: (project) => set({ currentProject: project }),
   clearProject: () => set({ currentProject: null }),
