@@ -38,6 +38,7 @@
 - [x] Patch Notes page
 - [x] Music player integration
 - [x] Undo/redo for editor changes
+- [x] Editor Header Cover
 
 ## Pending
 - [ ] Read lyrics from imported LRC/SRT files
