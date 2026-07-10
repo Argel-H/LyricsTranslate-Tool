@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { AppShell } from "@/features/shell/AppShell";
 import { MasterCard } from "@/features/shell/MasterCard";
 import { HeroSection } from "./HeroSection";
 import { ProjectCard } from "./ProjectCard";
@@ -16,13 +15,16 @@ import {
   createProject,
   getAllProjects,
   deleteProject,
+  updateProjectProgress,
+  updateProjectArchived,
 } from "@/db/projectRepository";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useModalStore } from "@/stores/modalStore";
+import { useShellStore } from "@/stores/shellStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useI18n } from "@/hooks/useI18n";
 import type { Project } from "@/types/project";
-import type { ProjectStatus } from "@/lib/constants";
+import { PROJECT_STATUS, type ProjectStatus } from "@/lib/constants";
 import type { LRCLibResult } from "@/types/music";
 
 export function DashboardPage() {
@@ -101,12 +103,32 @@ export function DashboardPage() {
     downloadProjectAsYaml(project);
   };
 
+  const refreshProjects = () => {
+    getAllProjects().then(setProjects);
+  };
+
   const confirmDeleteProject = async () => {
     if (!deleteTarget) return;
     await deleteProject(deleteTarget.id);
     setDeleteTarget(null);
-    // Refresh the projects list
-    getAllProjects().then(setProjects);
+    refreshProjects();
+  };
+
+  const handleToggleComplete = async (project: Project) => {
+    const newStatus =
+      project.status === PROJECT_STATUS.COMPLETED
+        ? PROJECT_STATUS.IN_REVIEW
+        : project.status === PROJECT_STATUS.IN_REVIEW
+          ? PROJECT_STATUS.COMPLETED
+          : project.status;
+    if (newStatus === project.status) return;
+    await updateProjectProgress(project.id, project.progress, newStatus);
+    refreshProjects();
+  };
+
+  const handleToggleArchive = async (project: Project) => {
+    await updateProjectArchived(project.id, !project.archived);
+    refreshProjects();
   };
 
   // Handle YAML file import
@@ -156,17 +178,25 @@ export function DashboardPage() {
         })
     : undefined;
 
+  useEffect(() => {
+    useShellStore.getState().reset();
+    useShellStore.getState().setConfig({
+      activePage: "home",
+      variant: "dashboard",
+      showTopbar: false,
+      sidebarBg: "bg-surface-container-lowest",
+      bodyBg: "bg-surface-container-lowest",
+      onOpenSettings: () => useModalStore.getState().openSettings(),
+      onOpenAbout: () => useModalStore.getState().openAbout(),
+    });
+    return () => {
+      useShellStore.getState().reset();
+    };
+  }, []);
+
   return (
     <>
-      <AppShell
-        activePage="home"
-        showTopbar={false}
-        sidebarBg="bg-surface-container-lowest"
-        bodyBg="bg-surface-container-lowest"
-        onOpenSettings={() => useModalStore.getState().openSettings()}
-        onOpenAbout={() => useModalStore.getState().openAbout()}
-      >
-        <MasterCard
+      <MasterCard
           bgColor="!bg-surface-container"
           header={
             <div className="px-8 md:px-12 py-8 flex justify-between items-center border-b border-outline-variant/10 bg-surface-container/70 backdrop-blur-sm sticky top-0 z-30 rounded-t-[40px]">
@@ -228,6 +258,12 @@ export function DashboardPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6">
                   {projects.slice(0, 8).map((project) => {
                     const status: ProjectStatus = project.status;
+                    const statusLabels: Record<ProjectStatus, string> = {
+                      "not-started": t("dashboard.status.notStarted"),
+                      "in-progress": t("dashboard.status.inProgress"),
+                      "in-review": t("dashboard.status.inReview"),
+                      "completed": t("dashboard.status.completed"),
+                    };
                     return (
                       <ProjectCard
                         key={project.id}
@@ -236,16 +272,15 @@ export function DashboardPage() {
                         coverUrl={project.coverUrl ?? ""}
                         progress={project.progress}
                         status={status}
-                        statusLabel={
-                          status === "in-progress"
-                            ? t("dashboard.status.inProgress")
-                            : t("dashboard.status.inReview")
-                        }
+                        statusLabel={statusLabels[status]}
                         onClick={() => navigate(`/editor/${project.id}`)}
                         onEdit={() => handleEditProject(project.id)}
                         onOpen={() => handleOpenProject(project.id)}
                         onDelete={() => handleDeleteProject(project)}
                         onExport={() => handleExportProject(project)}
+                        onToggleComplete={() => handleToggleComplete(project)}
+                        onToggleArchive={() => handleToggleArchive(project)}
+                        isArchived={!!project.archived}
                       />
                     );
                   })}
@@ -263,7 +298,6 @@ export function DashboardPage() {
             )}
           </div>
         </MasterCard>
-      </AppShell>
 
       {/* Loading Modal Overlay — creating project */}
       {creatingProject && (

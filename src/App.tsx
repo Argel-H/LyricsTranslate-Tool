@@ -1,6 +1,7 @@
 import { useEffect } from "react";
+import type { ReactNode } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useModalStore } from "@/stores/modalStore";
 import { useI18n } from "@/hooks/useI18n";
@@ -9,26 +10,57 @@ import { DashboardPage } from "@/features/dashboard/DashboardPage";
 import { AllProjectsPage } from "@/features/dashboard/AllProjectsPage";
 import { ProjectSetupPage } from "@/features/project-setup/ProjectSetupPage";
 import { EditorPage } from "@/features/editor/EditorPage";
-import { AnimatedPage } from "@/components/shared/AnimatedPage";
 import { SettingsModal } from "@/components/shared/SettingsModal";
 import { ChangelogModal } from "@/components/shared/ChangelogModal";
 import { APP_NAME, APP_VERSION } from "@/lib/appConfig";
-import { migrateLyricTimestamps } from "@/db/migration";
+import { migrateLyricTimestamps, normalizeLegacyStatuses } from "@/db/migration";
+import { useShellStore } from "@/stores/shellStore";
+import { AppShell } from "@/features/shell/AppShell";
 
-function AnimatedRoutes() {
-  const location = useLocation();
+function AnimatedContent({ children }: { children: ReactNode }) {
   return (
-    <div className="relative min-h-screen">
-      <AnimatePresence>
+    <motion.div
+      className="w-full"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1, transition: { duration: 0.18, ease: [0.4, 0, 0.2, 1] } }}
+      exit={{ opacity: 0, transition: { duration: 0.12, ease: "easeIn" } }}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
+function AppShellWrapper() {
+  const location = useLocation();
+  const config = useShellStore((s) => s.config);
+
+  return (
+    <AppShell
+      title={config.title}
+      activePage={config.activePage}
+      variant={config.variant}
+      onBack={config.onBack}
+      onOpenSettings={config.onOpenSettings}
+      onOpenAbout={config.onOpenAbout}
+      actions={config.actions}
+      leading={config.leading}
+      sidebarBg={config.sidebarBg}
+      topbarBg={config.topbarBg}
+      showTopbar={config.showTopbar}
+      showTopbarBorder={config.showTopbarBorder}
+      bodyBg={config.bodyBg}
+      bottomBar={config.bottomBar}
+    >
+      <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
-          <Route path="/" element={<AnimatedPage><DashboardPage /></AnimatedPage>} />
-          <Route path="/projects" element={<AnimatedPage><AllProjectsPage /></AnimatedPage>} />
-          <Route path="/new-project" element={<AnimatedPage><ProjectSetupPage /></AnimatedPage>} />
-          <Route path="/edit-project/:id" element={<AnimatedPage><ProjectSetupPage /></AnimatedPage>} />
-          <Route path="/editor/:id" element={<AnimatedPage><EditorPage /></AnimatedPage>} />
+          <Route path="/" element={<AnimatedContent><DashboardPage /></AnimatedContent>} />
+          <Route path="/projects" element={<AnimatedContent><AllProjectsPage /></AnimatedContent>} />
+          <Route path="/new-project" element={<AnimatedContent><ProjectSetupPage /></AnimatedContent>} />
+          <Route path="/edit-project/:id" element={<AnimatedContent><ProjectSetupPage /></AnimatedContent>} />
+          <Route path="/editor/:id" element={<AnimatedContent><EditorPage /></AnimatedContent>} />
         </Routes>
       </AnimatePresence>
-    </div>
+    </AppShell>
   );
 }
 
@@ -48,11 +80,12 @@ function App() {
 
   useEffect(() => {
     migrateLyricTimestamps().catch(console.error);
+    normalizeLegacyStatuses().catch(console.error);
   }, []);
 
   return (
     <BrowserRouter>
-      <AnimatedRoutes />
+      <AppShellWrapper />
 
       <SettingsModal open={settingsOpen} onClose={closeSettings} />
 

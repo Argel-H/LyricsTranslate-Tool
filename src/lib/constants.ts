@@ -1,6 +1,8 @@
 export const PROJECT_STATUS = {
+  NOT_STARTED: "not-started",
   IN_PROGRESS: "in-progress",
   IN_REVIEW: "in-review",
+  COMPLETED: "completed",
 } as const;
 
 export type ProjectStatus = (typeof PROJECT_STATUS)[keyof typeof PROJECT_STATUS];

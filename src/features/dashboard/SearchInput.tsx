@@ -78,7 +78,7 @@ export function SearchInput({
   return (
     <div
       ref={containerRef}
-      className={cn("w-full max-w-2xl relative group", className)}
+      className={cn("w-full relative group", className)}
     >
       <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
         <Search className="size-6 text-on-surface-variant group-focus-within:text-primary transition-colors" />

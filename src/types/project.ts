@@ -16,6 +16,7 @@ export interface Project {
   lyrics: Record<string, LyricLine>;
   status: ProjectStatus;
   progress: number;
+  archived?: boolean;
   coverUrl?: string;
   isrcs?: string;
   streamingSites?: Record<string, string | null>;

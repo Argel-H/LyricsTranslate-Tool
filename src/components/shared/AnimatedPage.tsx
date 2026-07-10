@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 import { useEffect } from "react";
 import type { ReactNode } from "react";
 
-const transition = { duration: 0.2, ease: [0.4, 0, 0.2, 1] as const };
+const transition = { duration: 0.18, ease: [0.4, 0, 0.2, 1] as const };
 
 export function AnimatedPage({ children }: { children: ReactNode }) {
   useEffect(() => {
@@ -14,7 +14,7 @@ export function AnimatedPage({ children }: { children: ReactNode }) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1, transition }}
-      exit={{ opacity: 0, transition }}
+      exit={{ opacity: 0, transition: { duration: 0.12, ease: "easeIn" } }}
       className="absolute inset-0"
     >
       {children}

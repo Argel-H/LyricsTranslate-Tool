@@ -11,8 +11,14 @@ export const pt = {
   "dashboard.hero.emptyProject": "Projeto Vazio",
   "dashboard.recent.title": "Seus Projetos Recentes",
   "dashboard.recent.viewAll": "Ver todos",
+  "dashboard.status.notStarted": "Não Iniciado",
   "dashboard.status.inProgress": "Em Progresso",
   "dashboard.status.inReview": "Em Revisão",
+  "dashboard.status.completed": "Concluído",
+  "dashboard.markCompleted": "Marcar Concluído",
+  "dashboard.unmarkCompleted": "Desmarcar Concluído",
+  "dashboard.archive": "Arquivar",
+  "dashboard.unarchive": "Desarquivar",
   "dashboard.emptyState":
     "Pesquise uma música acima para criar seu primeiro projeto de tradução.",
   "dashboard.creatingProject": "Criando Projeto",
@@ -29,6 +35,10 @@ export const pt = {
   "projects.searchPlaceholder": "Buscar por álbum, artista ou música...",
   "projects.emptyState": "Nenhum projeto ainda. Crie um no painel.",
   "projects.emptySearch": "Nenhum projeto corresponde à sua pesquisa.",
+  "projects.filterAll": "Todos",
+  "projects.filterByStatus": "Filtrar por status",
+  "projects.clearFilters": "Limpar",
+  "projects.filterArchived": "Arquivados",
   "dashboard.deleteProject": "Excluir Projeto",
   "dashboard.deleteConfirm":
     'Tem certeza de que deseja excluir "%s"? Esta ação não pode ser desfeita.',
@@ -135,6 +145,8 @@ export const pt = {
   "about.viewChangelog": "Ver Registro de Alterações",
   "about.madeWith": "Feito com ♡ por Argel H",
 
+  "common.edit": "Editar",
+  "common.open": "Abrir",
   "common.cancel": "Cancelar",
   "common.ok": "OK",
   "common.save": "Salvar",
@@ -171,4 +183,6 @@ export const pt = {
   "editor.undoTooltip": "Desfazer",
   "editor.redoTooltip": "Refazer",
   "editor.translateSuccess": "Rascunho concluído!",
+  "editor.markCompleted": "Marcar Concluído",
+  "editor.completed": "Concluído",
 } as const;

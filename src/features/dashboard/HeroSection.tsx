@@ -27,6 +27,7 @@ export function HeroSection({
         </h2>
         <SearchInput
           placeholder={t("dashboard.hero.searchPlaceholder")}
+          className="w-full max-w-xl"
           onChange={(v) => onSearch?.(v)}
           results={searchResults}
           onSelect={onSearchSelect}

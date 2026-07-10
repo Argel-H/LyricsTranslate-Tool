@@ -1,13 +1,6 @@
-// TEMPORARY FILE — safe to delete after all users have migrated their DB.
-// Converts string timestamps ("MM:SS.xx") to milliseconds (number) and removes
-// the unused `comment` field from all stored lyric lines.
+// Database migration — runs on every app start. Idempotent (no-op when already migrated).
 import { db } from "./database";
-
-function parseTimestampToMs(ts: string): number {
-  const [minSec, csRaw = "0"] = ts.split(".");
-  const [min = "0", sec = "0"] = minSec.split(":");
-  return (parseInt(min) * 60 + parseInt(sec)) * 1000 + parseInt(csRaw.padEnd(2, "0")) * 10;
-}
+import { parseTimestampToMilliseconds } from "@/lib/timeUtils";
 
 export async function migrateLyricTimestamps(): Promise<number> {
   const projects = await db.projects.toArray();
@@ -22,11 +15,11 @@ export async function migrateLyricTimestamps(): Promise<number> {
       const newLine: Record<string, unknown> = { ...entry };
 
       if (typeof newLine.time_start === "string") {
-        newLine.time_start = parseTimestampToMs(newLine.time_start as string);
+        newLine.time_start = parseTimestampToMilliseconds(newLine.time_start as string);
         touched = true;
       }
       if (typeof newLine.time_end === "string") {
-        newLine.time_end = parseTimestampToMs(newLine.time_end as string);
+        newLine.time_end = parseTimestampToMilliseconds(newLine.time_end as string);
         touched = true;
       }
       delete newLine.comment;
@@ -46,4 +39,30 @@ export async function migrateLyricTimestamps(): Promise<number> {
     );
   }
   return migratedCount;
+}
+
+/**
+ * Fixes legacy projects where status is "in-progress" but progress is 0%.
+ * These should be "not-started" under the new status model.
+ */
+export async function normalizeLegacyStatuses(): Promise<number> {
+  const projects = await db.projects.toArray();
+  let fixedCount = 0;
+
+  for (const project of projects) {
+    if (project.status === "in-progress" && project.progress === 0) {
+      await db.projects.update(project.id, {
+        status: "not-started" as never,
+        updatedAt: Date.now(),
+      });
+      fixedCount++;
+    }
+  }
+
+  if (fixedCount > 0) {
+    console.log(
+      `[migration] Normalized ${fixedCount} project(s) from in-progress→not-started.`,
+    );
+  }
+  return fixedCount;
 }

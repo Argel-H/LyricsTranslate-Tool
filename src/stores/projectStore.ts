@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { calculateLyricsProgress } from "@/lib/progressUtils";
 import type { Project, LyricLine } from "@/types/project";
+import { PROJECT_STATUS } from "@/lib/constants";
 import {
   getProject,
   updateLyricLine as dbUpdateLyric,
@@ -8,6 +9,7 @@ import {
   updateProjectProgress,
   updateLyricLineLock,
   updateProjectAudio,
+  updateProjectArchived,
 } from "@/db/projectRepository";
 
 interface ProjectState {
@@ -19,6 +21,8 @@ interface ProjectState {
   updateLine: (key: string, field: keyof LyricLine, value: string | number) => Promise<void>;
   updateAllLines: (lyrics: Record<string, LyricLine>) => Promise<void>;
   toggleLineLock: (key: string) => Promise<void>;
+  toggleCompleted: () => void;
+  toggleArchived: () => void;
   setProject: (project: Project) => void;
   clearProject: () => void;
   updateAudioUrl: (audioUrl: string | undefined) => Promise<void>;
@@ -47,17 +51,23 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     const { progress, status } = calculateLyricsProgress(updatedLyrics);
 
+    // Auto-uncomplete: if project was manually completed but progress dropped below 100
+    const finalStatus =
+      project.status === PROJECT_STATUS.COMPLETED && progress < 100
+        ? PROJECT_STATUS.IN_PROGRESS
+        : status;
+
     set({
       currentProject: {
         ...project,
         lyrics: updatedLyrics,
         progress,
-        status,
+        status: finalStatus,
         updatedAt: Date.now(),
       },
     });
     await dbUpdateLyric(project.id, key, field, value);
-    await updateProjectProgress(project.id, progress, status);
+    await updateProjectProgress(project.id, progress, finalStatus);
   },
   updateAllLines: async (lyrics) => {
     const project = get().currentProject;
@@ -83,6 +93,26 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       currentProject: { ...project, lyrics: updatedLyrics, updatedAt: Date.now() },
     });
     await updateLyricLineLock(project.id, key, newLocked);
+  },
+  toggleCompleted: () => {
+    const current = get().currentProject;
+    if (!current) return;
+    const newStatus =
+      current.status === PROJECT_STATUS.COMPLETED
+        ? PROJECT_STATUS.IN_REVIEW
+        : current.status === PROJECT_STATUS.IN_REVIEW
+          ? PROJECT_STATUS.COMPLETED
+          : current.status;
+    if (newStatus === current.status) return;
+    set({ currentProject: { ...current, status: newStatus } });
+    updateProjectProgress(current.id, current.progress, newStatus);
+  },
+  toggleArchived: () => {
+    const current = get().currentProject;
+    if (!current) return;
+    const archived = !current.archived;
+    set({ currentProject: { ...current, archived } });
+    updateProjectArchived(current.id, archived);
   },
   setProject: (project) => set({ currentProject: project }),
   clearProject: () => {

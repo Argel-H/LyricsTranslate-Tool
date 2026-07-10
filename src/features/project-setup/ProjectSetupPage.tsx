@@ -1,7 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useParams } from "react-router-dom";
-import { AppShell } from "@/features/shell/AppShell";
 import { MasterCard } from "@/features/shell/MasterCard";
 import { SectionCard } from "./SectionCard";
 import { RoundedInput } from "./RoundedInput";
@@ -15,6 +14,7 @@ import {
 } from "@/db/projectRepository";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useModalStore } from "@/stores/modalStore";
+import { useShellStore } from "@/stores/shellStore";
 import { useI18n } from "@/hooks/useI18n";
 import {
   Plus,
@@ -93,6 +93,28 @@ export function ProjectSetupPage() {
   const [activeArtistTab, setActiveArtistTab] = useState(0);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const debouncedCoverUrl = useDebounce(coverUrl, 500);
+  const [coverTilt, setCoverTilt] = useState({ x: 0, y: 0 });
+  const coverRafRef = useRef(0);
+
+  const handleCoverMouseMove = (e: React.MouseEvent) => {
+    if (coverRafRef.current) return;
+    const target = e.currentTarget;
+    const clientX = e.clientX;
+    const clientY = e.clientY;
+    coverRafRef.current = requestAnimationFrame(() => {
+      const rect = target.getBoundingClientRect();
+      const x = (clientX - rect.left) / rect.width - 0.5;
+      const y = (clientY - rect.top) / rect.height - 0.5;
+      setCoverTilt({ x: y * -15, y: x * 15 });
+      coverRafRef.current = 0;
+    });
+  };
+
+  const handleCoverMouseLeave = () => {
+    cancelAnimationFrame(coverRafRef.current);
+    coverRafRef.current = 0;
+    setCoverTilt({ x: 0, y: 0 });
+  };
 
   useEffect(() => {
     if (editId) {
@@ -209,21 +231,27 @@ export function ProjectSetupPage() {
     }
   };
 
-  return (
-    <AppShell
-      title={isEditing ? t("setup.editTitle") : t("setup.title")}
-      onBack={() => navigate(-1)}
-      sidebarBg="bg-surface-container-lowest"
-      topbarBg="bg-surface-container-lowest"
-      bodyBg="bg-surface-container-lowest"
-      showTopbarBorder={false}
-      onOpenSettings={() => useModalStore.getState().openSettings()}
-      onOpenAbout={() => useModalStore.getState().openAbout()}
-      actions={
+  // Stable ref to avoid volatile deps in shell config effect
+  const latestRef = useRef({ handleSubmit, songName, artists, setDeleteOpen });
+  latestRef.current = { handleSubmit, songName, artists, setDeleteOpen };
+
+  // ── Push shell config on mount ──
+  useEffect(() => {
+    useShellStore.getState().reset();
+    useShellStore.getState().setConfig({
+      title: isEditing ? t("setup.editTitle") : t("setup.title"),
+      onBack: () => navigate(-1),
+      sidebarBg: "bg-surface-container-lowest",
+      topbarBg: "bg-surface-container-lowest",
+      bodyBg: "bg-surface-container-lowest",
+      showTopbarBorder: false,
+      onOpenSettings: () => useModalStore.getState().openSettings(),
+      onOpenAbout: () => useModalStore.getState().openAbout(),
+      actions: (
         <div className="flex items-center gap-3">
           {isEditing && (
             <button
-              onClick={() => setDeleteOpen(true)}
+              onClick={() => latestRef.current.setDeleteOpen(true)}
               className="p-2 rounded-full hover:bg-surface-container-highest text-on-surface-variant hover:text-error transition-colors"
               title={t("setup.deleteProjectTitle")}
             >
@@ -231,16 +259,23 @@ export function ProjectSetupPage() {
             </button>
           )}
           <Button
-            onClick={handleSubmit}
-            disabled={!songName.trim() || !artists[0]?.trim()}
+            onClick={() => latestRef.current.handleSubmit()}
+            disabled={
+              !latestRef.current.songName.trim() ||
+              !latestRef.current.artists[0]?.trim()
+            }
             className="bg-primary-container !text-on-primary-container font-label-lg text-label-lg px-6 h-12 rounded-full hover:bg-primary hover:text-on-primary transition-all flex items-center gap-2 disabled:opacity-50 shadow-md"
           >
             {isEditing ? t("common.save") : t("setup.next")}
             <ArrowRight className="size-4" />
           </Button>
         </div>
-      }
-    >
+      ),
+    });
+  }, [isEditing, t, navigate]);
+
+  return (
+    <>
       <MasterCard bgColor="bg-[#141317]">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter max-w-7xl mx-auto">
           {/* Left Column */}
@@ -307,7 +342,18 @@ export function ProjectSetupPage() {
                   {t("setup.verify")}
                 </Button>*/}
               </div>
-              <div className="w-full aspect-square bg-surface-container-highest rounded-3xl flex items-center justify-center mt-2 relative overflow-hidden border border-outline-variant/30">
+              <div
+                className="w-full aspect-square bg-surface-container-highest rounded-3xl flex items-center justify-center mt-2 relative overflow-hidden border border-outline-variant/30"
+                onMouseMove={handleCoverMouseMove}
+                onMouseLeave={handleCoverMouseLeave}
+                style={{
+                  transform: `perspective(700px) rotateX(${coverTilt.x}deg) rotateY(${coverTilt.y}deg)`,
+                  transition:
+                    coverTilt.x === 0 && coverTilt.y === 0
+                      ? "transform 0.6s ease"
+                      : "none",
+                }}
+              >
                 {debouncedCoverUrl ? (
                   <img
                     src={debouncedCoverUrl}
@@ -516,6 +562,6 @@ export function ProjectSetupPage() {
           </div>
         </div>
       )}
-    </AppShell>
+    </>
   );
 }

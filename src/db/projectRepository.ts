@@ -37,8 +37,9 @@ export async function getProject(id: number): Promise<Project | undefined> {
   return db.projects.get(id);
 }
 
-export async function getAllProjects(): Promise<Project[]> {
-  return db.projects.orderBy("updatedAt").reverse().toArray();
+export async function getAllProjects(includeArchived = false): Promise<Project[]> {
+  const all = await db.projects.orderBy("updatedAt").reverse().toArray();
+  return includeArchived ? all : all.filter((p) => !p.archived);
 }
 
 export async function updateProject(
@@ -109,6 +110,13 @@ export async function updateProjectAudio(
   if (audioUrl !== undefined) updates.audioUrl = audioUrl;
   if (syncOffsetMs !== undefined) updates.syncOffsetMs = syncOffsetMs;
   await db.projects.update(projectId, updates);
+}
+
+export async function updateProjectArchived(
+  id: number,
+  archived: boolean,
+): Promise<void> {
+  await db.projects.update(id, { archived, updatedAt: Date.now() });
 }
 
 export async function deleteProject(id: number): Promise<void> {

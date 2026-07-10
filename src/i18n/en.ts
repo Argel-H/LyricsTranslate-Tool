@@ -10,8 +10,14 @@ export const en = {
   "dashboard.hero.emptyProject": "Empty Project",
   "dashboard.recent.title": "Your Recent Projects",
   "dashboard.recent.viewAll": "View all",
+  "dashboard.status.notStarted": "Not Started",
   "dashboard.status.inProgress": "In Progress",
   "dashboard.status.inReview": "In Review",
+  "dashboard.status.completed": "Completed",
+  "dashboard.markCompleted": "Mark Completed",
+  "dashboard.unmarkCompleted": "Unmark Completed",
+  "dashboard.archive": "Archive",
+  "dashboard.unarchive": "Unarchive",
   "dashboard.emptyState":
     "Search for a song above to create your first translation project.",
   "dashboard.creatingProject": "Creating Project",
@@ -28,6 +34,10 @@ export const en = {
   "projects.searchPlaceholder": "Search by album, artist or song...",
   "projects.emptyState": "No projects yet. Create one from the dashboard.",
   "projects.emptySearch": "No projects match your search.",
+  "projects.filterAll": "All",
+  "projects.filterByStatus": "Filter by status",
+  "projects.clearFilters": "Clear",
+  "projects.filterArchived": "Archived",
   "dashboard.deleteProject": "Delete Project",
   "dashboard.deleteConfirm":
     'Are you sure you want to delete "%s"? This action cannot be undone.',
@@ -134,6 +144,8 @@ export const en = {
   "about.viewChangelog": "View Changelog",
   "about.madeWith": "Made with ♡ by Argel H",
 
+  "common.edit": "Edit",
+  "common.open": "Open",
   "common.cancel": "Cancel",
   "common.ok": "OK",
   "common.save": "Save",
@@ -171,4 +183,6 @@ export const en = {
   "editor.undoTooltip": "Undo",
   "editor.redoTooltip": "Redo",
   "editor.translateSuccess": "Draft complete!",
+  "editor.markCompleted": "Mark Complete",
+  "editor.completed": "Completed",
 } as const;
