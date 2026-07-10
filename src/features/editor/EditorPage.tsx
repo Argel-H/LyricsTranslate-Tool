@@ -9,7 +9,7 @@ import { FloatingActionButton } from "./FloatingActionButton";
 import { useHistoryStore } from "@/stores/historyStore";
 import { UndoRedoButton } from "./UndoRedoButton";
 import { useProjectStore } from "@/stores/projectStore";
-import { getSortedLyricLines } from "@/lib/timeUtils";
+import { getSortedLyricLines, formatMillisecondsToTimestamp } from "@/lib/timeUtils";
 import type { TimestampedLine } from "@/lib/timeUtils";
 import { useModalStore } from "@/stores/modalStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -24,7 +24,7 @@ import { processLyricsMap } from "@/lib/lyricsParser";
 import type { LyricLine } from "@/types/project";
 import { findAllTranslations } from "@/lib/suggestionUtils";
 import { AI_PROVIDERS } from "@/lib/aiConfig";
-import { downloadProjectAsYaml } from "@/lib/exportUtils";
+import { downloadProjectAsYaml, formatSrtTimestamp } from "@/lib/exportUtils";
 import { ExportDialog } from "./ExportDialog";
 import {
   Edit,
@@ -142,16 +142,16 @@ export function EditorPage() {
     // Sort by timestamp
     const sorted = entries
       .slice()
-      .sort(([, a], [, b]) => a.time_start.localeCompare(b.time_start));
+      .sort(([, a], [, b]) => a.time_start - b.time_start);
 
     // Separate lines into context vs target based on lock + overwrite settings
     const contextLines: Array<{
-      timestamp: string;
+      timestamp: number;
       original: string;
       translated?: string;
       locked?: boolean;
     }> = [];
-    const targetLines: Array<{ timestamp: string; original: string }> = [];
+    const targetLines: Array<{ timestamp: number; original: string }> = [];
 
     for (const [, line] of sorted) {
       // Skip instrumental/comment lines (lines with brackets)
@@ -262,18 +262,17 @@ export function EditorPage() {
     const keys = Object.keys(lyrics);
     const newKey = `lrc_${String(keys.length).padStart(2, "0")}`;
 
-    // Default times: start from last line's end, or 00:00.00
+    // Default times: start from last line's end, or 0ms
     const lastEnd =
-      keys.length > 0 ? parseTime(lyrics[keys[keys.length - 1]!]!.time_end) : 0;
-    const startTime = formatTime(lastEnd);
-    const endTime = formatTime(lastEnd + 3000); // +3 seconds default
+      keys.length > 0 ? lyrics[keys[keys.length - 1]!]!.time_end : 0;
+    const startTime = lastEnd + 10; // 10ms after previous end
+    const endTime = startTime + 3000; // +3 seconds default
 
     lyrics[newKey] = {
       time_start: startTime,
       time_end: endTime,
       lyric: "",
       translation: "",
-      comment: "",
     };
     await updateAllLines(lyrics);
     setActiveLineKey(newKey);
@@ -295,22 +294,6 @@ export function EditorPage() {
     await toggleLineLock(key);
   };
 
-  // Parse "MM:SS.ms" → milliseconds
-  function parseTime(time: string): number {
-    const [min, rest] = time.split(":");
-    const [sec, ms] = rest!.split(".");
-    return parseInt(min!) * 60000 + parseInt(sec!) * 1000 + parseInt(ms!) * 10;
-  }
-
-  // Format milliseconds → "MM:SS.ms"
-  function formatTime(ms: number): string {
-    if (ms < 0) ms = 0;
-    const min = Math.floor(ms / 60000);
-    const sec = Math.floor((ms % 60000) / 1000);
-    const cs = Math.floor((ms % 1000) / 10);
-    return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
-  }
-
   const STEP_MS = 100; // 0.1 seconds per click
 
   const handleTimeAdjust = (
@@ -325,27 +308,27 @@ export function EditorPage() {
     const idx = keys.indexOf(key);
     if (idx === -1) return;
 
-    const current = parseTime(lyrics[key]![field]);
+    const current = lyrics[key]![field];
     const newValue = current + direction * STEP_MS;
 
     if (field === "time_start") {
       // Min: previous row's time_end (or 0 for first row)
-      const min = idx > 0 ? parseTime(lyrics[keys[idx - 1]!]!.time_end) : 0;
+      const min = idx > 0 ? lyrics[keys[idx - 1]!]!.time_end : 0;
       // Max: current row's time_end - STEP_MS
-      const max = parseTime(lyrics[key]!.time_end) - STEP_MS;
+      const max = lyrics[key]!.time_end - STEP_MS;
       if (newValue < min || newValue > max) return;
-      updateLine(key, "time_start", formatTime(newValue));
+      updateLine(key, "time_start", newValue);
     } else {
       // time_end
       // Min: current row's time_start + STEP_MS
-      const min = parseTime(lyrics[key]!.time_start) + STEP_MS;
+      const min = lyrics[key]!.time_start + STEP_MS;
       // Max: next row's time_start (or no max for last row)
       const max =
         idx < keys.length - 1
-          ? parseTime(lyrics[keys[idx + 1]!]!.time_start)
+          ? lyrics[keys[idx + 1]!]!.time_start
           : Infinity;
       if (newValue < min || newValue > max) return;
-      updateLine(key, "time_end", formatTime(newValue));
+      updateLine(key, "time_end", newValue);
     }
   };
 
@@ -396,7 +379,8 @@ export function EditorPage() {
         const text = useTranslation
           ? line.translation || line.lyric
           : line.lyric;
-        return `[${line.time_start}] ${text}`;
+        const timestamp = formatMillisecondsToTimestamp(line.time_start);
+        return `[${timestamp}] ${text}`;
       })
       .join("\n");
   };
@@ -409,8 +393,8 @@ export function EditorPage() {
         const text = useTranslation
           ? line.translation || line.lyric
           : line.lyric;
-        const start = line.time_start.replace(".", ",");
-        const end = line.time_end.replace(".", ",");
+        const start = formatSrtTimestamp(line.time_start);
+        const end = formatSrtTimestamp(line.time_end);
         return `${i + 1}\n${start} --> ${end}\n${text}`;
       })
       .join("\n\n");
@@ -724,8 +708,8 @@ export function EditorPage() {
                       rowKey={key}
                       orderedKeys={lyricsEntries.map(([k]) => k)}
                       onNavigateToRow={handleVerticalTabNavigation}
-                      timeStart={line.time_start}
-                      timeEnd={line.time_end}
+                      timeStart={formatMillisecondsToTimestamp(line.time_start)}
+                      timeEnd={formatMillisecondsToTimestamp(line.time_end)}
                       lyric={line.lyric}
                       translation={line.translation}
                       translationPlaceholder={

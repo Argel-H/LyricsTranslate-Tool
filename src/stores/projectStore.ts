@@ -16,7 +16,7 @@ interface ProjectState {
   localAudioSrc: string | undefined;
   audioCurrentTime: number;
   loadProject: (id: number) => Promise<void>;
-  updateLine: (key: string, field: keyof LyricLine, value: string) => Promise<void>;
+  updateLine: (key: string, field: keyof LyricLine, value: string | number) => Promise<void>;
   updateAllLines: (lyrics: Record<string, LyricLine>) => Promise<void>;
   toggleLineLock: (key: string) => Promise<void>;
   setProject: (project: Project) => void;

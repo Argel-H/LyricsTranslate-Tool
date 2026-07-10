@@ -29,8 +29,8 @@ export interface ProjectYamlMetadata {
 }
 
 export interface ProjectYamlLyricLine {
-  time_start: string;
-  time_end: string;
+  time_start?: number;
+  time_end?: number;
   original: string;
   translated: string;
   locked?: boolean;

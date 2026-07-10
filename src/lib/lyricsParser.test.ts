@@ -11,11 +11,11 @@ describe('processLyricsMap', () => {
     const result = processLyricsMap(input);
     expect(result).not.toBeNull();
     expect(result!.size).toBe(3);
-    expect(result!.get('lrc_00')?.time_start).toBe('00:01.00');
+    expect(result!.get('lrc_00')?.time_start).toBe(1000);
     expect(result!.get('lrc_00')?.lyric).toBe('Line one');
-    expect(result!.get('lrc_01')?.time_start).toBe('00:04.50');
+    expect(result!.get('lrc_01')?.time_start).toBe(4500);
     expect(result!.get('lrc_01')?.lyric).toBe('Line two');
-    expect(result!.get('lrc_02')?.time_start).toBe('00:08.00');
+    expect(result!.get('lrc_02')?.time_start).toBe(8000);
     expect(result!.get('lrc_02')?.lyric).toBe('Line three');
   });
 
@@ -24,8 +24,8 @@ describe('processLyricsMap', () => {
     const result = processLyricsMap(input);
     expect(result).not.toBeNull();
     expect(result!.size).toBe(2);
-    expect(result!.get('lrc_00')?.time_start).toBe('00:01.50');
-    expect(result!.get('lrc_01')?.time_start).toBe('00:03.25');
+    expect(result!.get('lrc_00')?.time_start).toBe(1500);
+    expect(result!.get('lrc_01')?.time_start).toBe(3250);
   });
 
   it('returns a single empty line for empty input', () => {
@@ -40,7 +40,7 @@ describe('processLyricsMap', () => {
     const result = processLyricsMap(input);
     expect(result).not.toBeNull();
     expect(result!.size).toBe(3);
-    expect(result!.get('lrc_00')?.time_start).toBe('00:00.00');
+    expect(result!.get('lrc_00')?.time_start).toBe(0);
     expect(result!.get('lrc_00')?.lyric).toBe('Line one');
     expect(result!.get('lrc_01')?.lyric).toBe('Line two');
     expect(result!.get('lrc_02')?.lyric).toBe('Line three');
@@ -80,8 +80,8 @@ describe('parseLrcContent', () => {
     const input = 'Hello\nWorld';
     const result = parseLrcContent(input);
     expect(result).toHaveLength(2);
-    expect(result[0].timestamp).toBe('00:00.00');
-    expect(result[1].timestamp).toBe('00:00.00');
+    expect(result[0].timestamp).toBe(0);
+    expect(result[1].timestamp).toBe(0);
   });
 
   it('preserves stanza breaks as empty lines', () => {
@@ -117,17 +117,17 @@ describe('toLyricLineMap', () => {
       { timestamp: '00:08.00', text: 'Third' },
     ];
     const map = toLyricLineMap(lines);
-    expect(map.get('lrc_00')?.time_end).toBe('00:04.50');
-    expect(map.get('lrc_01')?.time_end).toBe('00:08.00');
-    expect(map.get('lrc_02')?.time_end).toBe('00:11.00'); // inferred: +3s
+    expect(map.get('lrc_00')?.time_end).toBe(4500);
+    expect(map.get('lrc_01')?.time_end).toBe(8000);
+    expect(map.get('lrc_02')?.time_end).toBe(11000); // inferred: +3s
   });
 
-  it('initializes translation and comment as empty strings', () => {
+  it('initializes translation as empty string', () => {
     const lines = [
       { timestamp: '00:01.00', text: 'Test' },
     ];
     const map = toLyricLineMap(lines);
     expect(map.get('lrc_00')?.translation).toBe('');
-    expect(map.get('lrc_00')?.comment).toBe('');
+    expect((map.get('lrc_00') as unknown as Record<string, unknown>)?.comment).toBeUndefined();
   });
 });

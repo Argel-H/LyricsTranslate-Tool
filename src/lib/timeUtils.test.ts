@@ -17,6 +17,12 @@ describe('parseTimestampToMilliseconds', () => {
   it('converts minutes and seconds only', () => {
     expect(parseTimestampToMilliseconds('02:15.00')).toBe(135000);
   });
+
+  it('returns the number as-is when given a number', () => {
+    expect(parseTimestampToMilliseconds(9590)).toBe(9590);
+    expect(parseTimestampToMilliseconds(0)).toBe(0);
+    expect(parseTimestampToMilliseconds(148840)).toBe(148840);
+  });
 });
 
 describe('formatMillisecondsToTimestamp', () => {

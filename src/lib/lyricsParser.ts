@@ -1,4 +1,5 @@
 import type { LyricLine } from "@/types/project";
+import { parseTimestampToMilliseconds } from "./timeUtils";
 
 /** Recognized LRC timestamp formats: mm:ss.cs and mm:ss:cs formats */
 const LRC_TIMESTAMP_PATTERNS: RegExp[] = [
@@ -6,10 +7,10 @@ const LRC_TIMESTAMP_PATTERNS: RegExp[] = [
   /\[(\d{2}:\d{2}:\d{2}\.\d{2,3})\]/,
 ];
 
-const DEFAULT_TIMESTAMP = "00:00.00";
+const DEFAULT_TIMESTAMP_MS = 0;
 
 interface ParsedLrcLine {
-  timestamp: string;
+  timestamp: string | number;
   text: string;
 }
 
@@ -38,7 +39,7 @@ export function parseLrcContent(raw: string): ParsedLrcLine[] {
   if (hasTimestamps(lines)) {
     return parseSyncedLines(lines);
   }
-  return lines.map((text) => ({ timestamp: DEFAULT_TIMESTAMP, text }));
+  return lines.map((text) => ({ timestamp: DEFAULT_TIMESTAMP_MS, text }));
 }
 
 /**
@@ -82,18 +83,9 @@ function parseSyncedLines(lines: string[]): ParsedLrcLine[] {
  * Infers a reasonable time_end for the last line in a synced LRC.
  * Defaults to time_start + 3 seconds.
  */
-function inferEndTimestamp(timeStart: string): string {
-  const match = timeStart.match(/^(\d{2}):(\d{2})\.(\d{2})$/);
-  if (!match) return timeStart;
-  let ms =
-    parseInt(match[1]!) * 60000 +
-    parseInt(match[2]!) * 1000 +
-    parseInt(match[3]!) * 10;
-  ms += 3000; // default 3 second duration
-  const min = Math.floor(ms / 60000);
-  const sec = Math.floor((ms % 60000) / 1000);
-  const cs = Math.floor((ms % 1000) / 10);
-  return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
+function inferEndTimestamp(timeStart: string | number): number {
+  const ms = parseTimestampToMilliseconds(timeStart);
+  return ms + 3000;
 }
 
 /**
@@ -110,15 +102,14 @@ export function toLyricLineMap(parsedLines: ParsedLrcLine[]): Map<string, LyricL
     const key = `lrc_${String(index).padStart(2, "0")}`;
     const nextLine = parsedLines[index + 1];
     const timeEnd = nextLine
-      ? nextLine.timestamp
+      ? parseTimestampToMilliseconds(nextLine.timestamp)
       : inferEndTimestamp(line.timestamp);
 
     map.set(key, {
-      time_start: line.timestamp,
+      time_start: parseTimestampToMilliseconds(line.timestamp),
       time_end: timeEnd,
       lyric: line.text === " " ? line.text : line.text.trim(),
       translation: "",
-      comment: "",
     });
   });
 

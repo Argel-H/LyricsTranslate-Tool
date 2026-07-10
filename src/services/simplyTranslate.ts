@@ -11,9 +11,9 @@ export interface AutoTranslateInput {
   artistName: string;
   targetLanguage: string;
   /** Lines provided for LLM context — the LLM must NOT translate these */
-  contextLines: Array<{ timestamp: string; original: string; translated?: string; locked?: boolean }>;
+  contextLines: Array<{ timestamp: string | number; original: string; translated?: string; locked?: boolean }>;
   /** Lines the LLM must translate */
-  targetLines: Array<{ timestamp: string; original: string }>;
+  targetLines: Array<{ timestamp: string | number; original: string }>;
 }
 
 // ─── Prompt Building ───────────────────────────────────────────────
@@ -121,6 +121,18 @@ export async function callDeepSeek(prompt: string, apiKey: string): Promise<stri
 
 // ─── Auto-Translate Prompt Builder ─────────────────────────────────
 
+/** Formats a timestamp (string or ms number) to LRC format MM:SS.xx */
+function formatTimestamp(ts: string | number): string {
+  if (typeof ts === "number") {
+    const clamped = Math.max(0, ts);
+    const minutes = Math.floor(clamped / 60000);
+    const seconds = Math.floor((clamped % 60000) / 1000);
+    const centiseconds = Math.floor((clamped % 1000) / 10);
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${String(centiseconds).padStart(2, "0")}`;
+  }
+  return ts;
+}
+
 export function buildAutoTranslatePrompt(input: AutoTranslateInput, provider: AIProvider): string {
   const ctx: TranslationPromptContext = {
     lrcContent: "", // not used in the new format
@@ -139,10 +151,11 @@ export function buildAutoTranslatePrompt(input: AutoTranslateInput, provider: AI
   parts.push("Context (DO NOT translate — use for consistency only):");
   if (input.contextLines.length > 0) {
     for (const line of input.contextLines) {
+      const ts = formatTimestamp(line.timestamp);
       if (line.translated) {
-        parts.push(`[${line.timestamp}] ${line.original} → ${line.translated}`);
+        parts.push(`[${ts}] ${line.original} → ${line.translated}`);
       } else {
-        parts.push(`[${line.timestamp}] ${line.original}`);
+        parts.push(`[${ts}] ${line.original}`);
       }
     }
   } else {
@@ -154,7 +167,8 @@ export function buildAutoTranslatePrompt(input: AutoTranslateInput, provider: AI
   parts.push("Lines to translate:");
   if (input.targetLines.length > 0) {
     for (const line of input.targetLines) {
-      parts.push(`[${line.timestamp}] ${line.original}`);
+      const ts = formatTimestamp(line.timestamp);
+      parts.push(`[${ts}] ${line.original}`);
     }
   } else {
     parts.push("(no lines to translate — return empty)");

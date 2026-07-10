@@ -97,15 +97,15 @@ describe("parseProjectYaml", () => {
     expect(Object.keys(lyrics)).toEqual(["lrc_00", "lrc_01"]);
     expect(lyrics.lrc_00?.lyric).toBe("Hello world");
     expect(lyrics.lrc_00?.translation).toBe("Hola mundo");
-    expect(lyrics.lrc_00?.time_start).toBe("00:01.00");
-    expect(lyrics.lrc_00?.time_end).toBe("00:05.00");
-    expect(lyrics.lrc_00?.comment).toBe("");
+    expect(lyrics.lrc_00?.time_start).toBe(1000);
+    expect(lyrics.lrc_00?.time_end).toBe(5000);
+    expect((lyrics.lrc_00 as unknown as Record<string, unknown>)?.comment).toBeUndefined();
     expect(lyrics.lrc_00?.locked).toBe(false);
 
     expect(lyrics.lrc_01?.lyric).toBe("How are you");
     expect(lyrics.lrc_01?.translation).toBe("Cómo estás");
-    expect(lyrics.lrc_01?.time_start).toBe("00:06.00");
-    expect(lyrics.lrc_01?.time_end).toBe("00:10.00");
+    expect(lyrics.lrc_01?.time_start).toBe(6000);
+    expect(lyrics.lrc_01?.time_end).toBe(10000);
   });
 
   it("parses artist_links into artistLinks", () => {
@@ -209,6 +209,8 @@ lyrics:
 `;
     const result = parseProjectYaml(yaml);
     expect(result.lyrics.lrc_00?.locked).toBe(true);
+    expect(result.lyrics.lrc_00?.time_start).toBe(0);
+    expect(result.lyrics.lrc_00?.time_end).toBe(1000);
   });
 
   it("defaults locked to false when not present", () => {
@@ -233,6 +235,8 @@ lyrics:
 `;
     const result = parseProjectYaml(yaml);
     expect(result.lyrics.lrc_00?.locked).toBe(false);
+    expect(result.lyrics.lrc_00?.time_start).toBe(0);
+    expect(result.lyrics.lrc_00?.time_end).toBe(1000);
   });
 
   // -----------------------------------------------------------------------

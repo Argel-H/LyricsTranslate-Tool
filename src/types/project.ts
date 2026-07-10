@@ -1,12 +1,11 @@
 import type { ProjectStatus } from "@/lib/constants";
 
 export interface LyricLine {
-  time_start: string;
-  time_end: string;
+  time_start: number;
+  time_end: number;
   lyric: string;
   translation: string;
-  comment: string;
-  locked?: boolean; // NEW: if true, auto-translate skips this line
+  locked?: boolean; // if true, auto-translate skips this line
 }
 
 export interface Project {

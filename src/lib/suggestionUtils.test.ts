@@ -99,7 +99,7 @@ describe("findExistingTranslation", () => {
 
   it("returns null for empty lyric input", () => {
     const lyrics2: Record<string, LyricLine> = {
-      "lrc_00": { time_start: "00:00.00", time_end: "00:03.00", lyric: "Hello", translation: "Hola", comment: "" },
+      "lrc_00": { time_start: 0, time_end: 3000, lyric: "Hello", translation: "Hola" },
     };
     const result = findExistingTranslation("   ", "lrc_01", lyrics2);
     expect(result).toBeNull();
@@ -214,7 +214,7 @@ describe("findAllTranslations", () => {
 
   it("returns empty array for empty lyric input", () => {
     const lyrics2: Record<string, LyricLine> = {
-      lrc_00: { time_start: "00:00.00", time_end: "00:03.00", lyric: "Hello", translation: "Hola", comment: "" },
+      lrc_00: { time_start: 0, time_end: 3000, lyric: "Hello", translation: "Hola" },
     };
     const result = findAllTranslations("   ", "lrc_01", lyrics2);
     expect(result).toEqual([]);

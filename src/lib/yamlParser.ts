@@ -1,4 +1,5 @@
 import type { ProjectCreateInput, LyricLine } from "@/types/project";
+import { parseTimestampToMilliseconds } from "./timeUtils";
 
 // ---------------------------------------------------------------------------
 // Simple line-by-line YAML parser
@@ -340,12 +341,13 @@ export function parseProjectYaml(yamlString: string): ProjectCreateInput {
     }
 
     const key = `lrc_${String(idx).padStart(2, "0")}`;
+    const rawStart = line.time_start;
+    const rawEnd = line.time_end;
     lyricsMap[key] = {
-      time_start: String(line.time_start ?? ""),
-      time_end: String(line.time_end ?? ""),
+      time_start: typeof rawStart === "string" ? parseTimestampToMilliseconds(rawStart) : (Number(rawStart) || 0),
+      time_end: typeof rawEnd === "string" ? parseTimestampToMilliseconds(rawEnd) : (Number(rawEnd) || 0),
       lyric: String(line.original ?? ""),
       translation: String(line.translated ?? ""),
-      comment: "",
       locked: line.locked === true,
     };
   }

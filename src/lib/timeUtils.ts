@@ -3,7 +3,8 @@ import type { LyricLine } from "@/types/project";
 const MILLISECONDS_PER_MINUTE = 60_000;
 const MILLISECONDS_PER_SECOND = 1_000;
 
-export function parseTimestampToMilliseconds(timestamp: string): number {
+export function parseTimestampToMilliseconds(timestamp: string | number): number {
+  if (typeof timestamp === "number") return timestamp;
   const [minutes, rest] = timestamp.split(":");
   if (!rest) return 0;
   const [seconds, centiseconds] = rest.split(".");

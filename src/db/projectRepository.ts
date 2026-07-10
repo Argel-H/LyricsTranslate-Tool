@@ -52,7 +52,7 @@ export async function updateLyricLine(
   projectId: number,
   lineKey: string,
   field: keyof LyricLine,
-  value: string,
+  value: string | number,
 ): Promise<void> {
   const project = await db.projects.get(projectId);
   if (!project?.lyrics[lineKey]) return;

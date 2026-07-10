@@ -13,6 +13,7 @@ import { AnimatedPage } from "@/components/shared/AnimatedPage";
 import { SettingsModal } from "@/components/shared/SettingsModal";
 import { ChangelogModal } from "@/components/shared/ChangelogModal";
 import { APP_NAME, APP_VERSION } from "@/lib/appConfig";
+import { migrateLyricTimestamps } from "@/db/migration";
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -44,6 +45,10 @@ function App() {
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
+
+  useEffect(() => {
+    migrateLyricTimestamps().catch(console.error);
+  }, []);
 
   return (
     <BrowserRouter>

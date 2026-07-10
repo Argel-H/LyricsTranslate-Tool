@@ -23,11 +23,10 @@ function createTestProject(overrides: Partial<Project> = {}): Project {
 
 function createLyricLine(overrides: Partial<LyricLine> = {}): LyricLine {
   return {
-    time_start: "00:00.00",
-    time_end: "00:05.00",
+    time_start: 0,
+    time_end: 5000,
     lyric: "Original lyric",
     translation: "Translated lyric",
-    comment: "",
     ...overrides,
   };
 }
@@ -61,8 +60,8 @@ describe("generateYamlContent", () => {
     const project = createTestProject({
       lyrics: {
         l1: createLyricLine({
-          time_start: "00:14.50",
-          time_end: "00:18.20",
+          time_start: 14500,
+          time_end: 18200,
           lyric: "Remember those walls I built?",
           translation: "¿Recuerdas esos muros que construí?",
         }),
@@ -93,8 +92,8 @@ describe("generateYamlContent", () => {
     // Check lyrics section
     const lyricsLine = lines.findIndex((l) => l.startsWith("lyrics:"));
     expect(lyricsLine).toBeGreaterThan(0);
-    expect(lines[lyricsLine + 1]).toContain("time_start: \"00:14.50\"");
-    expect(lines[lyricsLine + 2]).toContain("time_end: \"00:18.20\"");
+    expect(lines[lyricsLine + 1]).toContain("time_start: 14500");
+    expect(lines[lyricsLine + 2]).toContain("time_end: 18200");
     expect(lines[lyricsLine + 3]).toContain("original:");
     expect(lines[lyricsLine + 4]).toContain("translated:");
   });
@@ -103,20 +102,20 @@ describe("generateYamlContent", () => {
     const project = createTestProject({
       lyrics: {
         l2: createLyricLine({
-          time_start: "00:20.00",
-          time_end: "00:25.00",
+          time_start: 20000,
+          time_end: 25000,
           lyric: "Second line",
           translation: "Segunda línea",
         }),
         l1: createLyricLine({
-          time_start: "00:10.00",
-          time_end: "00:15.00",
+          time_start: 10000,
+          time_end: 15000,
           lyric: "First line",
           translation: "Primera línea",
         }),
         l3: createLyricLine({
-          time_start: "00:30.00",
-          time_end: "00:35.00",
+          time_start: 30000,
+          time_end: 35000,
           lyric: "Third line",
           translation: "Tercera línea",
         }),
@@ -131,9 +130,9 @@ describe("generateYamlContent", () => {
     const timeStarts = lines
       .slice(lyricsStart + 1)
       .filter((l) => l.includes("time_start:"))
-      .map((l) => l.match(/"([^"]+)"/)?.[1]);
+      .map((l) => l.split(": ")[1]);
 
-    expect(timeStarts).toEqual(["00:10.00", "00:20.00", "00:30.00"]);
+    expect(timeStarts).toEqual(["10000", "20000", "30000"]);
   });
 
   it("should include optional project fields when present", () => {
@@ -354,7 +353,6 @@ describe("generateYamlContent", () => {
         l1: createLyricLine({
           lyric: "Test",
           translation: "Test",
-          comment: "This should not appear",
         }),
       },
     });
@@ -382,11 +380,10 @@ describe("generateYamlContent", () => {
       updatedAt: 1720500000000,
       lyrics: {
         l1: {
-          time_start: "00:14.50",
-          time_end: "00:18.20",
+          time_start: 14500,
+          time_end: 18200,
           lyric: "Remember those walls I built?",
           translation: "¿Recuerdas esos muros que construí?",
-          comment: "",
           locked: false,
         },
       },
@@ -409,8 +406,8 @@ describe("generateYamlContent", () => {
     expect(result).toContain("created_at: 1720000000000");
     expect(result).toContain("updated_at: 1720500000000");
     expect(result).toContain("exported_at: 1720600000000");
-    expect(result).toContain('time_start: "00:14.50"');
-    expect(result).toContain('time_end: "00:18.20"');
+    expect(result).toContain("time_start: 14500");
+    expect(result).toContain("time_end: 18200");
     // These strings don't contain special YAML chars so they remain unquoted
     expect(result).toContain("original: Remember those walls I built?");
     expect(result).toContain("translated: ¿Recuerdas esos muros que construí?");
@@ -478,7 +475,7 @@ describe("generateYamlContent", () => {
 describe("existing export functions remain intact", () => {
   it("generateLrcContent still works", () => {
     const lyrics = {
-      l1: createLyricLine({ time_start: "00:10.00", time_end: "00:15.00", lyric: "Hello", translation: "Hola" }),
+      l1: createLyricLine({ time_start: 10000, time_end: 15000, lyric: "Hello", translation: "Hola" }),
     };
     expect(generateLrcContent(lyrics, false)).toContain("[00:10.00] Hello");
     expect(generateLrcContent(lyrics, true)).toContain("[00:10.00] Hola");
@@ -486,10 +483,10 @@ describe("existing export functions remain intact", () => {
 
   it("generateSrtContent still works", () => {
     const lyrics = {
-      l1: createLyricLine({ time_start: "00:10.00", time_end: "00:15.00", lyric: "Hello", translation: "Hola" }),
+      l1: createLyricLine({ time_start: 10000, time_end: 15000, lyric: "Hello", translation: "Hola" }),
     };
     const srt = generateSrtContent(lyrics, false);
-    expect(srt).toContain("00:10,00 --> 00:15,00");
+    expect(srt).toContain("00:00:10,000 --> 00:00:15,000");
     expect(srt).toContain("Hello");
   });
 });

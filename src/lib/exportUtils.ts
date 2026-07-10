@@ -1,10 +1,11 @@
 import type { LyricLine, Project } from "@/types/project";
+import { formatMillisecondsToTimestamp } from "./timeUtils";
 
 function sortLinesByTimestamp(
   lyrics: Record<string, LyricLine>,
 ): LyricLine[] {
   return Object.values(lyrics).sort((a, b) =>
-    a.time_start.localeCompare(b.time_start),
+    a.time_start - b.time_start,
   );
 }
 
@@ -15,7 +16,8 @@ export function generateLrcContent(
   return sortLinesByTimestamp(lyrics)
     .map((line) => {
       const text = useTranslation ? line.translation || line.lyric : line.lyric;
-      return `[${line.time_start}] ${text}`;
+      const timestamp = formatMillisecondsToTimestamp(line.time_start);
+      return `[${timestamp}] ${text}`;
     })
     .join("\n");
 }
@@ -27,11 +29,22 @@ export function generateSrtContent(
   return sortLinesByTimestamp(lyrics)
     .map((line, index) => {
       const text = useTranslation ? line.translation || line.lyric : line.lyric;
-      const start = line.time_start.replace(".", ",");
-      const end = line.time_end.replace(".", ",");
+      const start = formatSrtTimestamp(line.time_start);
+      const end = formatSrtTimestamp(line.time_end);
       return `${index + 1}\n${start} --> ${end}\n${text}`;
     })
     .join("\n\n");
+}
+
+/**
+ * Converts milliseconds to SRT format (HH:MM:SS,xxx).
+ */
+export function formatSrtTimestamp(ms: number): string {
+  const hh = Math.floor(ms / 3600000);
+  const mm = Math.floor((ms % 3600000) / 60000);
+  const ss = Math.floor((ms % 60000) / 1000);
+  const ms3 = ms % 1000;
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")},${String(ms3).padStart(3, "0")}`;
 }
 
 export function downloadTextFile(
@@ -76,7 +89,7 @@ export function generateYamlContent(project: Project): string {
 
   // Sort lyrics by time_start before serializing
   const sortedLyrics = Object.values(project.lyrics).sort((a, b) =>
-    a.time_start.localeCompare(b.time_start),
+    a.time_start - b.time_start,
   );
 
   // --- version ---
@@ -164,8 +177,8 @@ export function generateYamlContent(project: Project): string {
   lines.push("");
   lines.push("lyrics:");
   for (const line of sortedLyrics) {
-    lines.push(`  - time_start: ${escapeYamlValue(line.time_start)}`);
-    lines.push(`    time_end: ${escapeYamlValue(line.time_end)}`);
+    lines.push(`  - time_start: ${line.time_start}`);
+    lines.push(`    time_end: ${line.time_end}`);
     lines.push(`    original: ${escapeYamlValue(line.lyric)}`);
     lines.push(`    translated: ${escapeYamlValue(line.translation)}`);
     // locked is optional — only include when explicitly set (omitted if undefined)
