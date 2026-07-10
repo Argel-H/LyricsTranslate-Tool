@@ -84,11 +84,6 @@ export function DashboardPage() {
     navigate("/new-project");
   };
 
-  // Refresh projects when navigating back
-  const refreshProjects = () => {
-    getAllProjects().then(setProjects);
-  };
-
   const handleEditProject = (projectId: number) => {
     navigate(`/edit-project/${projectId}`);
   };

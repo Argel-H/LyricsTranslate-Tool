@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { generateLrcContent, generateSrtContent, generateYamlContent } from "./exportUtils";
 import type { Project, LyricLine } from "@/types/project";
 
@@ -226,7 +226,6 @@ describe("generateYamlContent", () => {
     expect(result).toContain("artist_name:");
     // Second entry has no artistName — should not have the field
     const lines = result.split("\n");
-    const instagramLines = lines.filter((l) => l.includes("instagram"));
     // Find the block after instagram line and check no artist_name follows
     const instaIdx = lines.findIndex((l) => l.includes("instagram"));
     const nextNonEmpty = lines.slice(instaIdx + 1).find((l) => l.trim() !== "");
