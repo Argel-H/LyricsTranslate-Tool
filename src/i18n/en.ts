@@ -112,6 +112,8 @@ export const en = {
   "settings.importReplace": "Replace and Import",
   "settings.importing": "Importing...",
   "settings.importSuccess": "%d projects imported successfully.",
+  "settings.importRefreshingIn": "Refreshing in %.1fs...",
+  "settings.importRefreshNow": "Refresh Now",
   "settings.importInvalidFile": "Invalid backup file. Please select a valid .json backup.",
   "settings.resetDatabase": "Reset Database",
   "settings.resetDesc":

@@ -114,6 +114,8 @@ export const pt = {
   "settings.importReplace": "Substituir e Importar",
   "settings.importing": "Importando...",
   "settings.importSuccess": "%d projetos importados com sucesso.",
+  "settings.importRefreshingIn": "Atualizando em %.1fs...",
+  "settings.importRefreshNow": "Atualizar Agora",
   "settings.importInvalidFile": "Arquivo de backup inválido. Selecione um arquivo .json válido.",
   "settings.resetDatabase": "Redefinir Banco de Dados",
   "settings.resetDesc":

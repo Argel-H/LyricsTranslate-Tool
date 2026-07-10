@@ -1,9 +1,9 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { LANGUAGE_LABELS, type LanguageCode } from "@/lib/constants";
 import { exportDatabase, importDatabase } from "@/lib/dbBackup";
-import { Globe, Trash2, Download, Upload } from "lucide-react";
+import { Globe, Trash2, Download, Upload, RefreshCw } from "lucide-react";
 
 type ImportState =
   | "idle"
@@ -26,6 +26,23 @@ export function GeneralTab({ onResetRequest }: GeneralTabProps) {
   const [pendingCount, setPendingCount] = useState(0);
   const [importedCount, setImportedCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
+  const [countdown, setCountdown] = useState(5);
+
+  // Countdown timer for auto-redirect after successful import
+  useEffect(() => {
+    if (importState !== "success") return;
+    if (countdown <= 0) {
+      window.location.href = "/";
+      return;
+    }
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        const next = Math.max(0, prev - 0.1);
+        return Math.round(next * 10) / 10;
+      });
+    }, 100);
+    return () => clearInterval(timer);
+  }, [importState, countdown]);
 
   const handleExport = async () => {
     try {
@@ -91,6 +108,7 @@ export function GeneralTab({ onResetRequest }: GeneralTabProps) {
     try {
       const result = await importDatabase(pendingFile);
       setImportedCount(result.projectCount);
+      setCountdown(5);
       setImportState("success");
       setPendingFile(null);
     } catch (err) {
@@ -207,14 +225,18 @@ export function GeneralTab({ onResetRequest }: GeneralTabProps) {
         {/* Success */}
         {importState === "success" && (
           <div className="bg-primary-container/20 rounded-2xl p-4 border border-primary/20">
-            <p className="font-body-md text-on-surface">
+            <p className="font-body-md text-on-surface mb-3">
               {t("settings.importSuccess").replace("%d", String(importedCount))}
             </p>
+            <p className="font-body-sm text-on-surface-variant mb-3">
+              {t("settings.importRefreshingIn").replace("%.1f", countdown.toFixed(1))}
+            </p>
             <button
-              onClick={handleDismiss}
-              className="mt-2 px-4 py-1.5 rounded-full font-label-md text-primary hover:bg-primary-container/40 transition-all"
+              onClick={() => { window.location.href = "/"; }}
+              className="px-5 py-2.5 rounded-full font-label-lg bg-primary-container text-on-primary-container hover:bg-primary hover:text-on-primary transition-all flex items-center gap-2"
             >
-              {t("common.ok")}
+              <RefreshCw className="size-4" />
+              {t("settings.importRefreshNow")}
             </button>
           </div>
         )}
