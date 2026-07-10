@@ -1,6 +1,7 @@
-import { MoreVertical, Music, Edit3, Trash2, ExternalLink } from "lucide-react"
+import { MoreVertical, Music, Edit3, Trash2, ExternalLink, Download } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState, useRef, useEffect } from "react"
+import { useI18n } from "@/hooks/useI18n"
 import { StatusBadge } from "./StatusBadge"
 import { ProjectProgressBar } from "./ProjectProgressBar"
 
@@ -15,6 +16,7 @@ interface ProjectCardProps {
   onClick?: () => void
   onEdit?: () => void
   onDelete?: () => void
+  onExport?: () => void
   onOpen?: () => void
   className?: string
 }
@@ -30,9 +32,11 @@ export function ProjectCard({
   onClick,
   onEdit,
   onDelete,
+  onExport,
   onOpen,
   className,
 }: ProjectCardProps) {
+  const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
 
@@ -114,6 +118,17 @@ export function ProjectCard({
               <ExternalLink className="size-4" />
               Open
             </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setMenuOpen(false)
+                onExport?.()
+              }}
+              className="w-full text-left px-4 py-2.5 text-body-md text-on-surface hover:bg-surface-container-highest flex items-center gap-2 transition-colors cursor-pointer"
+            >
+              <Download className="size-4" />
+              {t("dashboard.exportProject")}
+            </button>
             <div className="h-px bg-outline-variant/20 mx-2" />
             <button
               onClick={(e) => {
@@ -124,7 +139,7 @@ export function ProjectCard({
               className="w-full text-left px-4 py-2.5 text-body-md text-error hover:bg-surface-container-highest flex items-center gap-2 transition-colors cursor-pointer"
             >
               <Trash2 className="size-4" />
-              Delete
+              {t("common.delete")}
             </button>
           </div>
         )}

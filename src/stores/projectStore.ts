@@ -7,22 +7,31 @@ import {
   updateAllLyrics as dbUpdateAllLyrics,
   updateProjectProgress,
   updateLyricLineLock,
+  updateProjectAudio,
 } from "@/db/projectRepository";
 
 interface ProjectState {
   currentProject: Project | null;
   isLoading: boolean;
+  localAudioSrc: string | undefined;
+  audioCurrentTime: number;
   loadProject: (id: number) => Promise<void>;
   updateLine: (key: string, field: keyof LyricLine, value: string) => Promise<void>;
   updateAllLines: (lyrics: Record<string, LyricLine>) => Promise<void>;
   toggleLineLock: (key: string) => Promise<void>;
   setProject: (project: Project) => void;
   clearProject: () => void;
+  updateAudioUrl: (audioUrl: string | undefined) => Promise<void>;
+  setLocalAudioSrc: (src: string | undefined) => void;
+  clearLocalAudio: () => void;
+  setAudioCurrentTime: (time: number) => void;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   currentProject: null,
   isLoading: false,
+  localAudioSrc: undefined,
+  audioCurrentTime: 0,
   loadProject: async (id) => {
     set({ isLoading: true });
     const project = await getProject(id);
@@ -76,5 +85,22 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     await updateLyricLineLock(project.id, key, newLocked);
   },
   setProject: (project) => set({ currentProject: project }),
-  clearProject: () => set({ currentProject: null }),
+  clearProject: () => {
+    const { localAudioSrc } = get();
+    if (localAudioSrc) URL.revokeObjectURL(localAudioSrc);
+    set({ currentProject: null, localAudioSrc: undefined, audioCurrentTime: 0 });
+  },
+  updateAudioUrl: async (audioUrl) => {
+    const project = get().currentProject;
+    if (!project) return;
+    set({ currentProject: { ...project, audioUrl, updatedAt: Date.now() } });
+    await updateProjectAudio(project.id, audioUrl, undefined);
+  },
+  setLocalAudioSrc: (src) => set({ localAudioSrc: src }),
+  clearLocalAudio: () => {
+    const { localAudioSrc } = get();
+    if (localAudioSrc) URL.revokeObjectURL(localAudioSrc);
+    set({ localAudioSrc: undefined, audioCurrentTime: 0 });
+  },
+  setAudioCurrentTime: (time) => set({ audioCurrentTime: time }),
 }));

@@ -6,6 +6,7 @@ import { useModalStore } from "@/stores/modalStore";
 import { useI18n } from "@/hooks/useI18n";
 import { Modal } from "@/features/shell/Modal";
 import { DashboardPage } from "@/features/dashboard/DashboardPage";
+import { AllProjectsPage } from "@/features/dashboard/AllProjectsPage";
 import { ProjectSetupPage } from "@/features/project-setup/ProjectSetupPage";
 import { EditorPage } from "@/features/editor/EditorPage";
 import { AnimatedPage } from "@/components/shared/AnimatedPage";
@@ -20,6 +21,7 @@ function AnimatedRoutes() {
       <AnimatePresence>
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={<AnimatedPage><DashboardPage /></AnimatedPage>} />
+          <Route path="/projects" element={<AnimatedPage><AllProjectsPage /></AnimatedPage>} />
           <Route path="/new-project" element={<AnimatedPage><ProjectSetupPage /></AnimatedPage>} />
           <Route path="/edit-project/:id" element={<AnimatedPage><ProjectSetupPage /></AnimatedPage>} />
           <Route path="/editor/:id" element={<AnimatedPage><EditorPage /></AnimatedPage>} />

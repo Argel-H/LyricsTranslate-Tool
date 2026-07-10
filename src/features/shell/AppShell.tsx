@@ -19,6 +19,7 @@ interface AppShellProps {
   showTopbarBorder?: boolean;
   bodyBg?: string;
   className?: string;
+  bottomBar?: ReactNode;
 }
 
 export function AppShell({
@@ -36,6 +37,7 @@ export function AppShell({
   showTopbarBorder = true,
   bodyBg = "bg-surface-container-low",
   className,
+  bottomBar,
 }: AppShellProps) {
   const showTopbar = showTopbarProp ?? variant === "standard";
 
@@ -75,13 +77,22 @@ export function AppShell({
 
       <main
         className={cn(
-          "flex-1 pr-6 pb-24 md:pb-16 flex transition-colors duration-300 lg:ml-20",
+          "flex-1 pr-6 flex transition-colors duration-300 lg:ml-20",
+          bottomBar ? "pb-32 md:pb-24" : "pb-24 md:pb-16",
           !showTopbar && "pt-10 md:pt-5",
           bodyBg,
         )}
       >
         {children}
       </main>
+
+      {bottomBar && (
+        <div className="fixed bottom-0 left-0 lg:left-20 right-0 z-50 h-16 bg-surface-container border-t border-outline-variant/20 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+          <div className="h-full max-w-[1400px] mx-auto flex items-center px-4">
+            {bottomBar}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

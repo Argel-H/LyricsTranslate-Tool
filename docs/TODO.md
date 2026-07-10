@@ -36,11 +36,12 @@
 - [x] Translation suggestions (reuse existing translations)
 - [x] Circular Tab navigation between rows (wrap from last→first)
 - [x] Patch Notes page
+- [x] Music player integration
+- [x] Undo/redo for editor changes
 
 ## Pending
-- [ ] Music player integration
 - [ ] Read lyrics from imported LRC/SRT files
-- [ ] Undo/redo for editor changes
+- [ ] Audio sync offset configuration UI (syncOffsetMs field)
 - [ ] Keyboard shortcuts
 - [ ] Batch replace in lyrics
 - [ ] Dark/light theme toggle

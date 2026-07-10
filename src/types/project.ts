@@ -26,6 +26,8 @@ export interface Project {
   songLinkUrl?: string;
   artistLinks?: Array<{ name: string; url: string }>;
   recommendedSocialLinks?: Array<{ platform: string; url: string; artistName?: string }>;
+  audioUrl?: string;
+  syncOffsetMs?: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -43,4 +45,6 @@ export interface ProjectCreateInput {
   songLinkUrl?: string;
   artistLinks?: Array<{ name: string; url: string }>;
   recommendedSocialLinks?: Array<{ platform: string; url: string; artistName?: string }>;
+  audioUrl?: string;
+  syncOffsetMs?: number;
 }

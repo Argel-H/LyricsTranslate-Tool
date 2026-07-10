@@ -35,6 +35,6 @@ export const LRC_LINE_KEY_PADDING = 2;
 
 export const DROPDOWN_MAX_HEIGHT_PX = 370;
 
-export const EXPORT_FORMATS = ["lrc", "srt"] as const;
+export const EXPORT_FORMATS = ["lrc", "srt", "yaml"] as const;
 
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];

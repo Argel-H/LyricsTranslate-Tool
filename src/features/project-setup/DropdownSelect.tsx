@@ -13,6 +13,7 @@ interface DropdownSelectProps {
   onChange?: (value: string) => void;
   className?: string;
   variant?: "default" | "compact";
+  disabled?: boolean;
 }
 
 export function DropdownSelect({
@@ -24,6 +25,7 @@ export function DropdownSelect({
   onChange,
   className,
   variant = "default",
+  disabled = false,
 }: DropdownSelectProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,7 +46,7 @@ export function DropdownSelect({
   }, [open]);
 
   const handleClick = () => {
-    if (options) {
+    if (options && !disabled) {
       setOpen((prev) => !prev);
     }
   };
@@ -95,11 +97,12 @@ export function DropdownSelect({
     return (
       <div
         ref={containerRef}
-        onClick={options ? handleClick : undefined}
+        onClick={!disabled ? (options ? handleClick : undefined) : undefined}
         className={cn(
           "relative bg-surface-container-high px-4 py-2 flex items-center gap-3 border border-outline-variant/50 transition-all group",
           open ? "rounded-t-md rounded-b-none border-b-0 duration-150" : "rounded-full duration-500",
-          options && "cursor-pointer",
+          options && !disabled && "cursor-pointer",
+          disabled && "opacity-50 cursor-not-allowed select-none",
           className,
         )}
       >
@@ -126,11 +129,13 @@ export function DropdownSelect({
     <div
       ref={containerRef}
       className={cn(
-        "relative bg-surface-container-high pl-5 pr-4 py-3 flex items-center gap-3 border border-outline-variant/50 hover:bg-surface-variant cursor-pointer group transition-all",
+        "relative bg-surface-container-high pl-5 pr-4 py-3 flex items-center gap-3 border border-outline-variant/50 group transition-all",
         open ? "rounded-t-md rounded-b-none border-b-0 duration-150" : "rounded-full duration-500",
+        !disabled && "cursor-pointer hover:bg-surface-variant",
+        disabled && "opacity-50 cursor-not-allowed select-none",
         className,
       )}
-      onClick={handleClick}
+      onClick={!disabled ? handleClick : undefined}
     >
       <Icon className="size-5 text-on-surface-variant" />
       <div className="flex flex-col">

@@ -1,5 +1,20 @@
 [
   {
+    "version": "0.0.3",
+    "date": "2025-07-09",
+    "changes": [
+      "Audio player with waveform progress bar, URL/local file support, and LRC sync",
+      "Undo/redo for editor changes with snapshot history (max 10 steps)",
+      "YAML project export and import (full project backup/restore)",
+      "Redesigned export dialog with format and content dropdowns",
+      "All Projects page with client-side search and 5-column responsive grid",
+      "Project card: export option added to context menu",
+      "Auto-calculate progress and status on project creation",
+      "Improved scrollbar styling with visible track",
+      "i18n: 30 new keys for player, export, and undo/redo (EN, ES, PT)"
+    ]
+  },
+  {
     "version": "0.0.2",
     "date": "2025-07-09",
     "changes": [

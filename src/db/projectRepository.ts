@@ -1,18 +1,20 @@
 import { db } from "./database";
 import type { Project, ProjectCreateInput, LyricLine } from "@/types/project";
 import type { ProjectStatus } from "@/lib/constants";
+import { calculateLyricsProgress } from "@/lib/progressUtils";
 
 export async function createProject(input: ProjectCreateInput): Promise<number> {
   const id = Date.now();
   const now = Date.now();
+  const { progress, status } = calculateLyricsProgress(input.lyrics);
   const project: Project = {
     id,
     title: `${input.artistName[0]} - ${input.trackName}`,
     artistName: input.artistName,
     trackName: input.trackName,
     lyrics: input.lyrics,
-    status: "in-progress",
-    progress: 0,
+    status,
+    progress,
     coverUrl: input.coverUrl,
     isrcs: input.isrcs,
     streamingSites: input.streamingSites,
@@ -94,6 +96,17 @@ export async function updateProjectProgress(
     status,
     updatedAt: Date.now(),
   });
+}
+
+export async function updateProjectAudio(
+  projectId: number,
+  audioUrl: string | undefined,
+  syncOffsetMs: number | undefined,
+): Promise<void> {
+  const updates: { updatedAt: number; audioUrl?: string; syncOffsetMs?: number } = { updatedAt: Date.now() };
+  if (audioUrl !== undefined) updates.audioUrl = audioUrl;
+  if (syncOffsetMs !== undefined) updates.syncOffsetMs = syncOffsetMs;
+  await db.projects.update(projectId, updates);
 }
 
 export async function deleteProject(id: number): Promise<void> {

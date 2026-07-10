@@ -38,23 +38,24 @@
 
   /* Custom scrollbar — Firefox */
   * {
-    scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted)) transparent;
+    scrollbar-width: auto;
+    scrollbar-color: hsl(var(--muted)) hsl(var(--surface-container));
   }
 
   /* Custom scrollbar — Chrome, Safari, Edge */
   *::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 10px;
+    height: 10px;
   }
 
   *::-webkit-scrollbar-track {
-    background: transparent;
+    background: hsl(var(--surface-container));
   }
 
   *::-webkit-scrollbar-thumb {
     background: hsl(var(--muted));
     border-radius: 9999px;
+    border: 2px solid hsl(var(--surface-container));
   }
 
   *::-webkit-scrollbar-thumb:hover {

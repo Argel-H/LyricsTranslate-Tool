@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/features/shell/AppShell";
@@ -6,7 +6,9 @@ import { MasterCard } from "@/features/shell/MasterCard";
 import { HeroSection } from "./HeroSection";
 import { ProjectCard } from "./ProjectCard";
 import { APP_NAME } from "@/lib/appConfig";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Upload } from "lucide-react";
+import { downloadProjectAsYaml } from "@/lib/exportUtils";
+import { parseProjectYaml } from "@/lib/yamlParser";
 import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 import { searchLrcLib } from "@/services/lrclib";
 import { getFullMetadata } from "@/services/metadataAggregator";
@@ -17,6 +19,7 @@ import {
 } from "@/db/projectRepository";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useModalStore } from "@/stores/modalStore";
+import { useProjectStore } from "@/stores/projectStore";
 import { useI18n } from "@/hooks/useI18n";
 import type { Project } from "@/types/project";
 import type { ProjectStatus } from "@/lib/constants";
@@ -31,6 +34,14 @@ export function DashboardPage() {
   const [creatingProject, setCreatingProject] = useState(false);
   const [loadingStatus, setLoadingStatus] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
+  const [importingProject, setImportingProject] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Clear any lingering project/audio state when entering dashboard
+  useEffect(() => {
+    useProjectStore.getState().clearProject();
+  }, []);
+
   // Fetch recent projects from Dexie
   useEffect(() => {
     getAllProjects().then(setProjects);
@@ -90,12 +101,46 @@ export function DashboardPage() {
     setDeleteTarget(project);
   };
 
+  const handleExportProject = (project: Project) => {
+    downloadProjectAsYaml(project);
+  };
+
   const confirmDeleteProject = async () => {
     if (!deleteTarget) return;
     await deleteProject(deleteTarget.id);
     setDeleteTarget(null);
     // Refresh the projects list
     getAllProjects().then(setProjects);
+  };
+
+  // Handle YAML file import
+  const handleFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportingProject(true);
+    setImportError(null);
+
+    try {
+      const text = await file.text();
+      const projectInput = parseProjectYaml(text);
+      const projectId = await createProject(projectInput);
+
+      // Reset the file input so the same file can be re-imported
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+
+      setImportingProject(false);
+      navigate(`/editor/${projectId}`);
+    } catch (err) {
+      setImportingProject(false);
+      setImportError(err instanceof Error ? err.message : t("dashboard.importErrorMessage"));
+      // Reset the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   const formatResults = Array.isArray(searchResults)
@@ -134,6 +179,22 @@ export function DashboardPage() {
                   </p>
                 </div>
               </div>
+              <div className="flex items-center gap-3">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".yaml,.yml"
+                  className="hidden"
+                  onChange={handleFileImport}
+                />
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2 bg-surface-container-high hover:bg-surface-container-highest border border-outline-variant/30 rounded-full font-label-lg text-on-surface transition-colors"
+                >
+                  <Upload className="size-4" />
+                  {t("dashboard.importProject")}
+                </button>
+              </div>
             </div>
           }
         >
@@ -153,7 +214,7 @@ export function DashboardPage() {
                     {t("dashboard.recent.title")}
                   </h2>
                   <button
-                    onClick={refreshProjects}
+                    onClick={() => navigate("/projects")}
                     className="text-primary hover:bg-primary/10 px-4 py-2 rounded-full transition-colors font-label-lg text-label-lg flex items-center gap-2"
                   >
                     {t("dashboard.recent.viewAll")}
@@ -161,7 +222,7 @@ export function DashboardPage() {
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6">
-                  {projects.map((project) => {
+                  {projects.slice(0, 8).map((project) => {
                     const status: ProjectStatus = project.status;
                     return (
                       <ProjectCard
@@ -180,6 +241,7 @@ export function DashboardPage() {
                         onEdit={() => handleEditProject(project.id)}
                         onOpen={() => handleOpenProject(project.id)}
                         onDelete={() => handleDeleteProject(project)}
+                        onExport={() => handleExportProject(project)}
                       />
                     );
                   })}
@@ -199,7 +261,7 @@ export function DashboardPage() {
         </MasterCard>
       </AppShell>
 
-      {/* Loading Modal Overlay */}
+      {/* Loading Modal Overlay — creating project */}
       {creatingProject && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-surface-container-high rounded-3xl p-8 shadow-2xl border border-outline-variant/20 max-w-sm w-full mx-4 flex flex-col items-center gap-4">
@@ -209,6 +271,24 @@ export function DashboardPage() {
             </p>
             <p className="font-body-md text-body-md text-on-surface-variant text-center">
               {loadingStatus}
+            </p>
+            <div className="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden mt-2">
+              <div className="h-full bg-primary rounded-full animate-m3-loading-bar" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Modal Overlay — importing project */}
+      {importingProject && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-surface-container-high rounded-3xl p-8 shadow-2xl border border-outline-variant/20 max-w-sm w-full mx-4 flex flex-col items-center gap-4">
+            <M3LoadingIndicator size={40} style={{ color: "rgb(208, 188, 255)" }} />
+            <p className="font-title-lg text-title-lg text-on-surface text-center">
+              {t("dashboard.importing")}
+            </p>
+            <p className="font-body-md text-body-md text-on-surface-variant text-center">
+              {t("dashboard.importingDesc")}
             </p>
             <div className="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden mt-2">
               <div className="h-full bg-primary rounded-full animate-m3-loading-bar" />
@@ -244,6 +324,22 @@ export function DashboardPage() {
                 {t("common.delete")}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Error Modal */}
+      {importError && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-surface-container-high rounded-3xl p-6 shadow-2xl border border-outline-variant/20 max-w-sm w-full mx-4">
+            <h3 className="font-title-lg text-on-surface mb-2">{t("dashboard.importError")}</h3>
+            <p className="font-body-md text-on-surface-variant mb-6">{importError}</p>
+            <button
+              onClick={() => setImportError(null)}
+              className="w-full py-2.5 rounded-full font-label-lg bg-primary-container text-on-primary-container hover:bg-primary hover:text-on-primary transition-all"
+            >
+              {t("common.ok")}
+            </button>
           </div>
         </div>
       )}

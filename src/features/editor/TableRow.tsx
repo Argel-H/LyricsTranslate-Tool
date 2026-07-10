@@ -1,5 +1,11 @@
 import { cn } from "@/lib/utils";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { TimeControl } from "./TimeControl";
 import { TranslationTextarea } from "./TranslationTextarea";
 import { TranslationSuggestions } from "./TranslationSuggestions";
@@ -21,6 +27,7 @@ interface TableRowProps {
   onTranslationChange?: (value: string) => void;
   onLyricChange?: (value: string) => void;
   onTranslationFocus?: () => void;
+  onTranslationBlur?: (relatedTarget: EventTarget | null) => void;
   focusedColumn?: string | null;
   onLyricFocus?: () => void;
   onLyricBlur?: (relatedTarget: EventTarget | null) => void;
@@ -33,6 +40,7 @@ interface TableRowProps {
   isLocked?: boolean;
   onToggleLock?: () => void;
   showLock?: boolean;
+  isAudioActive?: boolean;
   className?: string;
 }
 
@@ -50,6 +58,7 @@ export function TableRow({
   onTranslationChange,
   onLyricChange,
   onTranslationFocus,
+  onTranslationBlur,
   focusedColumn,
   onLyricFocus,
   onLyricBlur,
@@ -62,6 +71,7 @@ export function TableRow({
   isLocked = false,
   onToggleLock,
   showLock = false,
+  isAudioActive = false,
   className,
 }: TableRowProps) {
   const isActive = state === "active";
@@ -85,7 +95,8 @@ export function TableRow({
 
   const suggestionsCount = suggestions?.length ?? 0;
   const isTranslationFocused = isActive && focusedColumn === "translation";
-  const isTranslationCompact = !translation?.trim() && !isTranslationFocused && !isActive;
+  const isTranslationCompact =
+    !translation?.trim() && !isTranslationFocused && !isActive;
 
   // Reset index when the number of suggestions changes (e.g., new translations added)
   useEffect(() => {
@@ -112,7 +123,7 @@ export function TableRow({
         shift = margin - card.left;
       } else if (card.right > viewportW - margin) {
         // Overflowing right edge — shift left
-        shift = (viewportW - margin) - card.right;
+        shift = viewportW - margin - card.right;
       }
 
       setTooltipShift(shift);
@@ -218,12 +229,18 @@ export function TableRow({
         isActive
           ? "rounded-[32px] bg-surface-container-high shadow-xl border border-primary/20 mx-1 my-2"
           : "rounded-[24px] hover:bg-surface-container-highest/30 transition-all duration-200",
+        isAudioActive && !isActive && "bg-primary/5",
         className,
       )}
     >
       {/* Active row indicator */}
       {isActive && (
         <div className="absolute left-0.5 top-6 bottom-6 w-1 bg-primary rounded-full" />
+      )}
+
+      {/* Audio-active indicator (pulsing, only when NOT click-active) */}
+      {isAudioActive && !isActive && (
+        <div className="absolute left-0.5 top-6 bottom-6 w-1 bg-primary rounded-full animate-pulse" />
       )}
 
       {/* Timestamps */}
@@ -258,8 +275,8 @@ export function TableRow({
         data-column="lyric"
         className={cn(
           isInstrumental
-            ? "text-body-md text-on-surface-variant bg-surface-container rounded-3xl p-4 italic flex items-center h-28"
-            : "flex items-center h-28",
+            ? "text-body-md text-on-surface-variant bg-surface-container rounded-3xl p-4 italic flex items-center"
+            : "flex items-center",
         )}
       >
         {isActive ? (
@@ -271,7 +288,7 @@ export function TableRow({
             onKeyDown={(e) => navigateVertically(e, "lyric")}
             data-column="lyric"
             ref={lyricTextareaRef}
-            className="w-full bg-surface-container border border-outline-variant rounded-3xl p-4 text-body-lg text-on-surface leading-relaxed h-28 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/30 resize-none"
+            className="w-full bg-surface-container border border-outline-variant rounded-3xl p-4 text-body-lg text-on-surface leading-relaxed h-28 focus:outline-none resize-none"
             rows={3}
           />
         ) : (
@@ -287,10 +304,12 @@ export function TableRow({
       {/* Translation */}
       <div className="flex items-center gap-2" data-column="translation">
         {translation?.trim() && !isTranslationFocused ? (
-          // Display mode: styled div that wraps to content
           <div
             data-column="translation"
-            className="flex-1 bg-surface-container border border-outline-variant rounded-3xl p-4 text-body-lg text-on-surface leading-relaxed min-h-20"
+            className={cn(
+              "flex-1 bg-surface-container border border-outline-variant rounded-3xl p-4 text-body-lg text-on-surface leading-relaxed",
+              isActive ? "h-28" : "min-h-18",
+            )}
           >
             {translation}
           </div>
@@ -304,40 +323,46 @@ export function TableRow({
               onFocus={onTranslationFocus}
               onKeyDown={handleTranslationKeyDown}
               className={cn(
-                isActive && "h-28",
+                isActive && "h-[6.6rem]",
                 isTranslationCompact && "h-20",
               )}
+              onBlur={(e) => onTranslationBlur?.(e.relatedTarget)}
               ref={translationRef}
             />
 
-            {suggestions &&
-              suggestionsCount > 0 &&
-              !translation?.trim() && (
-                <TranslationSuggestions
-                  suggestions={suggestions}
-                  currentIndex={currentIndex}
-                  onIndexChange={setCurrentIndex}
-                  onFill={(text) => onTranslationChange?.(text)}
-                  focused={isTranslationFocused}
-                />
-              )}
+            {suggestions && suggestionsCount > 0 && !translation?.trim() && (
+              <TranslationSuggestions
+                suggestions={suggestions}
+                currentIndex={currentIndex}
+                onIndexChange={setCurrentIndex}
+                onFill={(text) => onTranslationChange?.(text)}
+                focused={isTranslationFocused}
+              />
+            )}
           </div>
         )}
 
         {showLock && (
           <div className="relative shrink-0">
             <button
-              onClick={(e) => { e.stopPropagation(); onToggleLock?.(); }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleLock?.();
+              }}
               onMouseEnter={showTooltip}
               onMouseLeave={hideTooltip}
               className={cn(
                 "rounded-full p-0.5 transition-colors",
                 isLocked
                   ? "bg-primary-container text-on-primary-container"
-                  : "text-on-surface-variant hover:text-primary"
+                  : "text-on-surface-variant hover:text-primary",
               )}
             >
-              {isLocked ? <Lock className="size-4" /> : <LockOpen className="size-4" />}
+              {isLocked ? (
+                <Lock className="size-4" />
+              ) : (
+                <LockOpen className="size-4" />
+              )}
             </button>
             {tooltipVisible && (
               <>
@@ -346,7 +371,7 @@ export function TableRow({
                   ref={tooltipCardRef}
                   className="absolute bottom-full z-50 mb-3"
                   style={{
-                    left: '50%',
+                    left: "50%",
                     transform: `translateX(calc(-50% + ${tooltipShift}px))`,
                   }}
                 >
@@ -357,7 +382,10 @@ export function TableRow({
                   </div>
                 </div>
                 {/* Arrow — always centered on the button, above the card */}
-                <div className="absolute bottom-full left-1/2 -translate-x-1/2 z-50" style={{ marginBottom: '11px' }}>
+                <div
+                  className="absolute bottom-full left-1/2 -translate-x-1/2 z-50"
+                  style={{ marginBottom: "11px" }}
+                >
                   <div className="w-2 h-2 bg-surface-container-high border-r border-b border-outline-variant/20 rotate-45" />
                 </div>
               </>

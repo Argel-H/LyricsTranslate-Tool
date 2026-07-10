@@ -3,25 +3,36 @@ import { useParams, useNavigate } from "react-router-dom";
 import { AppShell } from "@/features/shell/AppShell";
 import { MasterCard } from "@/features/shell/MasterCard";
 import { TableRow } from "./TableRow";
+import { AudioPlayerBar } from "./AudioPlayerBar";
 import { SegmentedButton } from "./SegmentedButton";
 import { FloatingActionButton } from "./FloatingActionButton";
+import { useHistoryStore } from "@/stores/historyStore";
+import { UndoRedoButton } from "./UndoRedoButton";
 import { useProjectStore } from "@/stores/projectStore";
+import { getSortedLyricLines } from "@/lib/timeUtils";
+import type { TimestampedLine } from "@/lib/timeUtils";
 import { useModalStore } from "@/stores/modalStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useI18n } from "@/hooks/useI18n";
-import { buildAutoTranslatePrompt, callGoogleGemini, callDeepSeek } from "@/services/simplyTranslate";
+import {
+  buildAutoTranslatePrompt,
+  callGoogleGemini,
+  callDeepSeek,
+} from "@/services/simplyTranslate";
 import type { AutoTranslateInput } from "@/services/simplyTranslate";
 import { processLyricsMap } from "@/lib/lyricsParser";
+import type { LyricLine } from "@/types/project";
 import { findAllTranslations } from "@/lib/suggestionUtils";
 import { AI_PROVIDERS } from "@/lib/aiConfig";
+import { downloadProjectAsYaml } from "@/lib/exportUtils";
+import { ExportDialog } from "./ExportDialog";
 import {
   Edit,
   Save,
   Sparkles,
   Loader2,
   Plus,
-  Download,
-  FileText,
+  RefreshCw,
 } from "lucide-react";
 import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 
@@ -29,18 +40,86 @@ export function EditorPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useI18n();
-  const { currentProject, isLoading, loadProject, updateLine, updateAllLines } =
-    useProjectStore();
+  const {
+    currentProject,
+    isLoading,
+    loadProject,
+    updateLine,
+    updateAllLines,
+    localAudioSrc,
+  } = useProjectStore();
   const aiProvider = useSettingsStore((s) => s.aiProvider);
   const apiKeys = useSettingsStore((s) => s.apiKeys);
   const aiApiKey = aiProvider ? apiKeys[aiProvider] : undefined;
-  const overwriteTranslations = useSettingsStore((s) => s.overwriteTranslations);
+  const overwriteTranslations = useSettingsStore(
+    (s) => s.overwriteTranslations,
+  );
   const [translating, setTranslating] = useState(false);
   const [translateError, setTranslateError] = useState<string | null>(null);
   const [activeLineKey, setActiveLineKey] = useState<string | null>(null);
   const [focusedColumn, setFocusedColumn] = useState<string | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
+
+  // ── Undo/Redo state ────────────────────────────────────────────────
+  const canUndo = useHistoryStore((s) => s.undoStack.length > 0);
+  const canRedo = useHistoryStore((s) => s.redoStack.length > 0);
+
+  const handleUndo = useCallback(() => {
+    if (!currentProject || !canUndo) return;
+    const snapshot = useHistoryStore.getState().undo(currentProject.lyrics);
+    if (snapshot) {
+      // Apply restored state WITHOUT snapshotting
+      updateAllLines(snapshot.lyrics);
+    }
+  }, [currentProject, canUndo, updateAllLines]);
+
+  const handleRedo = useCallback(() => {
+    if (!currentProject || !canRedo) return;
+    const snapshot = useHistoryStore.getState().redo(currentProject.lyrics);
+    if (snapshot) {
+      updateAllLines(snapshot.lyrics);
+    }
+  }, [currentProject, canRedo, updateAllLines]);
+
+  // ── Snapshot helpers ────────────────────────────────────────────────
+
+  /** Snapshots current lyrics for simple mutations (add, delete, lock, time adjust). */
+  const snapshotLyrics = useCallback(() => {
+    const project = useProjectStore.getState().currentProject;
+    if (project) {
+      useHistoryStore.getState().pushSnapshot(project.lyrics, project.id);
+    }
+  }, []);
+
+  /**
+   * Pushes a snapshot of the previously-active row's pre-edit state.
+   * Handles both same-row re-clicks (bug fix #1) and different-row transitions.
+   * @param newRowKey - the key of the row being activated, or null if deactivating
+   */
+  const pushLeavingSnapshot = useCallback((newRowKey: string | null) => {
+    const leaving = activeLyricsRef.current;
+    if (!leaving || activeLineKey === null) return;
+    const project = useProjectStore.getState().currentProject;
+    if (!project) return;
+
+    if (activeLineKey === newRowKey) {
+      // Same row re-clicked: only push if state actually changed (bug fix #1)
+      if (JSON.stringify(project.lyrics) !== JSON.stringify(leaving)) {
+        useHistoryStore.getState().pushSnapshot(leaving, project.id);
+      }
+    } else {
+      // Different row: always push
+      useHistoryStore.getState().pushSnapshot(leaving, project.id);
+    }
+  }, [activeLineKey]);
+
   const tableRef = useRef<HTMLDivElement>(null);
+  const activeLyricsRef = useRef<Record<string, LyricLine> | null>(null);
+
+  // ── Audio player state ─────────────────────────────────────────────
+  const [audioActiveLineKey, setAudioActiveLineKey] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     if (id) {
@@ -60,7 +139,12 @@ export function EditorPage() {
       .sort(([, a], [, b]) => a.time_start.localeCompare(b.time_start));
 
     // Separate lines into context vs target based on lock + overwrite settings
-    const contextLines: Array<{ timestamp: string; original: string; translated?: string; locked?: boolean }> = [];
+    const contextLines: Array<{
+      timestamp: string;
+      original: string;
+      translated?: string;
+      locked?: boolean;
+    }> = [];
     const targetLines: Array<{ timestamp: string; original: string }> = [];
 
     for (const [, line] of sorted) {
@@ -156,6 +240,7 @@ export function EditorPage() {
       }
 
       await updateAllLines(updatedLyrics);
+      useHistoryStore.getState().pushSnapshot(updatedLyrics, currentProject.id);
     } catch {
       // silent
     } finally {
@@ -165,6 +250,7 @@ export function EditorPage() {
 
   const handleAddLine = async () => {
     if (!currentProject) return;
+    snapshotLyrics();
     const lyrics = { ...currentProject.lyrics };
     const keys = Object.keys(lyrics);
     const newKey = `lrc_${String(keys.length).padStart(2, "0")}`;
@@ -188,6 +274,7 @@ export function EditorPage() {
 
   const handleDeleteLine = async (key: string) => {
     if (!currentProject) return;
+    snapshotLyrics();
     const lyrics = { ...currentProject.lyrics };
     delete lyrics[key];
     if (activeLineKey === key) setActiveLineKey(null);
@@ -195,6 +282,8 @@ export function EditorPage() {
   };
 
   const handleToggleLock = async (key: string) => {
+    if (!currentProject) return;
+    snapshotLyrics();
     const { toggleLineLock } = useProjectStore.getState();
     await toggleLineLock(key);
   };
@@ -223,6 +312,7 @@ export function EditorPage() {
     direction: 1 | -1,
   ) => {
     if (!currentProject) return;
+    snapshotLyrics();
     const lyrics = currentProject.lyrics;
     const keys = Object.keys(lyrics);
     const idx = keys.indexOf(key);
@@ -253,6 +343,14 @@ export function EditorPage() {
   };
 
   const handleRowClick = (key: string, column?: string) => {
+    if (!currentProject) return;
+
+    // Push snapshot for the row we're leaving (handles same-row re-click bug fix)
+    pushLeavingSnapshot(key);
+
+    // Capture pre-edit state of the NEW row
+    activeLyricsRef.current = structuredClone(currentProject.lyrics) as Record<string, LyricLine>;
+
     setActiveLineKey(key);
     if (column) {
       setFocusedColumn(column);
@@ -261,10 +359,19 @@ export function EditorPage() {
 
   const handleVerticalTabNavigation = useCallback(
     (targetKey: string, column: string) => {
+      // Push snapshot for the row we're leaving
+      pushLeavingSnapshot(targetKey);
+
+      // Capture pre-edit state of the NEW row
+      const project = useProjectStore.getState().currentProject;
+      if (project) {
+        activeLyricsRef.current = structuredClone(project.lyrics) as Record<string, LyricLine>;
+      }
+
       setFocusedColumn(column);
       setActiveLineKey(targetKey);
     },
-    [],
+    [pushLeavingSnapshot],
   );
 
   // Export helpers
@@ -296,14 +403,28 @@ export function EditorPage() {
       .join("\n\n");
   };
 
-  const handleDownload = (format: "lrc" | "srt", useTranslation: boolean) => {
+  const handleDownload = (
+    format: "lrc" | "srt" | "yaml",
+    language: "original" | "translated" | "proyecto",
+  ) => {
+    if (!currentProject) return;
+
+    if (format === "yaml") {
+      // YAML export - full project
+      downloadProjectAsYaml(currentProject);
+      setSaveOpen(false);
+      return;
+    }
+
+    // LRC or SRT export (existing logic, adapted)
+    const useTranslation = language === "translated";
     const content =
       format === "lrc"
         ? generateLRC(useTranslation)
         : generateSRT(useTranslation);
     const ext = format === "lrc" ? ".lrc" : ".srt";
     const suffix = useTranslation ? "_translated" : "_original";
-    const filename = `${currentProject?.trackName ?? "lyrics"}${suffix}${ext}`;
+    const filename = `${currentProject.trackName}${suffix}${ext}`;
     const blob = new Blob([content], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -314,37 +435,107 @@ export function EditorPage() {
     setSaveOpen(false);
   };
 
-  // Click outside the table to deactivate
+  // Click outside the table to deactivate (but not on Sync/FAB buttons)
   useEffect(() => {
     if (!activeLineKey) return;
     const handler = (e: MouseEvent) => {
-      if (tableRef.current && !tableRef.current.contains(e.target as Node)) {
+      const target = e.target as HTMLElement;
+      if (target.closest("[data-keep-active]")) return;
+      if (tableRef.current && !tableRef.current.contains(target)) {
+        pushLeavingSnapshot(null);
+        activeLyricsRef.current = null;
         setActiveLineKey(null);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [activeLineKey]);
+  }, [activeLineKey, pushLeavingSnapshot]);
 
-  const lyricsEntries = currentProject ? Object.entries(currentProject.lyrics) : [];
+  // ── Audio handlers ─────────────────────────────────────────────────
+
+  const handleAudioActiveLineChange = useCallback((key: string) => {
+    setAudioActiveLineKey(key);
+  }, []);
+
+  // Scroll to audio-active row when it changes
+  useEffect(() => {
+    if (!audioActiveLineKey) return;
+    const el = document.querySelector(`[data-row-key="${audioActiveLineKey}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [audioActiveLineKey]);
+
+  const handleAudioUrlChange = useCallback((url: string) => {
+    useProjectStore.getState().updateAudioUrl(url);
+    // Clear local file when switching to URL
+    useProjectStore.getState().clearLocalAudio();
+  }, []);
+
+  const handleLocalFileSelect = useCallback((file: File) => {
+    const store = useProjectStore.getState();
+    // Revoke previous blob URL
+    if (store.localAudioSrc) {
+      URL.revokeObjectURL(store.localAudioSrc);
+    }
+    const blobUrl = URL.createObjectURL(file);
+    store.setLocalAudioSrc(blobUrl);
+  }, []);
+
+  const handleClearAudio = useCallback(() => {
+    useProjectStore.getState().clearLocalAudio();
+    setAudioActiveLineKey(null);
+    // Clear persisted URL too
+    useProjectStore.getState().updateAudioUrl(undefined);
+  }, []);
+
+  const handleSync = useCallback(() => {
+    setActiveLineKey(null);
+    if (audioActiveLineKey) {
+      document
+        .querySelector(`[data-row-key="${audioActiveLineKey}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [audioActiveLineKey]);
+
+  const lyricsEntries = currentProject
+    ? Object.entries(currentProject.lyrics)
+    : [];
   const title = currentProject
     ? `${currentProject.artistName.join(", ")} - ${currentProject.trackName}`
     : "";
+
+  const sortedLyricLines = useMemo<TimestampedLine[]>(() => {
+    if (!currentProject) return [];
+    return getSortedLyricLines(currentProject.lyrics);
+  }, [currentProject?.lyrics]);
+
+  const effectiveAudioSrc = localAudioSrc ?? currentProject?.audioUrl;
 
   // Memoize all suggestions for all lines to avoid calling hooks inside .map()
   const allSuggestions = useMemo(() => {
     if (!currentProject) return [];
     return lyricsEntries.map(([key, line]) =>
-      findAllTranslations(line.lyric, key, currentProject.lyrics)
+      findAllTranslations(line.lyric, key, currentProject.lyrics),
     );
   }, [lyricsEntries, currentProject]);
 
   if (isLoading) {
     return (
-      <AppShell title={title} onBack={() => navigate("/")} bodyBg="bg-surface-container">
+      <AppShell
+        title={title}
+        onBack={() => {
+          useHistoryStore.getState().clear();
+          navigate("/");
+        }}
+        bodyBg="bg-surface-container"
+      >
         <MasterCard bgColor="bg-surface-container-lowest">
           <div className="flex items-center justify-center h-full">
-            <M3LoadingIndicator size={40} style={{ color: "rgb(208, 188, 255)" }} />
+            <M3LoadingIndicator
+              size={40}
+              style={{ color: "rgb(208, 188, 255)" }}
+            />
           </div>
         </MasterCard>
       </AppShell>
@@ -355,7 +546,10 @@ export function EditorPage() {
     return (
       <AppShell
         title={t("editor.notFound")}
-        onBack={() => navigate("/")}
+        onBack={() => {
+          useHistoryStore.getState().clear();
+          navigate("/");
+        }}
         bodyBg="bg-surface-container"
       >
         <MasterCard bgColor="bg-surface-container-lowest">
@@ -364,7 +558,10 @@ export function EditorPage() {
               {t("editor.notFoundDesc")}
             </p>
             <button
-              onClick={() => navigate("/")}
+              onClick={() => {
+                useHistoryStore.getState().clear();
+                navigate("/");
+              }}
               className="px-6 py-3 bg-primary-container !text-on-primary-container rounded-full font-label-lg hover:bg-primary hover:text-on-primary transition-all"
             >
               {t("editor.backToDashboard")}
@@ -386,7 +583,10 @@ export function EditorPage() {
       </div>
       <AppShell
         title={title}
-        onBack={() => navigate("/")}
+        onBack={() => {
+          useHistoryStore.getState().clear();
+          navigate("/");
+        }}
         topbarBg="bg-surface-container"
         sidebarBg="bg-surface-container"
         showTopbarBorder={false}
@@ -394,221 +594,228 @@ export function EditorPage() {
         onOpenSettings={() => useModalStore.getState().openSettings()}
         onOpenAbout={() => useModalStore.getState().openAbout()}
         actions={
-          <SegmentedButton
-            segments={[
-              { label: t("editor.segmented.edit"), icon: Edit },
-              { label: t("editor.segmented.save"), icon: Save, active: true },
-            ]}
-            onSelect={(index) => {
-              if (index === 0) {
-                navigate(`/edit-project/${id}`);
-              } else {
-                setSaveOpen(true);
-              }
-            }}
+          <div className="flex items-center gap-3">
+            <UndoRedoButton
+              canUndo={canUndo}
+              canRedo={canRedo}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+            />
+            <SegmentedButton
+              segments={[
+                { label: t("editor.segmented.edit"), icon: Edit },
+                { label: t("editor.segmented.save"), icon: Save, active: true },
+              ]}
+              onSelect={(index) => {
+                if (index === 0) {
+                  navigate(`/edit-project/${id}`);
+                } else {
+                  setSaveOpen(true);
+                }
+              }}
+            />
+          </div>
+        }
+        bottomBar={
+          <AudioPlayerBar
+            audioSrc={effectiveAudioSrc}
+            syncOffsetMs={currentProject?.syncOffsetMs ?? 0}
+            sortedLines={sortedLyricLines}
+            onActiveLineChange={handleAudioActiveLineChange}
+            onAudioUrlChange={handleAudioUrlChange}
+            onLocalFileSelect={handleLocalFileSelect}
+            onClearAudio={handleClearAudio}
           />
         }
       >
         <MasterCard bgColor="bg-surface-container-lowest">
-          <div className="max-w-[1400px] mx-auto w-full flex flex-col gap-lg pb-32">
-              {translating && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                  <div className="bg-surface-container-high rounded-3xl p-8 shadow-2xl border border-outline-variant/20 flex flex-col items-center gap-4">
-                    <M3LoadingIndicator size={40} style={{ color: "rgb(208, 188, 255)" }} />
-                    <span className="font-title-lg text-on-surface">{t("editor.translating")}</span>
-                    <span className="font-body-md text-on-surface-variant">
-                      {t("editor.translatingDesc").replace("%s", AI_PROVIDERS.find(p => p.value === aiProvider)?.label ?? "AI")}
-                    </span>
-                  </div>
+          <div className="max-w-[1400px] mx-auto w-full flex flex-col gap-lg pb-20">
+            {translating && (
+              <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+                <div className="bg-surface-container-high rounded-3xl p-8 shadow-2xl border border-outline-variant/20 flex flex-col items-center gap-4">
+                  <M3LoadingIndicator
+                    size={40}
+                    style={{ color: "rgb(208, 188, 255)" }}
+                  />
+                  <span className="font-title-lg text-on-surface">
+                    {t("editor.translating")}
+                  </span>
+                  <span className="font-body-md text-on-surface-variant">
+                    {t("editor.translatingDesc").replace(
+                      "%s",
+                      AI_PROVIDERS.find((p) => p.value === aiProvider)?.label ??
+                        "AI",
+                    )}
+                  </span>
                 </div>
-              )}
+              </div>
+            )}
 
-              <div
-                ref={tableRef}
-                className="bg-surface-container-low rounded-[32px] overflow-visible flex flex-col shadow-lg border border-outline-variant/10"
-              >
-                <div className="grid grid-cols-[120px_120px_1fr_1fr] gap-4 p-md bg-surface-container-low border-b border-outline-variant/20 sticky top-0 z-10 text-on-surface-variant font-label-md text-label-md uppercase tracking-widest px-6">
-                  <div className="px-2">{t("editor.table.start")}</div>
-                  <div className="px-2">{t("editor.table.end")}</div>
-                  <div className="px-2">{t("editor.table.lyric")}</div>
-                  <div className="px-2">{t("editor.table.translation")}</div>
-                </div>
+            <div
+              ref={tableRef}
+              className="bg-surface-container-low rounded-[32px] overflow-visible flex flex-col shadow-lg border border-outline-variant/10"
+            >
+              <div className="grid grid-cols-[120px_120px_1fr_1fr] gap-4 p-md bg-surface-container-low rounded-t-[32px] border-b border-outline-variant/20 sticky top-0 z-10 text-on-surface-variant font-label-md text-label-md uppercase tracking-widest px-6">
+                <div className="px-2">{t("editor.table.start")}</div>
+                <div className="px-2">{t("editor.table.end")}</div>
+                <div className="px-2">{t("editor.table.lyric")}</div>
+                <div className="px-2">{t("editor.table.translation")}</div>
+              </div>
 
-                <div className="flex flex-col p-4 gap-4">
-                  {lyricsEntries.length === 0 && (
-                    <div className="text-center py-12">
-                      <p className="text-on-surface-variant font-body-lg mb-4">
-                        {t("editor.emptyState")}
-                      </p>
-                      <button
-                        onClick={handleAddLine}
-                        className="px-6 py-3 bg-primary-container text-on-primary-container rounded-full font-label-lg hover:bg-primary hover:text-on-primary transition-all inline-flex items-center gap-2"
-                      >
-                        <Plus className="size-5" />
-                        {t("editor.addFirstLine")}
-                      </button>
-                    </div>
-                  )}
-                  {lyricsEntries.map(([key, line], index) => {
-                    const isInstrumental =
-                      line.lyric.includes("[") && line.lyric.includes("]");
-                    const isActive = activeLineKey === key;
-                    const state = isInstrumental
-                      ? ("instrumental" as const)
-                      : isActive
-                        ? ("active" as const)
-                        : ("default" as const);
-                    const suggestions = allSuggestions[index];
-
-                    return (
-                      <TableRow
-                        key={key}
-                        rowKey={key}
-                        orderedKeys={lyricsEntries.map(([k]) => k)}
-                        onNavigateToRow={handleVerticalTabNavigation}
-                        timeStart={line.time_start}
-                        timeEnd={line.time_end}
-                        lyric={line.lyric}
-                        translation={line.translation}
-                        translationPlaceholder={
-                          !line.translation
-                            ? t("editor.translatePlaceholder")
-                            : undefined
-                        }
-                        suggestions={suggestions}
-                        state={state}
-                        focusedColumn={focusedColumn}
-                        onRowClick={(column) => handleRowClick(key, column)}
-                        onTranslationFocus={() => setFocusedColumn("translation")}
-                        onTranslationChange={(value) =>
-                          updateLine(key, "translation", value)
-                        }
-                        onLyricChange={(value) =>
-                          updateLine(key, "lyric", value)
-                        }
-                        onLyricFocus={() => setFocusedColumn("lyric")}
-                        onLyricBlur={(relatedTarget) => {
-                          if (tableRef.current && relatedTarget instanceof Node && !tableRef.current.contains(relatedTarget)) {
-                            setFocusedColumn(null);
-                          }
-                        }}
-                        onTimeStartAdd={() =>
-                          handleTimeAdjust(key, "time_start", 1)
-                        }
-                        onTimeStartRemove={() =>
-                          handleTimeAdjust(key, "time_start", -1)
-                        }
-                        onTimeEndAdd={() =>
-                          handleTimeAdjust(key, "time_end", 1)
-                        }
-                        onTimeEndRemove={() =>
-                          handleTimeAdjust(key, "time_end", -1)
-                        }
-                        isLocked={line.locked ?? false}
-                        onToggleLock={() => handleToggleLock(key)}
-                        showLock={!!(aiProvider && aiApiKey)}
-                        onDelete={() => handleDeleteLine(key)}
-                      />
-                    );
-                  })}
-                </div>
-
-                {lyricsEntries.length > 0 && (
-                  <div className="px-6 pb-4">
+              <div className="flex flex-col p-4 gap-4">
+                {lyricsEntries.length === 0 && (
+                  <div className="text-center py-12">
+                    <p className="text-on-surface-variant font-body-lg mb-4">
+                      {t("editor.emptyState")}
+                    </p>
                     <button
                       onClick={handleAddLine}
-                      className="w-full py-3 bg-surface-container-high hover:bg-surface-container-highest border-2 border-dashed border-outline-variant/30 rounded-3xl text-on-surface-variant font-label-lg transition-all flex items-center justify-center gap-2"
+                      className="px-6 py-3 bg-primary-container text-on-primary-container rounded-full font-label-lg hover:bg-primary hover:text-on-primary transition-all inline-flex items-center gap-2"
                     >
-                      <Plus className="size-4" />
-                      {t("editor.addNewLine")}
+                      <Plus className="size-5" />
+                      {t("editor.addFirstLine")}
                     </button>
                   </div>
                 )}
+                {lyricsEntries.map(([key, line], index) => {
+                  const isInstrumental =
+                    line.lyric.includes("[") && line.lyric.includes("]");
+                  const isActive = activeLineKey === key;
+                  const state = isInstrumental
+                    ? ("instrumental" as const)
+                    : isActive
+                      ? ("active" as const)
+                      : ("default" as const);
+                  const suggestions = allSuggestions[index];
+
+                  return (
+                    <TableRow
+                      key={key}
+                      rowKey={key}
+                      orderedKeys={lyricsEntries.map(([k]) => k)}
+                      onNavigateToRow={handleVerticalTabNavigation}
+                      timeStart={line.time_start}
+                      timeEnd={line.time_end}
+                      lyric={line.lyric}
+                      translation={line.translation}
+                      translationPlaceholder={
+                        !line.translation
+                          ? t("editor.translatePlaceholder")
+                          : undefined
+                      }
+                      suggestions={suggestions}
+                      state={state}
+                      isAudioActive={audioActiveLineKey === key}
+                      focusedColumn={focusedColumn}
+                      onRowClick={(column) => handleRowClick(key, column)}
+                      onTranslationFocus={() => setFocusedColumn("translation")}
+                      onTranslationBlur={(relatedTarget) => {
+                        if (
+                          tableRef.current &&
+                          relatedTarget instanceof Node &&
+                          !tableRef.current.contains(relatedTarget)
+                        ) {
+                          setFocusedColumn(null);
+                        }
+                      }}
+                      onTranslationChange={(value) =>
+                        updateLine(key, "translation", value)
+                      }
+                      onLyricChange={(value) => updateLine(key, "lyric", value)}
+                      onLyricFocus={() => setFocusedColumn("lyric")}
+                      onLyricBlur={(relatedTarget) => {
+                        if (
+                          tableRef.current &&
+                          relatedTarget instanceof Node &&
+                          !tableRef.current.contains(relatedTarget)
+                        ) {
+                          setFocusedColumn(null);
+                        }
+                      }}
+                      onTimeStartAdd={() =>
+                        handleTimeAdjust(key, "time_start", 1)
+                      }
+                      onTimeStartRemove={() =>
+                        handleTimeAdjust(key, "time_start", -1)
+                      }
+                      onTimeEndAdd={() => handleTimeAdjust(key, "time_end", 1)}
+                      onTimeEndRemove={() =>
+                        handleTimeAdjust(key, "time_end", -1)
+                      }
+                      isLocked={line.locked ?? false}
+                      onToggleLock={() => handleToggleLock(key)}
+                      showLock={!!(aiProvider && aiApiKey)}
+                      onDelete={() => handleDeleteLine(key)}
+                    />
+                  );
+                })}
               </div>
-            </div>
 
-            {aiProvider && aiApiKey && (
-              <FloatingActionButton
-                icon={translating ? Loader2 : Sparkles}
-                label={
-                  translating
-                    ? t("editor.translating")
-                    : t("editor.fab.autoTranslate")
-                }
-                onClick={handleAutoTranslate}
-                disabled={translating}
-              />
-            )}
-          </MasterCard>
-      </AppShell>
-
-      {/* Save / Export Modal */}
-      {saveOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface-container-high rounded-3xl p-6 shadow-2xl border border-outline-variant/20 max-w-sm w-full mx-4">
-            <h3 className="font-title-lg text-on-surface mb-2">
-              Export Lyrics
-            </h3>
-            <p className="font-body-md text-on-surface-variant mb-6">
-              Choose format and language to download.
-            </p>
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <button
-                onClick={() => handleDownload("lrc", false)}
-                className="flex flex-col items-center gap-2 p-4 bg-surface-container rounded-2xl border border-outline-variant/20 hover:bg-surface-container-highest transition-colors"
-              >
-                <FileText className="size-6 text-primary" />
-                <span className="font-label-lg text-on-surface">LRC</span>
-                <span className="font-label-md text-on-surface-variant">
-                  Original
-                </span>
-              </button>
-              <button
-                onClick={() => handleDownload("lrc", true)}
-                className="flex flex-col items-center gap-2 p-4 bg-surface-container rounded-2xl border border-outline-variant/20 hover:bg-surface-container-highest transition-colors"
-              >
-                <FileText className="size-6 text-tertiary" />
-                <span className="font-label-lg text-on-surface">LRC</span>
-                <span className="font-label-md text-on-surface-variant">
-                  Translated
-                </span>
-              </button>
-              <button
-                onClick={() => handleDownload("srt", false)}
-                className="flex flex-col items-center gap-2 p-4 bg-surface-container rounded-2xl border border-outline-variant/20 hover:bg-surface-container-highest transition-colors"
-              >
-                <Download className="size-6 text-primary" />
-                <span className="font-label-lg text-on-surface">SRT</span>
-                <span className="font-label-md text-on-surface-variant">
-                  Original
-                </span>
-              </button>
-              <button
-                onClick={() => handleDownload("srt", true)}
-                className="flex flex-col items-center gap-2 p-4 bg-surface-container rounded-2xl border border-outline-variant/20 hover:bg-surface-container-highest transition-colors"
-              >
-                <Download className="size-6 text-tertiary" />
-                <span className="font-label-lg text-on-surface">SRT</span>
-                <span className="font-label-md text-on-surface-variant">
-                  Translated
-                </span>
-              </button>
+              {lyricsEntries.length > 0 && (
+                <div className="px-6 pb-4">
+                  <button
+                    onClick={handleAddLine}
+                    className="w-full py-3 bg-surface-container-high hover:bg-surface-container-highest border-2 border-dashed border-outline-variant/30 rounded-3xl text-on-surface-variant font-label-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    <Plus className="size-4" />
+                    {t("editor.addNewLine")}
+                  </button>
+                </div>
+              )}
             </div>
+          </div>
+
+          {/* Sync button — only visible when audio has a highlighted row */}
+          {audioActiveLineKey && (
+          <div
+            data-keep-active
+            className={`fixed z-50 ${aiProvider && aiApiKey ? "bottom-44 right-8" : "bottom-24 right-8"}`}
+          >
             <button
-              onClick={() => setSaveOpen(false)}
-              className="w-full py-2.5 rounded-full font-label-lg text-on-surface-variant hover:bg-surface-container-highest transition-colors"
+              onClick={handleSync}
+              disabled={!activeLineKey || !currentProject}
+              className="h-14 w-14 rounded-full bg-tertiary-container text-on-tertiary-container shadow-xl flex items-center justify-center hover:brightness-110 transition-[filter] border border-tertiary-container/50 pressable disabled:opacity-40 disabled:pointer-events-none"
+              title={
+                !activeLineKey
+                  ? t("player.syncDisabledTooltip")
+                  : t("player.syncTooltip")
+              }
             >
-              Cancel
+              <RefreshCw className="size-5" />
             </button>
           </div>
-        </div>
-      )}
+          )}
+
+          {aiProvider && aiApiKey && (
+            <FloatingActionButton
+              icon={translating ? Loader2 : Sparkles}
+              label={
+                translating
+                  ? t("editor.translating")
+                  : t("editor.fab.autoTranslate")
+              }
+              onClick={handleAutoTranslate}
+              disabled={translating}
+            />
+          )}
+        </MasterCard>
+      </AppShell>
+
+      <ExportDialog
+        open={saveOpen}
+        onClose={() => setSaveOpen(false)}
+        onDownload={handleDownload}
+      />
 
       {translateError && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-surface-container-high rounded-3xl p-6 shadow-2xl border border-outline-variant/20 max-w-sm w-full mx-4">
-            <h3 className="font-title-lg text-on-surface mb-2">{t("editor.translateErrorTitle")}</h3>
-            <p className="font-body-md text-on-surface-variant mb-6">{translateError}</p>
+            <h3 className="font-title-lg text-on-surface mb-2">
+              {t("editor.translateErrorTitle")}
+            </h3>
+            <p className="font-body-md text-on-surface-variant mb-6">
+              {translateError}
+            </p>
             <button
               onClick={() => setTranslateError(null)}
               className="w-full py-2.5 rounded-full font-label-lg bg-primary-container text-on-primary-container hover:bg-primary hover:text-on-primary transition-all"
