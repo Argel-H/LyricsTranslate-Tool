@@ -157,4 +157,5 @@ export const en = {
 
   "editor.undoTooltip": "Undo",
   "editor.redoTooltip": "Redo",
+  "editor.translateSuccess": "Draft complete!",
 } as const;

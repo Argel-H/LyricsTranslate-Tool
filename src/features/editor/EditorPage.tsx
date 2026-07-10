@@ -35,6 +35,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
+import { Toast } from "@/components/shared/Toast";
 
 export function EditorPage() {
   const { id } = useParams<{ id: string }>();
@@ -59,6 +60,7 @@ export function EditorPage() {
   const [activeLineKey, setActiveLineKey] = useState<string | null>(null);
   const [focusedColumn, setFocusedColumn] = useState<string | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // ── Undo/Redo state ────────────────────────────────────────────────
   const canUndo = useHistoryStore((s) => s.undoStack.length > 0);
@@ -241,6 +243,7 @@ export function EditorPage() {
 
       await updateAllLines(updatedLyrics);
       useHistoryStore.getState().pushSnapshot(updatedLyrics, currentProject.id);
+      setToastMessage(t("editor.translateSuccess"));
     } catch {
       // silent
     } finally {
@@ -825,6 +828,12 @@ export function EditorPage() {
           </div>
         </div>
       )}
+
+      <Toast
+        message={toastMessage ?? ""}
+        visible={toastMessage !== null}
+        onDismiss={() => setToastMessage(null)}
+      />
     </>
   );
 }

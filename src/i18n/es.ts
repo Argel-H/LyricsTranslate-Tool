@@ -157,4 +157,5 @@ export const es = {
 
   "editor.undoTooltip": "Deshacer",
   "editor.redoTooltip": "Rehacer",
+  "editor.translateSuccess": "¡Borrador completado!",
 } as const;
