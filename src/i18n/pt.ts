@@ -130,6 +130,8 @@ export const pt = {
   "common.delete": "Excluir",
   "common.searching": "Buscando...",
   "common.noResults": "Sem resultados",
+  "search.synced": "Sincronizada",
+  "search.unsynced": "Texto simples",
   "common.or": "ou",
 
   "editor.lockTooltip": "Bloquear esta linha — não será substituída pela tradução automática",

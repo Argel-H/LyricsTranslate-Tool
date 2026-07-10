@@ -129,6 +129,8 @@ export const en = {
   "common.delete": "Delete",
   "common.searching": "Searching...",
   "common.noResults": "No results",
+  "search.synced": "Synced",
+  "search.unsynced": "Plain text",
   "common.or": "or",
 
   "editor.lockTooltip":

@@ -139,12 +139,20 @@ export function DashboardPage() {
   };
 
   const formatResults = Array.isArray(searchResults)
-    ? searchResults.map((r) => ({
-        id: r.id,
-        trackName: r.trackName,
-        artistName: r.artistName,
-        albumName: r.albumName,
-      }))
+    ? searchResults
+        .map((r) => ({
+          id: r.id,
+          trackName: r.trackName,
+          artistName: r.artistName,
+          albumName: r.albumName,
+          isSynced: r.syncedLyrics !== null,
+        }))
+        .sort((a, b) => {
+          // Synced results first
+          if (a.isSynced && !b.isSynced) return -1;
+          if (!a.isSynced && b.isSynced) return 1;
+          return 0;
+        })
     : undefined;
 
   return (

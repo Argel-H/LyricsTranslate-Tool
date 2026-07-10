@@ -11,6 +11,7 @@ interface SearchResult {
   trackName: string;
   artistName: string;
   albumName?: string;
+  isSynced?: boolean;
 }
 
 interface SearchInputProps {
@@ -121,7 +122,7 @@ export function SearchInput({
                     className="w-full text-left px-5 py-4 hover:bg-surface-container-highest transition-colors border-b border-outline-variant/10 last:border-b-0 flex items-center gap-3"
                   >
                     <Search className="size-4 text-on-surface-variant shrink-0" />
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="font-body-md text-on-surface truncate">
                         {result.artistName} — {result.trackName}
                       </p>
@@ -131,6 +132,18 @@ export function SearchInput({
                         </p>
                       )}
                     </div>
+                    {result.isSynced !== undefined && (
+                      <span
+                        className={cn(
+                          "text-[10px] font-medium px-2 py-0.5 rounded-full shrink-0",
+                          result.isSynced
+                            ? "text-green-400 bg-green-400/10"
+                            : "text-on-surface-variant bg-surface-container-highest",
+                        )}
+                      >
+                        {result.isSynced ? t("search.synced") : t("search.unsynced")}
+                      </span>
+                    )}
                   </button>
                 ))
               ) : (
