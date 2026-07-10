@@ -26,11 +26,13 @@ project:
     - name: "Artist Two"
       url: "https://open.spotify.com/artist/def"
   social_links:
-    - platform: "Twitter"
-      url: "https://twitter.com/artist"
-      artist_name: "Artist One"
-    - platform: "Instagram"
-      url: "https://instagram.com/artist"
+    - artist_name: "Artist One"
+      platforms:
+        - platform: "Twitter"
+          url: "https://twitter.com/artist"
+    - platforms:
+        - platform: "Instagram"
+          url: "https://instagram.com/artist"
   streaming_sites:
     spotify: "https://open.spotify.com/track/abc123"
     deezer: null
@@ -124,6 +126,36 @@ describe("parseProjectYaml", () => {
     expect(result.recommendedSocialLinks?.[0]?.platform).toBe("Twitter");
     expect(result.recommendedSocialLinks?.[0]?.artistName).toBe("Artist One");
     expect(result.recommendedSocialLinks?.[1]?.platform).toBe("Instagram");
+    expect(result.recommendedSocialLinks?.[1]?.artistName).toBeUndefined();
+  });
+
+  it("parses old flat social_links format (backward compat)", () => {
+    const oldFormatYaml = `version: 1
+
+project:
+  title: "Test"
+  track_name: "Track"
+  artists:
+    - "Artist"
+  social_links:
+    - platform: "Spotify"
+      url: "https://spotify.com"
+      artist_name: "My Artist"
+    - platform: "YouTube"
+      url: "https://youtube.com"
+
+metadata:
+  created_at: 0
+  updated_at: 0
+  exported_at: 0
+
+lyrics: []
+`;
+    const result = parseProjectYaml(oldFormatYaml);
+    expect(result.recommendedSocialLinks).toHaveLength(2);
+    expect(result.recommendedSocialLinks?.[0]?.platform).toBe("Spotify");
+    expect(result.recommendedSocialLinks?.[0]?.artistName).toBe("My Artist");
+    expect(result.recommendedSocialLinks?.[1]?.platform).toBe("YouTube");
     expect(result.recommendedSocialLinks?.[1]?.artistName).toBeUndefined();
   });
 

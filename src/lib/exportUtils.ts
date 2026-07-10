@@ -142,14 +142,38 @@ export function generateYamlContent(project: Project): string {
     }
   }
 
-  // social_links (optional array of objects with optional artist_name)
+  // social_links (grouped by artist_name to avoid repetition)
   if (project.recommendedSocialLinks != null && project.recommendedSocialLinks.length > 0) {
     lines.push("  social_links:");
+
+    // Group by artistName
+    const groups = new Map<string, typeof project.recommendedSocialLinks>();
+    const noArtist: typeof project.recommendedSocialLinks = [];
     for (const link of project.recommendedSocialLinks) {
-      lines.push(`    - platform: ${escapeYamlValue(link.platform)}`);
-      lines.push(`      url: ${escapeYamlValue(link.url)}`);
-      if (link.artistName != null) {
-        lines.push(`      artist_name: ${escapeYamlValue(link.artistName)}`);
+      if (link.artistName) {
+        if (!groups.has(link.artistName)) groups.set(link.artistName, []);
+        groups.get(link.artistName)!.push(link);
+      } else {
+        noArtist.push(link);
+      }
+    }
+
+    // Write groups keyed by artist_name
+    for (const [artistName, links] of groups) {
+      lines.push(`    - artist_name: ${escapeYamlValue(artistName)}`);
+      lines.push("      platforms:");
+      for (const link of links) {
+        lines.push(`        - platform: ${escapeYamlValue(link.platform)}`);
+        lines.push(`          url: ${escapeYamlValue(link.url)}`);
+      }
+    }
+
+    // Write entries without an artist_name (unnamed group)
+    if (noArtist.length > 0) {
+      lines.push("    - platforms:");
+      for (const link of noArtist) {
+        lines.push(`        - platform: ${escapeYamlValue(link.platform)}`);
+        lines.push(`          url: ${escapeYamlValue(link.url)}`);
       }
     }
   }

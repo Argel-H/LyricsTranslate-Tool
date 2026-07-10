@@ -398,16 +398,32 @@ export function parseProjectYaml(yamlString: string): ProjectCreateInput {
   }
 
   if (Array.isArray(projectRaw.social_links)) {
-    input.recommendedSocialLinks = projectRaw.social_links.map(
-      (item: RawYamlValue) => {
-        const obj = item as Record<string, RawYamlValue>;
-        return {
+    input.recommendedSocialLinks = [];
+    for (const item of projectRaw.social_links) {
+      const obj = item as Record<string, RawYamlValue>;
+
+      // New grouped format: has "platforms" key
+      if (obj.platforms != null && Array.isArray(obj.platforms)) {
+        const artistName =
+          obj.artist_name != null ? String(obj.artist_name) : undefined;
+        for (const platform of obj.platforms) {
+          const p = platform as Record<string, RawYamlValue>;
+          input.recommendedSocialLinks!.push({
+            platform: String(p.platform ?? ""),
+            url: String(p.url ?? ""),
+            artistName,
+          });
+        }
+      } else {
+        // Old flat format: each item is {platform, url, artist_name?}
+        input.recommendedSocialLinks!.push({
           platform: String(obj.platform ?? ""),
           url: String(obj.url ?? ""),
-          artistName: obj.artist_name != null ? String(obj.artist_name) : undefined,
-        };
-      },
-    );
+          artistName:
+            obj.artist_name != null ? String(obj.artist_name) : undefined,
+        });
+      }
+    }
   }
 
   // Optional record field

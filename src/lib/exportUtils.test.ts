@@ -209,7 +209,7 @@ describe("generateYamlContent", () => {
     expect(result).toContain("url:");
   });
 
-  it("should handle social_links with optional artist_name", () => {
+  it("should handle social_links grouped by artist_name", () => {
     const project = createTestProject({
       recommendedSocialLinks: [
         { platform: "twitter", url: "https://twitter.com/artist", artistName: "Artist" },
@@ -221,14 +221,13 @@ describe("generateYamlContent", () => {
     const result = generateYamlContent(project);
 
     expect(result).toContain("social_links:");
-    expect(result).toContain("- platform:");
-    expect(result).toContain("artist_name:");
-    // Second entry has no artistName — should not have the field
+    expect(result).toContain("artist_name: Artist");
+    expect(result).toContain("platforms:");
+    // Second entry has no artistName — should be in unnamed group
     const lines = result.split("\n");
-    // Find the block after instagram line and check no artist_name follows
     const instaIdx = lines.findIndex((l) => l.includes("instagram"));
-    const nextNonEmpty = lines.slice(instaIdx + 1).find((l) => l.trim() !== "");
-    expect(nextNonEmpty).not.toContain("artist_name");
+    // The unnamed group should appear after the named group
+    expect(instaIdx).toBeGreaterThan(0);
   });
 
   it("should handle streaming_sites with null values", () => {

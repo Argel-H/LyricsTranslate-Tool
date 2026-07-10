@@ -18,7 +18,10 @@ export interface ProjectYamlMeta {
   audio_url?: string;
   sync_offset_ms?: number;
   artist_links?: Array<{ name: string; url: string }>;
-  social_links?: Array<{ platform: string; url: string; artist_name?: string }>;
+  social_links?: Array<{
+    artist_name?: string;
+    platforms: Array<{ platform: string; url: string }>;
+  }>;
   streaming_sites?: Record<string, string | null>;
 }
 
