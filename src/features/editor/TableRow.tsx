@@ -97,6 +97,7 @@ export function TableRow({
   const isTranslationFocused = isActive && focusedColumn === "translation";
   const isTranslationCompact =
     !translation?.trim() && !isTranslationFocused && !isActive;
+  const isBothEmpty = !lyric?.trim() && !translation?.trim() && !isActive;
 
   // Reset index when the number of suggestions changes (e.g., new translations added)
   useEffect(() => {
@@ -288,7 +289,7 @@ export function TableRow({
             onKeyDown={(e) => navigateVertically(e, "lyric")}
             data-column="lyric"
             ref={lyricTextareaRef}
-            className="w-full bg-surface-container border border-outline-variant rounded-3xl p-4 text-body-lg text-on-surface leading-relaxed h-28 focus:outline-none resize-none"
+            className="w-full bg-surface-container border border-outline-variant rounded-3xl p-4 text-body-lg text-on-surface leading-relaxed h-28 resize-none"
             rows={3}
           />
         ) : (
@@ -303,7 +304,14 @@ export function TableRow({
 
       {/* Translation */}
       <div className="flex items-center gap-2" data-column="translation">
-        {translation?.trim() && !isTranslationFocused ? (
+        {isBothEmpty ? (
+          <div
+            data-column="translation"
+            className="w-full text-body-lg text-on-surface leading-relaxed"
+          >
+            {" "}
+          </div>
+        ) : translation?.trim() && !isTranslationFocused ? (
           <div
             data-column="translation"
             className={cn(
@@ -323,7 +331,7 @@ export function TableRow({
               onFocus={onTranslationFocus}
               onKeyDown={handleTranslationKeyDown}
               className={cn(
-                isActive && "h-[6.6rem]",
+                isActive && "h-[7rem] -mb-2",
                 isTranslationCompact && "h-20",
               )}
               onBlur={(e) => onTranslationBlur?.(e.relatedTarget)}
