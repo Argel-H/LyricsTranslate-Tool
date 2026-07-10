@@ -110,13 +110,16 @@ describe('toLyricLineMap', () => {
     expect(map.get('lrc_01')?.lyric).toBe('B');
   });
 
-  it('sets time_start and time_end to the same timestamp', () => {
+  it('sets time_end to the next line timestamp, inferring for the last line', () => {
     const lines = [
-      { timestamp: '00:01.00', text: 'Test' },
+      { timestamp: '00:01.00', text: 'First' },
+      { timestamp: '00:04.50', text: 'Second' },
+      { timestamp: '00:08.00', text: 'Third' },
     ];
     const map = toLyricLineMap(lines);
-    expect(map.get('lrc_00')?.time_start).toBe('00:01.00');
-    expect(map.get('lrc_00')?.time_end).toBe('00:01.00');
+    expect(map.get('lrc_00')?.time_end).toBe('00:04.50');
+    expect(map.get('lrc_01')?.time_end).toBe('00:08.00');
+    expect(map.get('lrc_02')?.time_end).toBe('00:11.00'); // inferred: +3s
   });
 
   it('initializes translation and comment as empty strings', () => {

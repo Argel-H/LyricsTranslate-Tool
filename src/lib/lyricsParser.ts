@@ -79,17 +79,43 @@ function parseSyncedLines(lines: string[]): ParsedLrcLine[] {
 }
 
 /**
+ * Infers a reasonable time_end for the last line in a synced LRC.
+ * Defaults to time_start + 3 seconds.
+ */
+function inferEndTimestamp(timeStart: string): string {
+  const match = timeStart.match(/^(\d{2}):(\d{2})\.(\d{2})$/);
+  if (!match) return timeStart;
+  let ms =
+    parseInt(match[1]!) * 60000 +
+    parseInt(match[2]!) * 1000 +
+    parseInt(match[3]!) * 10;
+  ms += 3000; // default 3 second duration
+  const min = Math.floor(ms / 60000);
+  const sec = Math.floor((ms % 60000) / 1000);
+  const cs = Math.floor((ms % 1000) / 10);
+  return `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}.${String(cs).padStart(2, "0")}`;
+}
+
+/**
  * Converts an array of parsed LRC lines into the Map<string, LyricLine>
  * format used by the editor, generating sequential keys like "lrc_00", "lrc_01", etc.
+ *
+ * For synced LRCs, each line's time_end is set to the next line's timestamp.
+ * The last line's time_end is inferred (~3s duration) via inferEndTimestamp.
  */
 export function toLyricLineMap(parsedLines: ParsedLrcLine[]): Map<string, LyricLine> {
   const map = new Map<string, LyricLine>();
 
   parsedLines.forEach((line, index) => {
     const key = `lrc_${String(index).padStart(2, "0")}`;
+    const nextLine = parsedLines[index + 1];
+    const timeEnd = nextLine
+      ? nextLine.timestamp
+      : inferEndTimestamp(line.timestamp);
+
     map.set(key, {
       time_start: line.timestamp,
-      time_end: line.timestamp,
+      time_end: timeEnd,
       lyric: line.text === " " ? line.text : line.text.trim(),
       translation: "",
       comment: "",
