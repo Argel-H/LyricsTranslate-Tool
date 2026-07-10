@@ -24,6 +24,8 @@ export async function createProject(input: ProjectCreateInput): Promise<number> 
     songLinkUrl: input.songLinkUrl,
     artistLinks: input.artistLinks,
     recommendedSocialLinks: input.recommendedSocialLinks,
+    audioUrl: input.audioUrl,
+    syncOffsetMs: input.syncOffsetMs,
     createdAt: now,
     updatedAt: now,
   };
