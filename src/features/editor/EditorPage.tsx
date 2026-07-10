@@ -33,6 +33,7 @@ import {
   Loader2,
   Plus,
   RefreshCw,
+  Music,
 } from "lucide-react";
 import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 import { Toast } from "@/components/shared/Toast";
@@ -98,22 +99,25 @@ export function EditorPage() {
    * Handles both same-row re-clicks (bug fix #1) and different-row transitions.
    * @param newRowKey - the key of the row being activated, or null if deactivating
    */
-  const pushLeavingSnapshot = useCallback((newRowKey: string | null) => {
-    const leaving = activeLyricsRef.current;
-    if (!leaving || activeLineKey === null) return;
-    const project = useProjectStore.getState().currentProject;
-    if (!project) return;
+  const pushLeavingSnapshot = useCallback(
+    (newRowKey: string | null) => {
+      const leaving = activeLyricsRef.current;
+      if (!leaving || activeLineKey === null) return;
+      const project = useProjectStore.getState().currentProject;
+      if (!project) return;
 
-    if (activeLineKey === newRowKey) {
-      // Same row re-clicked: only push if state actually changed (bug fix #1)
-      if (JSON.stringify(project.lyrics) !== JSON.stringify(leaving)) {
+      if (activeLineKey === newRowKey) {
+        // Same row re-clicked: only push if state actually changed (bug fix #1)
+        if (JSON.stringify(project.lyrics) !== JSON.stringify(leaving)) {
+          useHistoryStore.getState().pushSnapshot(leaving, project.id);
+        }
+      } else {
+        // Different row: always push
         useHistoryStore.getState().pushSnapshot(leaving, project.id);
       }
-    } else {
-      // Different row: always push
-      useHistoryStore.getState().pushSnapshot(leaving, project.id);
-    }
-  }, [activeLineKey]);
+    },
+    [activeLineKey],
+  );
 
   const tableRef = useRef<HTMLDivElement>(null);
   const activeLyricsRef = useRef<Record<string, LyricLine> | null>(null);
@@ -352,7 +356,10 @@ export function EditorPage() {
     pushLeavingSnapshot(key);
 
     // Capture pre-edit state of the NEW row
-    activeLyricsRef.current = structuredClone(currentProject.lyrics) as Record<string, LyricLine>;
+    activeLyricsRef.current = structuredClone(currentProject.lyrics) as Record<
+      string,
+      LyricLine
+    >;
 
     setActiveLineKey(key);
     if (column) {
@@ -368,7 +375,10 @@ export function EditorPage() {
       // Capture pre-edit state of the NEW row
       const project = useProjectStore.getState().currentProject;
       if (project) {
-        activeLyricsRef.current = structuredClone(project.lyrics) as Record<string, LyricLine>;
+        activeLyricsRef.current = structuredClone(project.lyrics) as Record<
+          string,
+          LyricLine
+        >;
       }
 
       setFocusedColumn(column);
@@ -575,6 +585,22 @@ export function EditorPage() {
     );
   }
 
+  const leading = currentProject ? (
+    <div className="size-12 rounded-sm overflow-hidden bg-surface-container-highest shrink-0">
+      {currentProject.coverUrl ? (
+        <img
+          src={currentProject.coverUrl}
+          alt="Cover"
+          className="w-full h-full object-cover"
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <Music className="size-5 text-outline-variant/40" />
+        </div>
+      )}
+    </div>
+  ) : undefined;
+
   return (
     <>
       {/* Translation progress bar — top of viewport, above shell */}
@@ -591,6 +617,7 @@ export function EditorPage() {
           navigate("/");
         }}
         topbarBg="bg-surface-container"
+        leading={leading}
         sidebarBg="bg-surface-container"
         showTopbarBorder={false}
         bodyBg="bg-surface-container"
@@ -770,23 +797,23 @@ export function EditorPage() {
 
           {/* Sync button — only visible when audio has a highlighted row */}
           {audioActiveLineKey && (
-          <div
-            data-keep-active
-            className={`fixed z-50 ${aiProvider && aiApiKey ? "bottom-44 right-8" : "bottom-24 right-8"}`}
-          >
-            <button
-              onClick={handleSync}
-              disabled={!activeLineKey || !currentProject}
-              className="h-14 w-14 rounded-full bg-tertiary-container text-on-tertiary-container shadow-xl flex items-center justify-center hover:brightness-110 transition-[filter] border border-tertiary-container/50 pressable disabled:opacity-40 disabled:pointer-events-none"
-              title={
-                !activeLineKey
-                  ? t("player.syncDisabledTooltip")
-                  : t("player.syncTooltip")
-              }
+            <div
+              data-keep-active
+              className={`fixed z-50 ${aiProvider && aiApiKey ? "bottom-44 right-8" : "bottom-24 right-8"}`}
             >
-              <RefreshCw className="size-5" />
-            </button>
-          </div>
+              <button
+                onClick={handleSync}
+                disabled={!activeLineKey || !currentProject}
+                className="h-14 w-14 rounded-full bg-tertiary-container text-on-tertiary-container shadow-xl flex items-center justify-center hover:brightness-110 transition-[filter] border border-tertiary-container/50 pressable disabled:opacity-40 disabled:pointer-events-none"
+                title={
+                  !activeLineKey
+                    ? t("player.syncDisabledTooltip")
+                    : t("player.syncTooltip")
+                }
+              >
+                <RefreshCw className="size-5" />
+              </button>
+            </div>
           )}
 
           {aiProvider && aiApiKey && (

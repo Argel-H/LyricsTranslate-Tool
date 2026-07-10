@@ -13,6 +13,7 @@ interface AppShellProps {
   onOpenSettings?: () => void;
   onOpenAbout?: () => void;
   actions?: ReactNode;
+  leading?: ReactNode;
   sidebarBg?: string;
   topbarBg?: string;
   showTopbar?: boolean;
@@ -31,6 +32,7 @@ export function AppShell({
   onOpenSettings,
   onOpenAbout,
   actions,
+  leading,
   sidebarBg,
   topbarBg,
   showTopbar: showTopbarProp,
@@ -72,6 +74,7 @@ export function AppShell({
           bgColor={topbarBg}
           showBorder={showTopbarBorder}
           actions={actions}
+          leading={leading}
         />
       )}
 

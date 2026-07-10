@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useParams } from "react-router-dom";
 import { AppShell } from "@/features/shell/AppShell";
 import { MasterCard } from "@/features/shell/MasterCard";
@@ -91,6 +92,7 @@ export function ProjectSetupPage() {
   const [socialEntries, setSocialEntries] = useState<SocialEntry[]>([]);
   const [activeArtistTab, setActiveArtistTab] = useState(0);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const debouncedCoverUrl = useDebounce(coverUrl, 500);
 
   useEffect(() => {
     if (editId) {
@@ -306,9 +308,9 @@ export function ProjectSetupPage() {
                 </Button>*/}
               </div>
               <div className="w-full aspect-square bg-surface-container-highest rounded-3xl flex items-center justify-center mt-2 relative overflow-hidden border border-outline-variant/30">
-                {coverUrl ? (
+                {debouncedCoverUrl ? (
                   <img
-                    src={coverUrl}
+                    src={debouncedCoverUrl}
                     alt="Cover"
                     className="w-full h-full object-cover"
                   />

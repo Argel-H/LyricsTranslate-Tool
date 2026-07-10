@@ -4,6 +4,7 @@ import { fetchOdesliUrls } from "./odesli";
 import { processLyricsMap } from "@/lib/lyricsParser";
 import { getArtistName } from "@/lib/artistParser";
 import { API } from "@/lib/apiConfig";
+import { optimizeCoverUrl } from "@/lib/coverUtils";
 import type { LyricLine, ProjectCreateInput } from "@/types/project";
 import type { LRCLibResult } from "@/types/music";
 
@@ -192,6 +193,13 @@ async function fallbackToDeezerByName(
   return next;
 }
 
+/** Step: Optimize the cover URL — tries 500x500 webp, falls back to 500x500 jpg. */
+async function optimizeCoverArt(ctx: ExtractionContext): Promise<ExtractionContext> {
+  if (!ctx.coverUrl) return ctx;
+  const optimized = await optimizeCoverUrl(ctx.coverUrl);
+  return { ...ctx, coverUrl: optimized };
+}
+
 /** Step: Ensure artist names are populated (last resort from LRCLIB or input). */
 function ensureArtistNames(ctx: ExtractionContext, lrcResult?: LRCLibResult): ExtractionContext {
   if (ctx.artistNames.length > 0) return ctx;
@@ -253,6 +261,7 @@ export async function getFullMetadata(
   ctx = await resolveSocialMediaLinks(ctx, deps);
   ctx = await resolveCoverFromDeezer(ctx, deps);
   ctx = await fallbackToDeezerByName(ctx, deps);
+  ctx = await optimizeCoverArt(ctx);
   ctx = ensureArtistNames(ctx, lrcResult);
 
   return buildProjectInput(ctx);

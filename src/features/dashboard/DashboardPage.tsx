@@ -60,6 +60,7 @@ export function DashboardPage() {
   // Handle clicking a search result → auto-fill + skip ProjectSetup
   const handleSearchSelect = async (index: number) => {
     if (!searchResults || !searchResults[index]) return;
+    setSearch("");
     setCreatingProject(true);
     setLoadingStatus(t("dashboard.fetchingLyrics"));
     try {

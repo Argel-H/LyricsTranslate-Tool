@@ -7,6 +7,7 @@ interface TopBarProps {
   onBack?: () => void;
   bgColor?: string;
   actions?: ReactNode;
+  leading?: ReactNode;
   showBorder?: boolean;
   className?: string;
 }
@@ -16,6 +17,7 @@ export function TopBar({
   onBack,
   bgColor = "bg-surface-container",
   actions,
+  leading,
   showBorder = true,
   className,
 }: TopBarProps) {
@@ -37,6 +39,7 @@ export function TopBar({
             <ArrowLeft className="size-5" />
           </button>
         )}
+        {leading}
         <h1 className="font-headline-sm text-headline-sm font-bold text-on-surface">
           {title}
         </h1>
