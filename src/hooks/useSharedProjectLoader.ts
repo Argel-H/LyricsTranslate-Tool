@@ -49,8 +49,8 @@ export function useSharedProjectLoader(data: string | undefined): SharedProjectL
         let shareData = data!;
         if (isPasteId(shareData)) {
           try {
-            const { fetchPasteShare } = await import("@/lib/share/shareProtocol");
-            shareData = await fetchPasteShare(shareData);
+            const { fetchShare } = await import("@/lib/share/shareProtocol");
+            shareData = await fetchShare(shareData);
           } catch {
             if (!cancelled) {
               setStatus("error");

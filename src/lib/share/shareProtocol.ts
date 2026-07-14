@@ -17,6 +17,7 @@ import { arrayBufferToBase64URL, base64URLToArrayBuffer } from "@/lib/share/base
 import { stripShareBase } from "@/lib/share/shareRouting";
 import { stripUrlPrefix, reconstructUrl } from "@/lib/share/urlTemplateUtils";
 import { buildLyricsBuffer, parseLyricsBuffer } from "@/lib/share/transcoder/lyrics";
+import { API } from "@/lib/config/apiConfig";
 
 // ═══════════════════════════════════════════════════════════════════════
 // Encode — private helpers
@@ -347,59 +348,36 @@ export async function decodeShareUrl(urlOrData: string): Promise<ProjectCreateIn
 }
 
 /**
- * Encodes a project, creates a short paste share, and returns the short ID
- * (the final path segment after the share base URL).
+ * Encodes a project, creates a short share on the KV worker, and returns
+ * the short ID (the final path segment after the share base URL).
  */
 export async function createShortShareUrl(project: Project): Promise<string> {
   const fullUrl = await encodeShareUrl(project);
   const rawData = stripShareBase(fullUrl);
-  const pasteResult = await createPasteShare(rawData);
-  return pasteResult.split("/").pop() || pasteResult;
+  const shareResult = await createShare(rawData);
+  return shareResult.split("/").pop() || shareResult;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// Pastebin helpers
+// KV worker share helpers
 // ═══════════════════════════════════════════════════════════════════════
 
-export async function createPasteShare(rawData: string): Promise<string> {
-  const isDev = import.meta.env.DEV;
-
-  if (isDev) {
-    const formBody = "content=" + encodeURIComponent(rawData);
-    const res = await fetch("https://dpaste.com/api/v2/", {
-      method: "POST",
-      body: formBody,
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    });
-    if (!res.ok) throw new Error(`Paste creation failed: ${res.status}`);
-    const pasteUrl = (await res.text()).trim();
-    return `${getShareBaseUrl()}${pasteUrl.split("/").pop() || pasteUrl}`;
-  }
-
-  const { API } = await import("@/lib/config/apiConfig");
+/** Creates a share on the KV worker and returns a short URL. */
+export async function createShare(rawData: string): Promise<string> {
   const res = await fetch(API.share, {
     method: "POST",
     body: rawData,
     headers: { "Content-Type": "text/plain" },
   });
-  if (!res.ok) throw new Error(`Paste creation failed: ${res.status}`);
-  const pasteUrl = (await res.text()).trim();
-  return `${getShareBaseUrl()}${pasteUrl.split("/").pop() || pasteUrl}`;
+  if (!res.ok) throw new Error(`Share creation failed: ${res.status}`);
+  const shareUrl = (await res.text()).trim();
+  return `${getShareBaseUrl()}${shareUrl.split("/").pop() || shareUrl}`;
 }
 
-export async function fetchPasteShare(pasteId: string): Promise<string> {
-  const id = encodeURIComponent(pasteId);
-  const url = `https://dpaste.com/${id}.txt`;
-
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await fetch(url);
-    if (res.ok) return (await res.text()).trim();
-    if (res.status === 429) {
-      await new Promise(r => setTimeout(r, 2000 * (attempt + 1)));
-      continue;
-    }
-    throw new Error(`Paste fetch failed: ${res.status}`);
-  }
-
-  throw new Error("Paste not found or expired");
+/** Fetches raw share data from the KV worker by its ID. */
+export async function fetchShare(id: string): Promise<string> {
+  const encodedId = encodeURIComponent(id);
+  const res = await fetch(`${API.proxy}/share/${encodedId}`);
+  if (!res.ok) throw new Error("Share not found or expired");
+  return (await res.text()).trim();
 }

@@ -2,6 +2,7 @@ import { db } from "./database";
 import type { Project, ProjectCreateInput, LyricLine } from "@/types/project";
 import type { ProjectStatus } from "@/lib/config/constants";
 import { calculateLyricsProgress } from "@/lib/progressUtils";
+import { deleteShareRecordsByProject } from "./shareRepository";
 
 export async function createProject(input: ProjectCreateInput): Promise<number> {
   const id = Date.now();
@@ -120,5 +121,8 @@ export async function updateProjectArchived(
 }
 
 export async function deleteProject(id: number): Promise<void> {
-  await db.projects.delete(id);
+  await db.transaction("rw", db.projects, db.shareRecords, async () => {
+    await db.projects.delete(id);
+    await deleteShareRecordsByProject(id);
+  });
 }

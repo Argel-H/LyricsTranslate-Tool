@@ -3,18 +3,17 @@
     "version": "0.0.4",
     "date": "2025-07-14",
     "changes": [
-      "Share projects via short links with QR codes and a 30-day history",
-      "Read-only shared view (/view) and import-preview page (/s) for received links",
-      "Compact binary share format (Brotli + Base64URL) that packs a whole project into a URL",
-      "Language flags on setup and shared pages, rotating through countries for multi-region languages",
-      "Keyboard shortcuts in the editor (play/pause, seek, line navigation, quick edit)",
-      "Editor: Share/Export split button, animated floating actions, and instant sync-on-seek",
-      "Diacritic-insensitive project search",
-      "Respects prefers-reduced-motion for flag rotation",
-      "i18n: new keys for sharing and flags (EN, ES, PT)",
-      "Internal: source regrouped into lib/share and lib/config; shared ConfirmDialog, MessageModal, and LoadingOverlay",
-      "Internal: extracted usePageShell, useSmartBack, useCoverTilt, and useSharedProjectLoader hooks",
-      "Internal: leaner, higher-signal test suite with a shared project factory"
+      "Share projects with a single short link, complete with a QR code and a 30-day history of your links",
+      "Open a shared link to preview the project and either import your own copy or browse it read-only",
+      "Language flags on the setup and shared pages, cycling through countries for languages spoken in several regions",
+      "Editor keyboard shortcuts: play/pause, seek, jump between lines, and quick-edit the current line",
+      "New Share and Export buttons in the editor, with smoother floating actions and instant sync when you scrub the audio",
+      "Project status workflow: mark projects Not Started, In Progress, In Review, or Completed",
+      "Filter the projects page by status, including archived projects",
+      "Archive and unarchive projects to keep your list tidy",
+      "Back up and restore your whole library to a file",
+      "3D parallax tilt on cover art for a more expressive feel",
+      "Project search now ignores accents, so \"Alone\" matches \"Alon\u00f8\""
     ]
   },
   {
@@ -28,8 +27,7 @@
       "All Projects page with client-side search and 5-column responsive grid",
       "Project card: export option added to context menu",
       "Auto-calculate progress and status on project creation",
-      "Improved scrollbar styling with visible track",
-      "i18n: 30 new keys for player, export, and undo/redo (EN, ES, PT)"
+      "Improved scrollbar styling with visible track"
     ]
   },
   {
@@ -39,9 +37,7 @@
       "Material 3 Expressive loading indicator with 7 morphing shapes",
       "AI provider selection for auto translation (Draft intention)",
       "Worker proxy correctly returns Odesli streaming links",
-      "Search: 'no results' feedback and larger loading indicator",
-      "Internal: metadata extraction refactored into 7-step pipeline",
-      "Internal: lyrics parser rewritten with clear naming"
+      "Search: 'no results' feedback and larger loading indicator"
     ]
   },
   {

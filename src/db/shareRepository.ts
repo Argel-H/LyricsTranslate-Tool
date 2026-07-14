@@ -29,3 +29,7 @@ export function deleteExpiredShareRecords(): Promise<number> {
     .below(Date.now())
     .delete();
 }
+
+export function deleteShareRecordsByProject(projectId: number): Promise<number> {
+  return db.shareRecords.where("projectId").equals(projectId).delete();
+}

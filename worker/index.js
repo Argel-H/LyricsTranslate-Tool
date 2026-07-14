@@ -5,10 +5,8 @@ const CORS_HEADERS = {
   "Access-Control-Max-Age": "86400",
 };
 
-const PASTEBIN_URL = "https://dpaste.com/api/v2";
-
 export default {
-  async fetch(request) {
+  async fetch(request, env) {
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: CORS_HEADERS });
     }
@@ -18,11 +16,11 @@ export default {
     const isrc = url.searchParams.get("isrc");
 
     if (path === "/share" && request.method === "POST") {
-      return handleShareCreate(request);
+      return handleShareCreate(request.clone(), env);
     }
 
     if (path.startsWith("/share/") && request.method === "GET") {
-      return handleShareRetrieve(path.replace("/share/", ""));
+      return handleShareRetrieve(path.replace("/share/", ""), env);
     }
 
     if (path === "/metadata" && isrc) {
@@ -43,31 +41,20 @@ export default {
   },
 };
 
-async function handleShareCreate(request) {
+async function handleShareCreate(request, env) {
   try {
     const content = await request.text();
     if (!content) {
       return new Response("Empty body", { status: 400, headers: CORS_HEADERS });
     }
 
-    const formBody = "content=" + encodeURIComponent(content);
+    const id = crypto.randomUUID().substring(0, 8);
 
-    const pasteRes = await fetch(PASTEBIN_URL, {
-      method: "POST",
-      body: formBody,
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    });
+    // Save to KV, 30 days expiration
+    await env.SUBS_PASTES.put(id, content, { expirationTtl: 2592000 });
 
-    if (!pasteRes.ok) {
-      const errBody = await pasteRes.text().catch(() => "");
-      return new Response(`Paste service returned ${pasteRes.status}: ${errBody}`, {
-        status: 502,
-        headers: CORS_HEADERS,
-      });
-    }
-
-    const pasteUrl = (await pasteRes.text()).trim();
-    return new Response(pasteUrl, {
+    const url = new URL(request.url);
+    return new Response(`${url.origin}/share/${id}`, {
       status: 200,
       headers: { ...CORS_HEADERS, "Content-Type": "text/plain" },
     });
@@ -76,21 +63,20 @@ async function handleShareCreate(request) {
   }
 }
 
-async function handleShareRetrieve(id) {
+async function handleShareRetrieve(id, env) {
   if (!id) {
     return new Response("Missing paste ID", { status: 400, headers: CORS_HEADERS });
   }
 
   try {
-    const pasteRes = await fetch(`https://dpaste.com/${encodeURIComponent(id)}.txt`);
-    if (!pasteRes.ok) {
+    const content = await env.SUBS_PASTES.get(id);
+    if (!content) {
       return new Response("Paste not found or expired", {
-        status: pasteRes.status === 404 ? 404 : 502,
+        status: 404,
         headers: CORS_HEADERS,
       });
     }
 
-    const content = await pasteRes.text();
     return new Response(content, {
       status: 200,
       headers: { ...CORS_HEADERS, "Content-Type": "text/plain" },
