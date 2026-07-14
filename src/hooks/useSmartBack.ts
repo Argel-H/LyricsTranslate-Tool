@@ -1,14 +1,19 @@
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
+function hasInAppHistory(): boolean {
+  const historyIndex = (window.history.state?.idx as number | undefined) ?? 0;
+  return historyIndex > 0;
+}
+
 /**
- * Returns a back-navigation function that falls back to "/" when there is
- * no meaningful history (e.g. user opened the page directly in a new tab).
+ * Returns a back-navigation function that steps back through in-app history,
+ * falling back to "/" when the page was opened directly (no prior entry).
  */
 export function useSmartBack(): () => void {
   const navigate = useNavigate();
   return useCallback(() => {
-    if (document.referrer && document.referrer.startsWith(window.location.origin)) {
+    if (hasInAppHistory()) {
       navigate(-1);
     } else {
       navigate("/", { replace: true });
