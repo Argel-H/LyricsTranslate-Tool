@@ -50,8 +50,17 @@ export function getSortedLyricLines(lyrics: Record<string, LyricLine>): Timestam
 }
 
 /**
- * Binary search for the currently active lyric line given audio time in milliseconds.
- * Returns the key of the line whose timeMs <= audioTimeMs, or null if no such line exists.
+ * Finds the active lyric line for a given audio time using [timeMs, timeEndMs) intervals.
+ *
+ * Returns the key of the line where `timeMs <= audioTimeMs < timeEndMs`, or `null` if
+ * the audio time falls outside all intervals (before the first line, in a gap between
+ * lines, or after the last line ends).
+ *
+ * Uses binary search for O(log n) efficiency on sorted lines.
+ *
+ * @param sortedLines - Lyric lines sorted by `timeMs` ascending
+ * @param audioTimeMs - Current audio time in milliseconds
+ * @returns The key of the active line, or `null` if no line covers this time
  */
 export function findActiveLine(
   sortedLines: TimestampedLine[],
@@ -59,19 +68,28 @@ export function findActiveLine(
 ): string | null {
   if (sortedLines.length === 0) return null;
 
+  // Binary search: find the last index where timeMs <= audioTimeMs
   let low = 0;
   let high = sortedLines.length - 1;
-  let best = -1;
 
   while (low <= high) {
     const mid = Math.floor((low + high) / 2);
     if (sortedLines[mid]!.timeMs <= audioTimeMs) {
-      best = mid;
       low = mid + 1;
     } else {
       high = mid - 1;
     }
   }
 
-  return best >= 0 ? sortedLines[best]!.key : null;
+  // `high` is now the greatest index with timeMs <= audioTimeMs
+  // If high === -1, audioTimeMs precedes the first line
+  if (high < 0) return null;
+
+  // Verify audioTimeMs is strictly within the [start, end) interval
+  const candidate = sortedLines[high]!;
+  if (audioTimeMs < candidate.timeEndMs) {
+    return candidate.key;
+  }
+
+  return null;
 }

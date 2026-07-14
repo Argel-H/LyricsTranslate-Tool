@@ -81,8 +81,6 @@ export function AudioPlayerBar({
   const audioRef = externalAudioRef ?? internalAudioRef;
   const rafRef = useRef<number>(0);
   const lastActiveKeyRef = useRef<string | null>(null);
-  const stableKeyRef = useRef<string | null>(null);
-  const stableCountRef = useRef(0);
   const durationMsRef = useRef(0);
   const hasLoadedRef = useRef(false);
 
@@ -212,12 +210,9 @@ export function AudioPlayerBar({
   // ──────────────────────────────────────────────
   useEffect(() => {
     if (!playing || !audioRef.current) {
-      stableKeyRef.current = null;
-      stableCountRef.current = 0;
+      lastActiveKeyRef.current = null;
       return;
     }
-
-    const STABILITY_THRESHOLD = 3; // frames before emitting a new key
 
     const tick = () => {
       if (audioRef.current) {
@@ -227,20 +222,9 @@ export function AudioPlayerBar({
           audioRef.current.currentTime * 1000 - syncOffsetMs;
         const activeKey = findActiveLine(sortedLines, effectiveTimeMs);
 
-        if (activeKey) {
-          if (activeKey === stableKeyRef.current) {
-            stableCountRef.current++;
-            if (
-              stableCountRef.current >= STABILITY_THRESHOLD &&
-              activeKey !== lastActiveKeyRef.current
-            ) {
-              lastActiveKeyRef.current = activeKey;
-              onActiveLineChange(activeKey);
-            }
-          } else {
-            stableKeyRef.current = activeKey;
-            stableCountRef.current = 1;
-          }
+        if (activeKey !== lastActiveKeyRef.current) {
+          lastActiveKeyRef.current = activeKey;
+          onActiveLineChange(activeKey);
         }
       }
       rafRef.current = requestAnimationFrame(tick);
@@ -274,8 +258,6 @@ export function AudioPlayerBar({
     const activeKey = findActiveLine(sortedLines, effectiveTime);
     if (activeKey !== lastActiveKeyRef.current) {
       lastActiveKeyRef.current = activeKey;
-      stableKeyRef.current = activeKey;
-      stableCountRef.current = 0;
       onActiveLineChange(activeKey ?? null);
     }
   }

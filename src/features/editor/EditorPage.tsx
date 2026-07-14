@@ -141,6 +141,7 @@ export function EditorPage() {
   const tableRef = useRef<HTMLDivElement>(null);
   const activeLyricsRef = useRef<Record<string, LyricLine> | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Audio player state ─────────────────────────────────────────────
   const [audioActiveLineKey, setAudioActiveLineKey] = useState<string | null>(
@@ -467,13 +468,20 @@ export function EditorPage() {
     setAudioActiveLineKey(key);
   }, []);
 
-  // Scroll to audio-active row when it changes
+  // Scroll to audio-active row when it changes (debounced to avoid oscillation)
   useEffect(() => {
     if (!audioActiveLineKey) return;
-    const el = document.querySelector(`[data-row-key="${audioActiveLineKey}"]`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = setTimeout(() => {
+      const el = document.querySelector(`[data-row-key="${audioActiveLineKey}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      scrollTimeoutRef.current = null;
+    }, 50);
+    return () => {
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
   }, [audioActiveLineKey]);
 
   const handleAudioUrlChange = useCallback((url: string) => {

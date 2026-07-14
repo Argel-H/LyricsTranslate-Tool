@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useI18n } from "@/hooks/useI18n";
 import { useModalStore } from "@/stores/modalStore";
@@ -6,6 +6,7 @@ import { useSharedProjectLoader } from "@/hooks/useSharedProjectLoader";
 import { createProject } from "@/db/projectRepository";
 import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 import { getSortedLyricLines } from "@/lib/timeUtils";
+import { useEditorShortcuts } from "@/hooks/useEditorShortcuts";
 import { AppShell } from "@/features/shell/AppShell";
 import { MasterCard } from "@/features/shell/MasterCard";
 import { AudioPlayerBar } from "@/features/editor/AudioPlayerBar";
@@ -23,6 +24,8 @@ export function ViewOnlyPage() {
   const [modalOpen, setModalOpen] = useState(false);
 
   const [activeLineKey, setActiveLineKey] = useState<string | null>(null);
+  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -46,14 +49,76 @@ export function ViewOnlyPage() {
     return getSortedLyricLines(project.lyrics);
   }, [project?.lyrics]);
 
+  const handlePlayPause = useCallback(() => {
+    if (!audioRef.current) return;
+    if (audioRef.current.paused) {
+      audioRef.current.play().catch(() => {});
+    } else {
+      audioRef.current.pause();
+    }
+  }, []);
+
+  const handleSeekRelative = useCallback((deltaMs: number) => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = Math.max(
+      0,
+      audioRef.current.currentTime + deltaMs / 1000,
+    );
+  }, []);
+
+  const handleNavigateToLine = useCallback(
+    (key: string) => {
+      if (!audioRef.current || !project) return;
+      const line = project.lyrics[key];
+      if (line) {
+        const syncOffset = project.syncOffsetMs ?? 0;
+        audioRef.current.currentTime = (line.time_start + syncOffset) / 1000;
+        setActiveLineKey(key);
+      }
+    },
+    [project],
+  );
+
+  const handleSync = useCallback(() => {
+    if (!activeLineKey) return;
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = setTimeout(() => {
+      const el = document.querySelector(`[data-row-key="${activeLineKey}"]`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      scrollTimeoutRef.current = null;
+    }, 50);
+  }, [activeLineKey]);
+
+  useEditorShortcuts(
+    {
+      playPause: handlePlayPause,
+      seekRelative: handleSeekRelative,
+      navigateToLine: handleNavigateToLine,
+      openRowForEdit: () => {},
+      closeRow: () => {},
+      reSync: handleSync,
+    },
+    false,            // isRowOpen — never editing in view-only
+    activeLineKey,    // audioActiveLineKey
+    sortedLinesForAudio,
+    true,             // enabled
+  );
+
   const scrollToActiveLine = useCallback(() => {
     if (!activeLineKey) return;
-    const el = document.querySelector(`[data-row-key="${activeLineKey}"]`);
-    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = setTimeout(() => {
+      const el = document.querySelector(`[data-row-key="${activeLineKey}"]`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      scrollTimeoutRef.current = null;
+    }, 50);
   }, [activeLineKey]);
 
   useEffect(() => {
     scrollToActiveLine();
+    return () => {
+      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    };
   }, [activeLineKey, scrollToActiveLine]);
 
   const loading = status === "loading";
@@ -110,16 +175,17 @@ export function ViewOnlyPage() {
   );
 
   const bottomBarContent = project?.audioUrl ? (
-    <AudioPlayerBar
-      audioSrc={project.audioUrl}
-      syncOffsetMs={project.syncOffsetMs ?? 0}
-      sortedLines={sortedLinesForAudio}
-      onActiveLineChange={setActiveLineKey}
-      onAudioUrlChange={() => {}}
-      onLocalFileSelect={() => {}}
-      onClearAudio={() => {}}
-      readOnly
-    />
+      <AudioPlayerBar
+        audioSrc={project.audioUrl}
+        audioRef={audioRef}
+        syncOffsetMs={project.syncOffsetMs ?? 0}
+        sortedLines={sortedLinesForAudio}
+        onActiveLineChange={setActiveLineKey}
+        onAudioUrlChange={() => {}}
+        onLocalFileSelect={() => {}}
+        onClearAudio={() => {}}
+        readOnly
+      />
   ) : (
     <div className="flex items-center justify-between w-full">
       <span className="font-label-md text-on-surface-variant flex items-center gap-1">
