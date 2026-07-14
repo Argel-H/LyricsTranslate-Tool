@@ -27,8 +27,11 @@ import {
 } from "lucide-react";
 import type { ProjectCreateInput } from "@/types/project";
 import { getPlatformIcon, PLATFORMS } from "@/lib/platformIcons";
-import { LANGUAGE_OPTIONS } from "@/lib/languageFlags";
-import { makeRotatingFlagIcon } from "@/components/shared/RotatingFlag";
+import { LANGUAGE_LABELS } from "@/lib/languageFlags";
+import {
+  makeRotatingFlagIcon,
+  makeRotatingLanguageOptions,
+} from "@/components/shared/RotatingFlag";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useCoverTilt } from "@/hooks/useCoverTilt";
 import { usePageShell } from "@/hooks/usePageShell";
@@ -39,6 +42,8 @@ interface SocialEntry {
   platform: string;
   url: string;
 }
+
+const ROTATING_LANGUAGE_OPTIONS = makeRotatingLanguageOptions(LANGUAGE_LABELS);
 
 export function ProjectSetupPage() {
   const navigate = useNavigate();
@@ -338,7 +343,7 @@ export function ProjectSetupPage() {
                   icon={rotatingOriginIcon}
                   label={t("setup.originLanguage")}
                   value={originLanguage}
-                  options={LANGUAGE_OPTIONS}
+                  options={ROTATING_LANGUAGE_OPTIONS}
                   onChange={setOriginLanguage}
                   className="!rounded-tr-md"
                 />
@@ -349,9 +354,9 @@ export function ProjectSetupPage() {
                   icon={rotatingTranslationIcon}
                   label={t("setup.translationLanguage")}
                   value={translationLanguage}
-                  options={LANGUAGE_OPTIONS}
+                  options={ROTATING_LANGUAGE_OPTIONS}
                   onChange={setTranslationLanguage}
-                  className="!rounded-bl-md"
+                  className="rounded-bl-md"
                 />
               </div>
             </SectionCard>

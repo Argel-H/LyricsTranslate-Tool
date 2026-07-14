@@ -39,10 +39,19 @@
 - [x] Music player integration
 - [x] Undo/redo for editor changes
 - [x] Editor Header Cover
+- [x] Project status workflow (Not Started, In Progress, In Review, Completed)
+- [x] Archive/unarchive projects and status filters on the projects page
+- [x] Database backup and restore (import/export whole library)
+- [x] Share projects via short links (Cloudflare KV) with QR codes and 30-day history
+- [x] Read-only shared view (/view) and import-preview page (/s)
+- [x] Binary share protocol (Brotli + Base64URL) packing a project into a URL
+- [x] Keyboard shortcuts (play/pause, seek, line navigation, quick edit)
+- [x] Language flags with random-order rotation for multi-region languages
+- [x] Diacritic-insensitive project search
+- [x] 3D parallax tilt on cover art
 
 ## Pending
 - [ ] Read lyrics from imported LRC/SRT files
 - [ ] Audio sync offset configuration UI (syncOffsetMs field)
-- [ ] Keyboard shortcuts
 - [ ] Batch replace in lyrics
 - [ ] Dark/light theme toggle

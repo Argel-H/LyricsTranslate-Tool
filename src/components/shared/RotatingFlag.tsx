@@ -1,8 +1,9 @@
-/** Renders a language's country flag(s) with crossfade rotation every 5s. */
 import type { ComponentType, SVGProps } from "react";
+import { useMemo } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { getLanguageFlags } from "@/lib/languageFlags";
 import { useRotatingIndex } from "@/hooks/useRotatingIndex";
+import { shuffleArray } from "@/lib/shuffleArray";
 import { cn } from "@/lib/utils";
 
 interface RotatingFlagProps {
@@ -11,7 +12,7 @@ interface RotatingFlagProps {
 }
 
 export function RotatingFlag({ language, className }: RotatingFlagProps) {
-  const flags = getLanguageFlags(language);
+  const flags = useMemo(() => shuffleArray(getLanguageFlags(language)), [language]);
   const index = useRotatingIndex(flags.length);
   const Flag = flags[index];
 
@@ -27,7 +28,7 @@ export function RotatingFlag({ language, className }: RotatingFlagProps) {
   }
 
   return (
-    <span className="inline-grid align-middle">
+    <span className={cn("inline-grid align-middle h-3", className)}>
       <AnimatePresence mode="sync" initial={false}>
         <motion.span
           key={index}
@@ -37,23 +38,13 @@ export function RotatingFlag({ language, className }: RotatingFlagProps) {
           exit={{ opacity: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <Flag
-            className={cn(
-              "inline-block h-3 w-auto rounded-[2px] align-middle",
-              className,
-            )}
-          />
+          <Flag className="h-full w-auto rounded-[2px]" />
         </motion.span>
       </AnimatePresence>
     </span>
   );
 }
 
-/**
- * Creates a component compatible with DropdownSelect's icon prop that
- * renders a RotatingFlag internally. Memorize the result per language
- * to prevent remount cycling from restarting the rotation timer.
- */
 export function makeRotatingFlagIcon(
   language: string,
 ): ComponentType<SVGProps<SVGSVGElement>> {
@@ -61,4 +52,10 @@ export function makeRotatingFlagIcon(
     return <RotatingFlag language={language} className={className} />;
   }
   return RotatingFlagIcon;
+}
+
+export function makeRotatingLanguageOptions(
+  labels: string[],
+): { label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }[] {
+  return labels.map((label) => ({ label, icon: makeRotatingFlagIcon(label) }));
 }

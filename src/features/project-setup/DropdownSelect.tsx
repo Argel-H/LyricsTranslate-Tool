@@ -95,7 +95,7 @@ export function DropdownSelect({
                     : "text-on-surface hover:bg-surface-container-highest",
                 )}
               >
-                {OptIcon && <OptIcon className="size-4 shrink-0" />}
+                {OptIcon && <OptIcon className="h-4 w-auto shrink-0" />}
                 {label}
               </button>
             )})}
@@ -112,13 +112,13 @@ export function DropdownSelect({
         onClick={!disabled ? (options ? handleClick : undefined) : undefined}
         className={cn(
           "relative bg-surface-container-high px-4 py-2 flex items-center gap-3 border border-outline-variant/50 transition-all group",
-          open ? "rounded-t-md rounded-b-none border-b-0 duration-150" : "rounded-full duration-500",
+          open ? "rounded-t-md border-b-0 duration-150" : "rounded-none duration-500",
           options && !disabled && "cursor-pointer",
           disabled && "opacity-50 cursor-not-allowed select-none",
           className,
         )}
       >
-        <Icon className="size-5 text-on-surface-variant" />
+        <Icon className="h-5 w-auto text-on-surface-variant" />
         <div className="flex-grow flex flex-col">
           <label className="font-label-md text-[10px] text-on-surface-variant leading-none mb-1">
             {label}
@@ -142,14 +142,14 @@ export function DropdownSelect({
       ref={containerRef}
       className={cn(
         "relative bg-surface-container-high pl-5 pr-4 py-3 flex items-center gap-3 border border-outline-variant/50 group transition-all",
-        open ? "rounded-t-md rounded-b-none border-b-0 duration-150" : "rounded-full duration-500",
+        open ? "rounded-t-md !rounded-b-none border-b-0 duration-150" : "rounded-full duration-500",
         !disabled && "cursor-pointer hover:bg-surface-variant",
         disabled && "opacity-50 cursor-not-allowed select-none",
         className,
       )}
       onClick={!disabled ? handleClick : undefined}
     >
-      <Icon className="size-5 text-on-surface-variant" />
+      <Icon className="h-5 w-auto text-on-surface-variant" />
       <div className="flex flex-col">
         <span className="font-label-md text-[10px] text-on-surface-variant leading-none">
           {label}

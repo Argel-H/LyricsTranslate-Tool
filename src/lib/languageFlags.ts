@@ -62,20 +62,7 @@ export function getLanguageFlag(
   return getLanguageFlags(language)[0];
 }
 
-export const LANGUAGE_OPTIONS: {
-  label: string;
-  icon: FlagComponent;
-}[] = [
-  { label: "English", icon: US },
-  { label: "Spanish", icon: ES },
-  { label: "Portuguese", icon: PT },
-  { label: "French", icon: FR },
-  { label: "German", icon: DE },
-  { label: "Italian", icon: IT },
-  { label: "Japanese", icon: JP },
-  { label: "Korean", icon: KR },
-  { label: "Chinese", icon: CN },
-  { label: "Arabic", icon: SA },
-  { label: "Russian", icon: RU },
-  { label: "Hindi", icon: IN },
+export const LANGUAGE_LABELS: string[] = [
+  "English", "Spanish", "Portuguese", "French", "German", "Italian",
+  "Japanese", "Korean", "Chinese", "Arabic", "Russian", "Hindi",
 ];

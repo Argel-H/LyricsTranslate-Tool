@@ -60,23 +60,24 @@ spacing: { xs: 4px, sm: 8px, md: 16px, lg: 24px, xl: 32px, gutter: 24px }
 ## Project Structure
 ```
 src/
-├── types/          Shared TypeScript interfaces (Project, LyricLine, API responses)
+├── types/          Shared TypeScript interfaces (Project, LyricLine, ShareRecord, API responses)
 ├── services/       API clients + metadata pipeline (LRCLIB, MusicBrainz, Deezer, Odesli, SimplyTranslate)
-├── db/             Dexie.js schema + repositories (projects, preferences)
-├── stores/         Zustand stores (project, settings, modal)
+├── db/             Dexie.js schema + repositories (projects, share records, settings)
+├── stores/         Zustand stores (project, settings, modal, shell, history)
 ├── i18n/           Translation strings (en.ts, es.ts, pt.ts)
-├── hooks/          useDebounce, useI18n, useProjectCreation, useProjectSearch
-├── lib/            utils (cn), lyricsParser, artistParser, timeUtils, progressUtils
-├── test/mocks/     API mock fixtures for integration tests
+├── hooks/          useDebounce, useI18n, usePageShell, useSmartBack, useCoverTilt, useRotatingIndex, useSharedProjectLoader, useEditorShortcuts
+├── lib/            utils (cn), lyricsParser, artistParser, timeUtils, progressUtils, languageFlags, shuffleArray
+│   ├── config/     aiConfig, apiConfig, appConfig, constants
+│   └── share/      shareProtocol, shareRouting, shareCache, compressionUtils, base64Utils, binary/, transcoder/
+├── test/           setup + mocks + shared project factory
 ├── components/ui/  shadcn/ui primitives (button, input, select, etc.)
-├── components/shared/ AnimatedPage, ChangelogModal, ConfirmDialog, LoadingOverlay, SettingsModal
+├── components/shared/ AnimatedPage, ChangelogModal, ConfirmDialog, MessageModal, LoadingOverlay, LanguageLabel, RotatingFlag, SettingsModal
 ├── features/
 │   ├── shell/      AppShell, Sidebar, TopBar, MasterCard, NavButton, Modal
-│   ├── dashboard/  DashboardPage, HeroSection, SearchInput, ProjectCard, etc.
-│   ├── editor/     EditorPage, TableRow, TimeControl, TranslationTextarea, FAB
-│   ├── project-setup/ ProjectSetupPage, DropdownSelect, RoundedInput, SectionCard
-│   └── settings/   SettingsPage (standalone, may be deprecated for modal)
-├── App.tsx          Router + global modals (Settings, About, Reset DB)
+│   ├── dashboard/  DashboardPage, AllProjectsPage, HeroSection, SearchInput, ProjectCard, etc.
+│   ├── editor/     EditorPage, TableRow, TimeControl, TranslationTextarea, FAB, ShareDialog, SharedProjectPage, ViewOnlyPage, viewonly/
+│   └── project-setup/ ProjectSetupPage, DropdownSelect, RoundedInput, SectionCard
+├── App.tsx          Router (share routes + app shell) + global modals
 ├── main.tsx         QueryClientProvider + StrictMode
 └── index.css        Tailwind layers + CSS custom properties
 ```
@@ -85,9 +86,12 @@ src/
 | Route | Component | Pattern | Description |
 |---|---|---|---|
 | `/` | DashboardPage | Master Card Only | Search songs (LRCLIB), recent projects (Dexie) |
+| `/projects` | AllProjectsPage | Top Bar + Master Card | Search, status filters, archive/unarchive |
 | `/new-project` | ProjectSetupPage | Top Bar + Master Card | Manual project creation |
 | `/edit-project/:id` | ProjectSetupPage | Top Bar + Master Card | Edit existing project (delete button available) |
-| `/editor/:id` | EditorPage | Top Bar + Master Card | Lyric/translation table, auto-translate, timestamps |
+| `/editor/:id` | EditorPage | Top Bar + Master Card | Lyric/translation table, auto-translate, timestamps, share |
+| `/s/:data` | SharedProjectPage | Standalone | Decode a share link → preview → import or view-only |
+| `/view/:data` | ViewOnlyPage | Standalone | Read-only shared project view |
 
 ## Data Flow
 1. **Search → Auto-fill:** User searches → LRCLIB (debounced) → click result → `getFullMetadata()` pipeline: ① `extractLyricsFromLrc` → ② `resolveArtistsViaMusicBrainz` (ISRC, MBIDs) → ③ `resolveSocialMediaLinks` → ④ `resolveCoverFromDeezer` (cover, album, artists, streaming via Odesli) → ⑤ `fallbackToDeezerByName` (if ISRC fails) → ⑥ `ensureArtistNames` → ⑦ `buildProjectInput` → create project in Dexie → navigate to `/editor/:id`
@@ -104,6 +108,18 @@ src/
 | `/api-deezer` | `https://api.deezer.com` |
 | `/api-odesli` | `https://api.song.link` |
 | `/api-translate` | `https://api.simplytranslate.ai` |
+
+Sharing is the exception: the client calls the Cloudflare Worker's `/share` endpoint directly (no Vite proxy) in both dev and production, since the Worker returns permissive CORS.
+
+## Project Sharing
+
+A project is packed into a compact URL and stored behind a short link.
+
+**Encode (`lib/share/shareProtocol.ts`):** `Project` → binary buffer (`binary/BinaryWriter` + `transcoder/` for lyrics) → Brotli compression (`compressionUtils`) → Base64URL (`base64Utils`). Platform/streaming URLs are shortened via `urlTemplateUtils` before packing.
+
+**Short link:** `createShare()` POSTs the raw payload to the Cloudflare Worker, which stores it in **KV** (`SUBS_PASTES`, 30-day TTL) and returns an 8-char id. A local `ShareRecord` (Dexie) keeps the id, timestamps, and expiry for the share history + QR dialog. Deleting a project deletes its share records atomically; the remote KV entry expires on its own.
+
+**Decode (`hooks/useSharedProjectLoader.ts`):** `/s/:data` and `/view/:data` resolve `:data` → if it's a short id, `fetchShare()` GETs it from the Worker → `decodeShareUrl()` reverses the pipeline → `ProjectCreateInput`. `SharedProjectPage` offers import or view-only; `ViewOnlyPage` renders read-only.
 
 ## Metadata Extraction Pipeline
 

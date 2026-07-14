@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { TimestampedLine } from "@/lib/timeUtils";
 
 interface EditorShortcutCallbacks {
@@ -10,6 +10,14 @@ interface EditorShortcutCallbacks {
   reSync: () => void;
 }
 
+const NAV_KEYS = new Set([
+  " ",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "ArrowDown",
+]);
+
 export function useEditorShortcuts(
   callbacks: EditorShortcutCallbacks,
   isRowOpen: boolean,
@@ -17,10 +25,25 @@ export function useEditorShortcuts(
   sortedLines: TimestampedLine[],
   enabled: boolean,
 ): void {
+  const stateRef = useRef({
+    callbacks,
+    isRowOpen,
+    audioActiveLineKey,
+    sortedLines,
+  });
+  stateRef.current = { callbacks, isRowOpen, audioActiveLineKey, sortedLines };
+
   useEffect(() => {
     if (!enabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      const {
+        callbacks,
+        isRowOpen,
+        audioActiveLineKey,
+        sortedLines,
+      } = stateRef.current;
+
       const target = e.target as HTMLElement;
       const isInput =
         target.tagName === "INPUT" ||
@@ -30,7 +53,6 @@ export function useEditorShortcuts(
       const isEditing = isRowOpen;
       const hasAudio = audioActiveLineKey !== null;
 
-      // ── Escape: close open row (works even when focus is in textarea) ──
       if (e.key === "Escape" && isEditing) {
         e.preventDefault();
         e.stopPropagation();
@@ -38,39 +60,36 @@ export function useEditorShortcuts(
         return;
       }
 
-      // ── Below here: ignore when focus is in an input ──
       if (isInput) return;
 
-      // ── Enter: open highlighted row for editing ──
       if (e.key === "Enter" && !isEditing && hasAudio) {
         e.preventDefault();
         callbacks.openRowForEdit(audioActiveLineKey);
         return;
       }
 
-      // ── Below here: only when no row is open ──
       if (isEditing) return;
+
+      if (NAV_KEYS.has(e.key)) {
+        e.preventDefault();
+      }
 
       switch (e.key) {
         case " ": {
-          e.preventDefault();
           callbacks.playPause();
           break;
         }
         case "ArrowLeft": {
-          e.preventDefault();
           callbacks.seekRelative(-2000);
           break;
         }
         case "ArrowRight": {
-          e.preventDefault();
           callbacks.seekRelative(2000);
           break;
         }
         case "ArrowUp":
         case "ArrowDown": {
           if (!hasAudio || sortedLines.length === 0) break;
-          e.preventDefault();
           const currentIndex = sortedLines.findIndex(
             (l) => l.key === audioActiveLineKey,
           );
@@ -97,5 +116,5 @@ export function useEditorShortcuts(
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [enabled, isRowOpen, audioActiveLineKey, sortedLines, callbacks]);
+  }, [enabled]);
 }
