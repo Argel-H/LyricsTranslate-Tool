@@ -1,5 +1,23 @@
 [
   {
+    "version": "0.0.4",
+    "date": "2025-07-14",
+    "changes": [
+      "Share projects via short links with QR codes and a 30-day history",
+      "Read-only shared view (/view) and import-preview page (/s) for received links",
+      "Compact binary share format (Brotli + Base64URL) that packs a whole project into a URL",
+      "Language flags on setup and shared pages, rotating through countries for multi-region languages",
+      "Keyboard shortcuts in the editor (play/pause, seek, line navigation, quick edit)",
+      "Editor: Share/Export split button, animated floating actions, and instant sync-on-seek",
+      "Diacritic-insensitive project search",
+      "Respects prefers-reduced-motion for flag rotation",
+      "i18n: new keys for sharing and flags (EN, ES, PT)",
+      "Internal: source regrouped into lib/share and lib/config; shared ConfirmDialog, MessageModal, and LoadingOverlay",
+      "Internal: extracted usePageShell, useSmartBack, useCoverTilt, and useSharedProjectLoader hooks",
+      "Internal: leaner, higher-signal test suite with a shared project factory"
+    ]
+  },
+  {
     "version": "0.0.3",
     "date": "2025-07-09",
     "changes": [

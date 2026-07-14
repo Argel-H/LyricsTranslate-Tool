@@ -1,5 +1,5 @@
-import { API } from "@/lib/apiConfig";
-import type { AIProvider } from "@/lib/aiConfig";
+import { API } from "@/lib/config/apiConfig";
+import type { AIProvider } from "@/lib/config/aiConfig";
 
 interface AIConfig {
   provider: AIProvider;

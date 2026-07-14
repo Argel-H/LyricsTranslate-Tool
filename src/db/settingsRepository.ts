@@ -1,6 +1,6 @@
 import { db, type UserPreferences } from "./database";
-import type { LanguageCode } from "@/lib/constants";
-import type { AIProvider } from "@/lib/aiConfig";
+import type { LanguageCode } from "@/lib/config/constants";
+import type { AIProvider } from "@/lib/config/aiConfig";
 
 const SINGLETON_ID = "singleton" as const;
 

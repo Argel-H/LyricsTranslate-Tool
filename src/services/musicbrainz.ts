@@ -1,6 +1,6 @@
 import axios from "axios";
 import type { MusicBrainzRecording, MusicBrainzArtistRelation } from "@/types/music";
-import { API } from "@/lib/apiConfig";
+import { API } from "@/lib/config/apiConfig";
 
 const MUSICBRAINZ_BASE = API.musicbrainz;
 

@@ -14,10 +14,10 @@ import {
 } from "@/lib/timeUtils";
 import type { TimestampedLine } from "@/lib/timeUtils";
 import { useModalStore } from "@/stores/modalStore";
-import { useShellStore } from "@/stores/shellStore";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useI18n } from "@/hooks/useI18n";
-import { PROJECT_STATUS } from "@/lib/constants";
+import { useSmartBack } from "@/hooks/useSmartBack";
+import { PROJECT_STATUS } from "@/lib/config/constants";
 import {
   buildAutoTranslatePrompt,
   callGoogleGemini,
@@ -27,26 +27,38 @@ import type { AutoTranslateInput } from "@/services/simplyTranslate";
 import { processLyricsMap } from "@/lib/lyricsParser";
 import type { LyricLine } from "@/types/project";
 import { findAllTranslations } from "@/lib/suggestionUtils";
-import { AI_PROVIDERS } from "@/lib/aiConfig";
+import { AI_PROVIDERS } from "@/lib/config/aiConfig";
 import { downloadProjectAsYaml, formatSrtTimestamp } from "@/lib/exportUtils";
 import { ExportDialog } from "./ExportDialog";
 import {
   Edit,
-  Save,
   Sparkles,
   Loader2,
   Plus,
   RefreshCw,
   Music,
   CheckCircle,
+  Share2,
+  Download,
 } from "lucide-react";
+import { createShortShareUrl } from "@/lib/share/shareProtocol";
+import { getShareBaseUrl } from "@/types/share";
 import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 import { Toast } from "@/components/shared/Toast";
+import { AnimatePresence, motion } from "framer-motion";
+import { MessageModal } from "@/components/shared/MessageModal";
+import { LoadingOverlay } from "@/components/shared/LoadingOverlay";
+import { useClickOutside } from "@/hooks/useClickOutside";
+import { usePageShell } from "@/hooks/usePageShell";
+import { ShareDialog } from "./ShareDialog";
+import { useEditorShortcuts } from "@/hooks/useEditorShortcuts";
+import { useShellStore } from "@/stores/shellStore";
 
 export function EditorPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useI18n();
+  const smartBack = useSmartBack();
   const {
     currentProject,
     isLoading,
@@ -66,7 +78,9 @@ export function EditorPage() {
   const [activeLineKey, setActiveLineKey] = useState<string | null>(null);
   const [focusedColumn, setFocusedColumn] = useState<string | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
 
   // ── Undo/Redo state ────────────────────────────────────────────────
   const canUndo = useHistoryStore((s) => s.undoStack.length > 0);
@@ -126,6 +140,7 @@ export function EditorPage() {
 
   const tableRef = useRef<HTMLDivElement>(null);
   const activeLyricsRef = useRef<Record<string, LyricLine> | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // ── Audio player state ─────────────────────────────────────────────
   const [audioActiveLineKey, setAudioActiveLineKey] = useState<string | null>(
@@ -435,25 +450,20 @@ export function EditorPage() {
     setSaveOpen(false);
   };
 
-  // Click outside the table to deactivate (but not on Sync/FAB buttons)
-  useEffect(() => {
-    if (!activeLineKey) return;
-    const handler = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (target.closest("[data-keep-active]")) return;
-      if (tableRef.current && !tableRef.current.contains(target)) {
-        pushLeavingSnapshot(null);
-        activeLyricsRef.current = null;
-        setActiveLineKey(null);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [activeLineKey, pushLeavingSnapshot]);
+  useClickOutside(
+    tableRef,
+    () => {
+      pushLeavingSnapshot(null);
+      activeLyricsRef.current = null;
+      setActiveLineKey(null);
+    },
+    !!activeLineKey,
+    "[data-keep-active]",
+  );
 
   // ── Audio handlers ─────────────────────────────────────────────────
 
-  const handleAudioActiveLineChange = useCallback((key: string) => {
+  const handleAudioActiveLineChange = useCallback((key: string | null) => {
     setAudioActiveLineKey(key);
   }, []);
 
@@ -489,12 +499,25 @@ export function EditorPage() {
     useProjectStore.getState().updateAudioUrl(undefined);
   }, []);
 
+  const handleShare = useCallback(async () => {
+    if (!currentProject) return;
+    setShareLoading(true);
+    try {
+      const shortId = await createShortShareUrl(currentProject);
+      await navigator.clipboard.writeText(getShareBaseUrl() + shortId);
+      setToastMessage(t("share.copied"));
+    } catch {
+      setToastMessage(t("share.error"));
+    } finally {
+      setShareLoading(false);
+    }
+  }, [currentProject, t]);
+
   const handleSync = useCallback(() => {
     setActiveLineKey(null);
     if (audioActiveLineKey) {
-      document
-        .querySelector(`[data-row-key="${audioActiveLineKey}"]`)
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      const el = document.querySelector(`[data-row-key="${audioActiveLineKey}"]`);
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, [audioActiveLineKey]);
 
@@ -507,6 +530,72 @@ export function EditorPage() {
     return getSortedLyricLines(currentProject.lyrics);
   }, [currentProject?.lyrics]);
 
+  // ── Keyboard shortcuts ────────────────────────────────────────────
+  const handlePlayPause = useCallback(() => {
+    if (!audioRef.current) return;
+    if (audioRef.current.paused) {
+      audioRef.current.play().catch(() => {});
+    } else {
+      audioRef.current.pause();
+    }
+  }, []);
+
+  const handleSeekRelative = useCallback((deltaMs: number) => {
+    if (!audioRef.current) return;
+    audioRef.current.currentTime = Math.max(
+      0,
+      audioRef.current.currentTime + deltaMs / 1000,
+    );
+  }, []);
+
+  const handleNavigateToLine = useCallback(
+    (key: string) => {
+      if (!audioRef.current || !currentProject) return;
+      const line = currentProject.lyrics[key];
+      if (line) {
+        const syncOffset = currentProject.syncOffsetMs ?? 0;
+        audioRef.current.currentTime = (line.time_start + syncOffset) / 1000;
+        setAudioActiveLineKey(key);
+      }
+    },
+    [currentProject],
+  );
+
+  const handleOpenRowForEdit = useCallback(
+    (key: string) => {
+      if (!currentProject) return;
+      pushLeavingSnapshot(key);
+      activeLyricsRef.current = structuredClone(currentProject.lyrics) as Record<
+        string,
+        LyricLine
+      >;
+      setActiveLineKey(key);
+      setFocusedColumn("translation");
+    },
+    [currentProject, pushLeavingSnapshot],
+  );
+
+  const handleCloseRow = useCallback(() => {
+    pushLeavingSnapshot(null);
+    activeLyricsRef.current = null;
+    setActiveLineKey(null);
+  }, [pushLeavingSnapshot]);
+
+  useEditorShortcuts(
+    {
+      playPause: handlePlayPause,
+      seekRelative: handleSeekRelative,
+      navigateToLine: handleNavigateToLine,
+      openRowForEdit: handleOpenRowForEdit,
+      closeRow: handleCloseRow,
+      reSync: handleSync,
+    },
+    activeLineKey !== null,
+    audioActiveLineKey,
+    sortedLyricLines,
+    true,
+  );
+
   const effectiveAudioSrc = localAudioSrc ?? currentProject?.audioUrl;
 
   // Memoize all suggestions for all lines to avoid calling hooks inside .map()
@@ -517,118 +606,92 @@ export function EditorPage() {
     );
   }, [lyricsEntries, currentProject]);
 
-  // ── Push shell config on mount / on state change ──
-  useEffect(() => {
-    useShellStore.getState().reset();
+  usePageShell({
+    onBack: () => {
+      useHistoryStore.getState().clear();
+      smartBack();
+    },
+    topbarBg: "bg-surface-container",
+    sidebarBg: "bg-surface-container",
+    showTopbarBorder: false,
+    bodyBg: "bg-surface-container",
+    onOpenSettings: () => useModalStore.getState().openSettings(),
+    onOpenAbout: () => useModalStore.getState().openAbout(),
+  });
 
+  useEffect(() => {
     if (isLoading || !currentProject) {
       useShellStore.getState().setConfig({
         title: isLoading ? "" : t("editor.notFound"),
-        onBack: isLoading
-          ? undefined
-          : () => {
-              useHistoryStore.getState().clear();
-              navigate(-1);
-            },
-        bodyBg: "bg-surface-container",
+        leading: undefined,
+        actions: undefined,
+        bottomBar: undefined,
       });
-    } else {
-      useShellStore.getState().setConfig({
-        title: `${currentProject.artistName.join(", ")} - ${currentProject.trackName}`,
-        onBack: () => {
-          useHistoryStore.getState().clear();
-          navigate(-1);
-        },
-        topbarBg: "bg-surface-container",
-        sidebarBg: "bg-surface-container",
-        showTopbarBorder: false,
-        bodyBg: "bg-surface-container",
-        onOpenSettings: () => useModalStore.getState().openSettings(),
-        onOpenAbout: () => useModalStore.getState().openAbout(),
-        leading: (
-          <div className="size-12 rounded-sm overflow-hidden bg-surface-container-highest shrink-0">
-            {currentProject.coverUrl ? (
-              <img
-                src={currentProject.coverUrl}
-                alt="Cover"
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <Music className="size-5 text-outline-variant/40" />
-              </div>
-            )}
-          </div>
-        ),
-        actions: (
-          <div className="flex items-center gap-3">
-            <UndoRedoButton
-              canUndo={canUndo}
-              canRedo={canRedo}
-              onUndo={handleUndo}
-              onRedo={handleRedo}
-            />
-            {currentProject &&
-              (currentProject.status === PROJECT_STATUS.IN_REVIEW ||
-                currentProject.status === PROJECT_STATUS.COMPLETED) && (
-                <button
-                  onClick={() => useProjectStore.getState().toggleCompleted()}
-                  className={`px-4 py-2 rounded-full font-label-lg transition-all flex items-center gap-2 ${
-                    currentProject.status === PROJECT_STATUS.COMPLETED
-                      ? "bg-primary-container text-on-primary-container"
-                      : "bg-surface-container-high text-on-surface-variant hover:bg-primary-container/30"
-                  }`}
-                >
-                  <CheckCircle className="size-4" />
-                  {currentProject.status === PROJECT_STATUS.COMPLETED
-                    ? t("editor.completed")
-                    : t("editor.markCompleted")}
-                </button>
-              )}
-            <SegmentedButton
-              segments={[
-                { label: t("editor.segmented.edit"), icon: Edit },
-                { label: t("editor.segmented.save"), icon: Save, active: true },
-              ]}
-              onSelect={(index) => {
-                if (index === 0) {
-                  navigate(`/edit-project/${id}`);
-                } else {
-                  setSaveOpen(true);
-                }
-              }}
-            />
-          </div>
-        ),
-        bottomBar: (
-          <AudioPlayerBar
-            audioSrc={effectiveAudioSrc}
-            syncOffsetMs={currentProject?.syncOffsetMs ?? 0}
-            sortedLines={sortedLyricLines}
-            onActiveLineChange={handleAudioActiveLineChange}
-            onAudioUrlChange={handleAudioUrlChange}
-            onLocalFileSelect={handleLocalFileSelect}
-            onClearAudio={handleClearAudio}
-          />
-        ),
-      });
+      return;
     }
+
+    useShellStore.getState().setConfig({
+      title: `${currentProject.artistName.join(", ")} - ${currentProject.trackName}`,
+      leading: (
+        <div className="size-12 rounded-sm overflow-hidden bg-surface-container-highest shrink-0">
+          {currentProject.coverUrl ? (
+            <img src={currentProject.coverUrl} alt="Cover" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Music className="size-5 text-outline-variant/40" />
+            </div>
+          )}
+        </div>
+      ),
+      actions: (
+        <div className="flex items-center gap-3">
+          <UndoRedoButton
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={handleUndo}
+            onRedo={handleRedo}
+          />
+          <button
+            onClick={() => navigate(`/edit-project/${id}`)}
+            className="h-12 px-4 rounded-[1.3rem] border border-outline text-on-surface-variant hover:bg-secondary-container/30 transition-all flex items-center gap-2 font-label-lg"
+          >
+            <Edit className="size-4" />
+            {t("editor.segmented.edit")}
+          </button>
+          <SegmentedButton
+            segments={[
+              { icon: Share2 },
+              { label: t("editor.segmented.export"), icon: Download, active: true },
+            ]}
+            onSelect={(index) => {
+              if (index === 0) {
+                setShareOpen((prev) => !prev);
+              } else {
+                setSaveOpen(true);
+              }
+            }}
+            className="rounded-r-lg rounded-l-md"
+          />
+        </div>
+      ),
+      bottomBar: (
+        <AudioPlayerBar
+          audioSrc={effectiveAudioSrc}
+          syncOffsetMs={currentProject.syncOffsetMs ?? 0}
+          sortedLines={sortedLyricLines}
+          onActiveLineChange={handleAudioActiveLineChange}
+          onAudioUrlChange={handleAudioUrlChange}
+          onLocalFileSelect={handleLocalFileSelect}
+          onClearAudio={handleClearAudio}
+          audioRef={audioRef}
+        />
+      ),
+    });
   }, [
-    isLoading,
-    currentProject,
-    t,
-    navigate,
-    canUndo,
-    canRedo,
-    handleUndo,
-    handleRedo,
-    id,
-    effectiveAudioSrc,
-    sortedLyricLines,
-    handleAudioActiveLineChange,
-    handleAudioUrlChange,
-    handleLocalFileSelect,
-    handleClearAudio,
+    isLoading, currentProject, t, navigate, canUndo, canRedo,
+    handleUndo, handleRedo, id, effectiveAudioSrc, sortedLyricLines,
+    handleAudioActiveLineChange, handleAudioUrlChange, handleLocalFileSelect,
+    handleClearAudio, shareLoading, handleShare,
   ]);
 
   if (isLoading) {
@@ -677,24 +740,14 @@ export function EditorPage() {
       <MasterCard bgColor="bg-surface-container-lowest">
         <div className="max-w-[1400px] mx-auto w-full flex flex-col gap-lg pb-20">
           {translating && (
-            <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-              <div className="bg-surface-container-high rounded-3xl p-8 shadow-2xl border border-outline-variant/20 flex flex-col items-center gap-4">
-                <M3LoadingIndicator
-                  size={40}
-                  style={{ color: "rgb(208, 188, 255)" }}
-                />
-                <span className="font-title-lg text-on-surface">
-                  {t("editor.translating")}
-                </span>
-                <span className="font-body-md text-on-surface-variant">
-                  {t("editor.translatingDesc").replace(
-                    "%s",
-                    AI_PROVIDERS.find((p) => p.value === aiProvider)?.label ??
-                      "AI",
-                  )}
-                </span>
-              </div>
-            </div>
+            <LoadingOverlay
+              title={t("editor.translating")}
+              description={t("editor.translatingDesc").replace(
+                "%s",
+                AI_PROVIDERS.find((p) => p.value === aiProvider)?.label ??
+                  "AI",
+              )}
+            />
           )}
 
           <div
@@ -811,39 +864,60 @@ export function EditorPage() {
           </div>
         </div>
 
-        {/* Sync button — only visible when audio has a highlighted row */}
-        {audioActiveLineKey && (
-          <div
-            data-keep-active
-            className={`fixed z-50 ${aiProvider && aiApiKey ? "bottom-44 right-8" : "bottom-24 right-8"}`}
-          >
-            <button
-              onClick={handleSync}
-              disabled={!activeLineKey || !currentProject}
-              className="h-14 w-14 rounded-full bg-tertiary-container text-on-tertiary-container shadow-xl flex items-center justify-center hover:brightness-110 transition-[filter] border border-tertiary-container/50 pressable disabled:opacity-40 disabled:pointer-events-none"
-              title={
-                !activeLineKey
-                  ? t("player.syncDisabledTooltip")
-                  : t("player.syncTooltip")
-              }
-            >
-              <RefreshCw className="size-5" />
-            </button>
+        {/* Floating action area — bottom right */}
+        <div className={`fixed right-8 z-50 flex flex-col items-end gap-3 ${aiProvider && aiApiKey ? "bottom-28" : "bottom-16"}`}>
+          <AnimatePresence>
+            <div className="flex items-center gap-3">
+            {currentProject &&
+              (currentProject.status === PROJECT_STATUS.IN_REVIEW ||
+                currentProject.status === PROJECT_STATUS.COMPLETED) && (
+                <FloatingActionButton
+                  icon={CheckCircle}
+                  label={
+                    currentProject.status === PROJECT_STATUS.COMPLETED
+                      ? t("editor.completed")
+                      : t("editor.markCompleted")
+                  }
+                  onClick={() => useProjectStore.getState().toggleCompleted()}
+                  className={`h-14 px-4 rounded-sm ${
+                    currentProject.status === PROJECT_STATUS.COMPLETED
+                      ? "bg-primary-container text-on-primary-container border-primary-container/50"
+                      : "bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest border-outline-variant/30"
+                  }`}
+                />
+              )}
+            {audioActiveLineKey && (
+              <motion.div
+                initial={{ opacity: 0, x: 40 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 40 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+              >
+                <FloatingActionButton
+                  icon={RefreshCw}
+                  onClick={handleSync}
+                  disabled={!currentProject}
+                  className="h-14 w-14 rounded-full bg-tertiary-container text-on-tertiary-container hover:brightness-110 transition-[filter] border-tertiary-container/50"
+                  title={t("player.syncTooltip")}
+                />
+              </motion.div>
+            )}
           </div>
-        )}
-
-        {aiProvider && aiApiKey && (
-          <FloatingActionButton
-            icon={translating ? Loader2 : Sparkles}
-            label={
-              translating
-                ? t("editor.translating")
-                : t("editor.fab.autoTranslate")
-            }
-            onClick={handleAutoTranslate}
-            disabled={translating}
-          />
-        )}
+          </AnimatePresence>
+          {aiProvider && aiApiKey && (
+            <FloatingActionButton
+              icon={translating ? Loader2 : Sparkles}
+              label={
+                translating
+                  ? t("editor.translating")
+                  : t("editor.fab.autoTranslate")
+              }
+              onClick={handleAutoTranslate}
+              disabled={translating}
+              className="h-16 px-8 rounded-full bg-tertiary-container text-on-tertiary-container shadow-2xl hover:brightness-110 transition-[filter] border-tertiary-container/50"
+            />
+          )}
+        </div>
       </MasterCard>
 
       <ExportDialog
@@ -852,24 +926,19 @@ export function EditorPage() {
         onDownload={handleDownload}
       />
 
-      {translateError && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface-container-high rounded-3xl p-6 shadow-2xl border border-outline-variant/20 max-w-sm w-full mx-4">
-            <h3 className="font-title-lg text-on-surface mb-2">
-              {t("editor.translateErrorTitle")}
-            </h3>
-            <p className="font-body-md text-on-surface-variant mb-6">
-              {translateError}
-            </p>
-            <button
-              onClick={() => setTranslateError(null)}
-              className="w-full py-2.5 rounded-full font-label-lg bg-primary-container text-on-primary-container hover:bg-primary hover:text-on-primary transition-all"
-            >
-              {t("common.ok")}
-            </button>
-          </div>
-        </div>
-      )}
+      <ShareDialog
+        open={shareOpen}
+        project={currentProject}
+        onClose={() => setShareOpen(false)}
+      />
+
+      <MessageModal
+        open={translateError !== null}
+        title={t("editor.translateErrorTitle")}
+        message={translateError ?? ""}
+        confirmLabel={t("common.ok")}
+        onClose={() => setTranslateError(null)}
+      />
 
       <Toast
         message={toastMessage ?? ""}

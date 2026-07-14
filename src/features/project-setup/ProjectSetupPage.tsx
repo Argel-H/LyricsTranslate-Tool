@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useParams } from "react-router-dom";
+import { useSmartBack } from "@/hooks/useSmartBack";
 import { MasterCard } from "@/features/shell/MasterCard";
 import { SectionCard } from "./SectionCard";
 import { RoundedInput } from "./RoundedInput";
@@ -14,50 +15,24 @@ import {
 } from "@/db/projectRepository";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useModalStore } from "@/stores/modalStore";
-import { useShellStore } from "@/stores/shellStore";
 import { useI18n } from "@/hooks/useI18n";
 import {
   Plus,
   ArrowRight,
-  Globe,
   User,
-  Link,
   Image,
   X,
   Trash2,
   ExternalLink,
 } from "lucide-react";
 import type { ProjectCreateInput } from "@/types/project";
-
-const LANGUAGES = [
-  "English",
-  "Spanish",
-  "Portuguese",
-  "French",
-  "German",
-  "Italian",
-  "Japanese",
-  "Korean",
-  "Chinese",
-  "Arabic",
-  "Russian",
-  "Hindi",
-];
-
-const PLATFORMS = [
-  "Spotify",
-  "Apple Music",
-  "Deezer",
-  "YouTube",
-  "SoundCloud",
-  "Tidal",
-  "Amazon Music",
-  "Instagram",
-  "Twitter/X",
-  "TikTok",
-  "Facebook",
-  "Website",
-];
+import { getPlatformIcon, PLATFORMS } from "@/lib/platformIcons";
+import { LANGUAGE_OPTIONS } from "@/lib/languageFlags";
+import { makeRotatingFlagIcon } from "@/components/shared/RotatingFlag";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useCoverTilt } from "@/hooks/useCoverTilt";
+import { usePageShell } from "@/hooks/usePageShell";
+import { useShellStore } from "@/stores/shellStore";
 
 interface SocialEntry {
   artistIndex: number;
@@ -67,6 +42,7 @@ interface SocialEntry {
 
 export function ProjectSetupPage() {
   const navigate = useNavigate();
+  const smartBack = useSmartBack();
   const { id: editId } = useParams<{ id?: string }>();
   const isEditing = !!editId;
   const { t } = useI18n();
@@ -93,28 +69,7 @@ export function ProjectSetupPage() {
   const [activeArtistTab, setActiveArtistTab] = useState(0);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const debouncedCoverUrl = useDebounce(coverUrl, 500);
-  const [coverTilt, setCoverTilt] = useState({ x: 0, y: 0 });
-  const coverRafRef = useRef(0);
-
-  const handleCoverMouseMove = (e: React.MouseEvent) => {
-    if (coverRafRef.current) return;
-    const target = e.currentTarget;
-    const clientX = e.clientX;
-    const clientY = e.clientY;
-    coverRafRef.current = requestAnimationFrame(() => {
-      const rect = target.getBoundingClientRect();
-      const x = (clientX - rect.left) / rect.width - 0.5;
-      const y = (clientY - rect.top) / rect.height - 0.5;
-      setCoverTilt({ x: y * -15, y: x * 15 });
-      coverRafRef.current = 0;
-    });
-  };
-
-  const handleCoverMouseLeave = () => {
-    cancelAnimationFrame(coverRafRef.current);
-    coverRafRef.current = 0;
-    setCoverTilt({ x: 0, y: 0 });
-  };
+  const { tilt: coverTilt, handlers: { onMouseMove: handleCoverMouseMove, onMouseLeave: handleCoverMouseLeave } } = useCoverTilt();
 
   useEffect(() => {
     if (editId) {
@@ -231,22 +186,31 @@ export function ProjectSetupPage() {
     }
   };
 
-  // Stable ref to avoid volatile deps in shell config effect
+  const rotatingOriginIcon = useMemo(
+    () => makeRotatingFlagIcon(originLanguage),
+    [originLanguage],
+  );
+  const rotatingTranslationIcon = useMemo(
+    () => makeRotatingFlagIcon(translationLanguage),
+    [translationLanguage],
+  );
+
   const latestRef = useRef({ handleSubmit, songName, artists, setDeleteOpen });
   latestRef.current = { handleSubmit, songName, artists, setDeleteOpen };
 
-  // ── Push shell config on mount ──
+  usePageShell({
+    title: isEditing ? t("setup.editTitle") : t("setup.title"),
+    onBack: () => smartBack(),
+    sidebarBg: "bg-surface-container-lowest",
+    topbarBg: "bg-surface-container-lowest",
+    bodyBg: "bg-surface-container-lowest",
+    showTopbarBorder: false,
+    onOpenSettings: () => useModalStore.getState().openSettings(),
+    onOpenAbout: () => useModalStore.getState().openAbout(),
+  });
+
   useEffect(() => {
-    useShellStore.getState().reset();
     useShellStore.getState().setConfig({
-      title: isEditing ? t("setup.editTitle") : t("setup.title"),
-      onBack: () => navigate(-1),
-      sidebarBg: "bg-surface-container-lowest",
-      topbarBg: "bg-surface-container-lowest",
-      bodyBg: "bg-surface-container-lowest",
-      showTopbarBorder: false,
-      onOpenSettings: () => useModalStore.getState().openSettings(),
-      onOpenAbout: () => useModalStore.getState().openAbout(),
       actions: (
         <div className="flex items-center gap-3">
           {isEditing && (
@@ -260,10 +224,7 @@ export function ProjectSetupPage() {
           )}
           <Button
             onClick={() => latestRef.current.handleSubmit()}
-            disabled={
-              !latestRef.current.songName.trim() ||
-              !latestRef.current.artists[0]?.trim()
-            }
+            disabled={!latestRef.current.songName.trim() || !latestRef.current.artists[0]?.trim()}
             className="bg-primary-container !text-on-primary-container font-label-lg text-label-lg px-6 h-12 rounded-full hover:bg-primary hover:text-on-primary transition-all flex items-center gap-2 disabled:opacity-50 shadow-md"
           >
             {isEditing ? t("common.save") : t("setup.next")}
@@ -272,7 +233,7 @@ export function ProjectSetupPage() {
         </div>
       ),
     });
-  }, [isEditing, t, navigate]);
+  }, [isEditing, t]);
 
   return (
     <>
@@ -374,10 +335,10 @@ export function ProjectSetupPage() {
             <SectionCard title={t("setup.localization")}>
               <div className="flex flex-wrap items-center gap-md">
                 <DropdownSelect
-                  icon={Globe}
+                  icon={rotatingOriginIcon}
                   label={t("setup.originLanguage")}
                   value={originLanguage}
-                  options={LANGUAGES}
+                  options={LANGUAGE_OPTIONS}
                   onChange={setOriginLanguage}
                   className="!rounded-tr-md"
                 />
@@ -385,10 +346,10 @@ export function ProjectSetupPage() {
                   {t("setup.to")}
                 </span>
                 <DropdownSelect
-                  icon={Globe}
+                  icon={rotatingTranslationIcon}
                   label={t("setup.translationLanguage")}
                   value={translationLanguage}
-                  options={LANGUAGES}
+                  options={LANGUAGE_OPTIONS}
                   onChange={setTranslationLanguage}
                   className="!rounded-bl-md"
                 />
@@ -477,7 +438,7 @@ export function ProjectSetupPage() {
                           variant="compact"
                         />
                         <DropdownSelect
-                          icon={Link}
+                          icon={getPlatformIcon(entry.platform)}
                           label={t("setup.platform")}
                           value={entry.platform}
                           options={PLATFORMS}
@@ -531,37 +492,21 @@ export function ProjectSetupPage() {
         </div>
       </MasterCard>
 
-      {deleteOpen && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface-container-high rounded-3xl p-6 shadow-2xl border border-outline-variant/20 max-w-sm w-full mx-4">
-            <h3 className="font-title-lg text-on-surface mb-2">
-              {t("setup.deleteProject")}
-            </h3>
-            <p className="font-body-md text-on-surface-variant mb-6">
-              {t("setup.deleteConfirm")}
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setDeleteOpen(false)}
-                className="px-5 py-2.5 rounded-full font-label-lg text-on-surface-variant hover:bg-surface-container-highest transition-colors"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                onClick={async () => {
-                  if (editId) {
-                    await deleteProject(Number(editId));
-                    navigate("/");
-                  }
-                }}
-                className="px-5 py-2.5 rounded-full font-label-lg bg-error-container text-on-error-container hover:bg-error hover:text-on-error transition-all"
-              >
-                {t("common.delete")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={deleteOpen}
+        title={t("setup.deleteProject")}
+        description={t("setup.deleteConfirm")}
+        confirmLabel={t("common.delete")}
+        cancelLabel={t("common.cancel")}
+        onConfirm={async () => {
+          if (editId) {
+            await deleteProject(Number(editId));
+            navigate("/");
+          }
+        }}
+        onCancel={() => setDeleteOpen(false)}
+        destructive
+      />
     </>
   );
 }

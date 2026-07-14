@@ -3,13 +3,13 @@ import { useState } from "react";
 import type { ComponentType, SVGProps } from "react";
 
 interface Segment {
-  label: string;
+  label?: string;
   icon?: ComponentType<SVGProps<SVGSVGElement>>;
   active?: boolean;
 }
 
 interface SegmentedButtonProps {
-  segments: [Segment, Segment];
+  segments: Segment[];
   onSelect?: (index: number) => void;
   className?: string;
 }

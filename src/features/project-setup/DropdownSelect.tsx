@@ -9,7 +9,7 @@ interface DropdownSelectProps {
   label: string;
   value: string;
   onRemove?: () => void;
-  options?: string[];
+  options?: (string | { label: string; icon: ComponentType<SVGProps<SVGSVGElement>> })[];
   onChange?: (value: string) => void;
   className?: string;
   variant?: "default" | "compact";
@@ -56,6 +56,14 @@ export function DropdownSelect({
     setOpen(false);
   };
 
+  function getOptionLabel(opt: string | { label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }): string {
+    return typeof opt === "string" ? opt : opt.label;
+  }
+
+  function getOptionIcon(opt: string | { label: string; icon: ComponentType<SVGProps<SVGSVGElement>> }): ComponentType<SVGProps<SVGSVGElement>> | null {
+    return typeof opt === "string" ? null : opt.icon;
+  }
+
   const underline = (
     <div className="absolute bottom-0 left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-primary to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out origin-center rounded-full" />
   );
@@ -70,23 +78,27 @@ export function DropdownSelect({
           className="absolute top-full left-0 mt-0 bg-surface-container-high border border-outline-variant/20 border-t-0 rounded-b-md rounded-t-none shadow-2xl z-50 w-full overflow-hidden"
         >
           <div className="max-h-48 overflow-y-auto">
-            {options.map((opt) => (
+            {options.map((opt) => {
+              const label = getOptionLabel(opt);
+              const OptIcon = getOptionIcon(opt);
+              return (
               <button
-                key={opt}
+                key={label}
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleSelect(opt);
+                  handleSelect(label);
                 }}
                 className={cn(
-                  "w-full text-left px-4 py-3 text-body-md transition-colors cursor-pointer",
-                  opt === value
+                  "w-full text-left px-4 py-3 text-body-md transition-colors cursor-pointer flex items-center gap-3",
+                  label === value
                     ? "bg-primary-container text-on-primary-container"
                     : "text-on-surface hover:bg-surface-container-highest",
                 )}
               >
-                {opt}
+                {OptIcon && <OptIcon className="size-4 shrink-0" />}
+                {label}
               </button>
-            ))}
+            )})}
           </div>
         </motion.div>
       )}

@@ -3,7 +3,7 @@ import { fetchDeezerByISRC, fetchDeezerByName, type DeezerResult } from "./deeze
 import { fetchOdesliUrls } from "./odesli";
 import { processLyricsMap } from "@/lib/lyricsParser";
 import { getArtistName } from "@/lib/artistParser";
-import { API } from "@/lib/apiConfig";
+import { API } from "@/lib/config/apiConfig";
 import { optimizeCoverUrl } from "@/lib/coverUtils";
 import type { LyricLine, ProjectCreateInput } from "@/types/project";
 import type { LRCLibResult } from "@/types/music";

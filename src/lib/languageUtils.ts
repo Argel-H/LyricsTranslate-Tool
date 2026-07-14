@@ -1,4 +1,4 @@
-import type { LanguageCode } from "@/lib/constants";
+import type { LanguageCode } from "@/lib/config/constants";
 
 const INTERFACE_TO_TRANSLATION_LANGUAGE: Record<LanguageCode, string> = {
   en: "Spanish",

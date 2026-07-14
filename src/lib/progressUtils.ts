@@ -1,5 +1,5 @@
 import type { LyricLine } from "@/types/project";
-import { PROJECT_STATUS, type ProjectStatus } from "@/lib/constants";
+import { PROJECT_STATUS, type ProjectStatus } from "@/lib/config/constants";
 
 export interface ProgressResult {
   progress: number;

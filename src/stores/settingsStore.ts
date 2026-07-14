@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import type { LanguageCode } from "@/lib/constants";
-import type { AIProvider } from "@/lib/aiConfig";
+import type { LanguageCode } from "@/lib/config/constants";
+import type { AIProvider } from "@/lib/config/aiConfig";
 import { getPreferences, saveLanguage, saveAiKey, removeAiKey, saveAiProvider, saveOverwriteTranslations } from "@/db/settingsRepository";
 
 interface SettingsState {

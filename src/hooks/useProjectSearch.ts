@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/useDebounce";
 import { searchLrcLib } from "@/services/lrclib";
-import { DEBOUNCE_SEARCH_MS } from "@/lib/constants";
+import { DEBOUNCE_SEARCH_MS } from "@/lib/config/constants";
 import type { LRCLibResult } from "@/types/music";
 
 export interface UseProjectSearchReturn {

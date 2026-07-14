@@ -1,6 +1,6 @@
 import axios from "axios";
 import type { PlatformLinks } from "@/types/music";
-import { API } from "@/lib/apiConfig";
+import { API } from "@/lib/config/apiConfig";
 
 const ODESLI_ENDPOINT = `${API.odesli}/v1-alpha.1/links`;
 

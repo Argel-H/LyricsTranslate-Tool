@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from "react"
 import { useI18n } from "@/hooks/useI18n"
 import { StatusBadge } from "./StatusBadge"
 import { ProjectProgressBar } from "./ProjectProgressBar"
-import type { ProjectStatus } from "@/lib/constants"
+import type { ProjectStatus } from "@/lib/config/constants"
 
 interface ProjectCardProps {
   title: string

@@ -1,6 +1,6 @@
 import { db } from "./database";
 import type { Project, ProjectCreateInput, LyricLine } from "@/types/project";
-import type { ProjectStatus } from "@/lib/constants";
+import type { ProjectStatus } from "@/lib/config/constants";
 import { calculateLyricsProgress } from "@/lib/progressUtils";
 
 export async function createProject(input: ProjectCreateInput): Promise<number> {

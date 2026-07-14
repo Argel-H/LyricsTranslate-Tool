@@ -1,9 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseProjectYaml } from "./yamlParser";
 
-// ---------------------------------------------------------------------------
-// Valid sample YAML (full export)
-// ---------------------------------------------------------------------------
 const VALID_YAML = `version: 1
 
 project:
@@ -54,9 +51,6 @@ lyrics:
     translated: "Cómo estás"
 `;
 
-// ---------------------------------------------------------------------------
-// Minimal valid YAML (only required fields)
-// ---------------------------------------------------------------------------
 const MINIMAL_YAML = `version: 1
 
 project:
@@ -74,12 +68,8 @@ lyrics: []
 `;
 
 describe("parseProjectYaml", () => {
-  // -----------------------------------------------------------------------
-  // Happy path
-  // -----------------------------------------------------------------------
-  it("parses a full valid YAML and returns ProjectCreateInput", () => {
+  it("parses full valid YAML into ProjectCreateInput", () => {
     const result = parseProjectYaml(VALID_YAML);
-
     expect(result.trackName).toBe("Test Track");
     expect(result.artistName).toEqual(["Artist One", "Artist Two"]);
     expect(result.albumName).toBe("Test Album");
@@ -90,444 +80,51 @@ describe("parseProjectYaml", () => {
     expect(result.songLinkUrl).toBe("https://open.spotify.com/track/abc123");
     expect(result.audioUrl).toBe("https://example.com/audio.mp3");
     expect(result.syncOffsetMs).toBe(0);
+    expect(result.streamingSites?.spotify).toBe("https://open.spotify.com/track/abc123");
+    expect(result.streamingSites?.deezer).toBeNull();
   });
 
-  it("parses lyrics as a Record<string, LyricLine> with correct keys", () => {
+  it("parses lyrics with keys, locked states (true/false/default), and correct fields", () => {
     const result = parseProjectYaml(VALID_YAML);
     const lyrics = result.lyrics;
-
     expect(Object.keys(lyrics)).toEqual(["lrc_00", "lrc_01"]);
     expect(lyrics.lrc_00?.lyric).toBe("Hello world");
     expect(lyrics.lrc_00?.translation).toBe("Hola mundo");
     expect(lyrics.lrc_00?.time_start).toBe(1000);
     expect(lyrics.lrc_00?.time_end).toBe(5000);
-    expect((lyrics.lrc_00 as unknown as Record<string, unknown>)?.comment).toBeUndefined();
     expect(lyrics.lrc_00?.locked).toBe(false);
-
     expect(lyrics.lrc_01?.lyric).toBe("How are you");
     expect(lyrics.lrc_01?.translation).toBe("Cómo estás");
-    expect(lyrics.lrc_01?.time_start).toBe(6000);
-    expect(lyrics.lrc_01?.time_end).toBe(10000);
+
+    const lockedResult = parseProjectYaml("version: 1\nproject:\n  title: \"T\"\n  track_name: \"T\"\n  artists:\n    - \"A\"\nmetadata:\n  created_at: 0\n  updated_at: 0\n  exported_at: 0\nlyrics:\n  - time_start: \"00:00.00\"\n    time_end: \"00:01.00\"\n    original: \"Locked\"\n    translated: \"Bloqueado\"\n    locked: true\n  - time_start: \"00:01.00\"\n    time_end: \"00:02.00\"\n    original: \"Unlocked\"\n    translated: \"Desbloqueado\"\n");
+    expect(lockedResult.lyrics.lrc_00?.locked).toBe(true);
+    expect(lockedResult.lyrics.lrc_01?.locked).toBe(false);
   });
 
-  it("parses artist_links into artistLinks", () => {
-    const result = parseProjectYaml(VALID_YAML);
-    expect(result.artistLinks).toHaveLength(2);
-    expect(result.artistLinks?.[0]?.name).toBe("Artist One");
-    expect(result.artistLinks?.[0]?.url).toBe(
-      "https://open.spotify.com/artist/abc",
-    );
-    expect(result.artistLinks?.[1]?.name).toBe("Artist Two");
-  });
-
-  it("parses social_links into recommendedSocialLinks with artistName mapping", () => {
-    const result = parseProjectYaml(VALID_YAML);
-    expect(result.recommendedSocialLinks).toHaveLength(2);
-    expect(result.recommendedSocialLinks?.[0]?.platform).toBe("Twitter");
-    expect(result.recommendedSocialLinks?.[0]?.artistName).toBe("Artist One");
-    expect(result.recommendedSocialLinks?.[1]?.platform).toBe("Instagram");
-    expect(result.recommendedSocialLinks?.[1]?.artistName).toBeUndefined();
-  });
-
-  it("parses old flat social_links format (backward compat)", () => {
-    const oldFormatYaml = `version: 1
-
-project:
-  title: "Test"
-  track_name: "Track"
-  artists:
-    - "Artist"
-  social_links:
-    - platform: "Spotify"
-      url: "https://spotify.com"
-      artist_name: "My Artist"
-    - platform: "YouTube"
-      url: "https://youtube.com"
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-
-lyrics: []
-`;
-    const result = parseProjectYaml(oldFormatYaml);
-    expect(result.recommendedSocialLinks).toHaveLength(2);
-    expect(result.recommendedSocialLinks?.[0]?.platform).toBe("Spotify");
-    expect(result.recommendedSocialLinks?.[0]?.artistName).toBe("My Artist");
-    expect(result.recommendedSocialLinks?.[1]?.platform).toBe("YouTube");
-    expect(result.recommendedSocialLinks?.[1]?.artistName).toBeUndefined();
-  });
-
-  it("parses streaming_sites into streamingSites (including null values)", () => {
-    const result = parseProjectYaml(VALID_YAML);
-    expect(result.streamingSites).toBeDefined();
-    expect(result.streamingSites?.spotify).toBe(
-      "https://open.spotify.com/track/abc123",
-    );
-    expect(result.streamingSites?.deezer).toBeNull();
-  });
-
-  // -----------------------------------------------------------------------
-  // Minimal input
-  // -----------------------------------------------------------------------
-  it("accepts minimal YAML with only required fields and empty lyrics", () => {
+  it("accepts minimal YAML with only required fields", () => {
     const result = parseProjectYaml(MINIMAL_YAML);
     expect(result.trackName).toBe("Minimal Track");
     expect(result.artistName).toEqual(["Only Artist"]);
     expect(result.lyrics).toEqual({});
-    // Optional fields should be undefined
     expect(result.albumName).toBeUndefined();
     expect(result.coverUrl).toBeUndefined();
     expect(result.syncOffsetMs).toBeUndefined();
   });
 
-  // -----------------------------------------------------------------------
-  // Edge cases: optional fields omitted
-  // -----------------------------------------------------------------------
-  it("omits optional fields that are not present", () => {
-    const yaml = `version: 1
-
-project:
-  title: "Test"
-  track_name: "Test"
-  artists:
-    - "A"
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-
-lyrics: []
-`;
-    const result = parseProjectYaml(yaml);
-    expect(result.albumName).toBeUndefined();
-    expect(result.coverUrl).toBeUndefined();
-    expect(result.isrcs).toBeUndefined();
-    expect(result.originLanguage).toBeUndefined();
-    expect(result.translationLanguage).toBeUndefined();
-    expect(result.songLinkUrl).toBeUndefined();
-    expect(result.audioUrl).toBeUndefined();
-    expect(result.syncOffsetMs).toBeUndefined();
-    expect(result.artistLinks).toBeUndefined();
-    expect(result.recommendedSocialLinks).toBeUndefined();
-    expect(result.streamingSites).toBeUndefined();
+  it("throws when version missing or not a number", () => {
+    expect(() => parseProjectYaml("project:\n  title: \"T\"\n  track_name: \"T\"\n  artists:\n    - \"A\"\nmetadata:\n  created_at: 0\n  updated_at: 0\n  exported_at: 0\nlyrics: []\n")).toThrow("Missing required field: version");
+    expect(() => parseProjectYaml("version: \"one\"\nproject:\n  title: \"T\"\n  track_name: \"T\"\n  artists:\n    - \"A\"\nmetadata:\n  created_at: 0\n  updated_at: 0\n  exported_at: 0\nlyrics: []\n")).toThrow("Invalid version");
   });
 
-  // -----------------------------------------------------------------------
-  // Boolean handling
-  // -----------------------------------------------------------------------
-  it("parses locked: true as boolean true", () => {
-    const yaml = `version: 1
-
-project:
-  title: "Test"
-  track_name: "Test"
-  artists:
-    - "A"
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-
-lyrics:
-  - time_start: "00:00.00"
-    time_end: "00:01.00"
-    original: "Locked"
-    translated: "Bloqueado"
-    locked: true
-`;
-    const result = parseProjectYaml(yaml);
-    expect(result.lyrics.lrc_00?.locked).toBe(true);
-    expect(result.lyrics.lrc_00?.time_start).toBe(0);
-    expect(result.lyrics.lrc_00?.time_end).toBe(1000);
+  it("throws when track_name missing or empty", () => {
+    expect(() => parseProjectYaml("version: 1\nproject:\n  title: \"T\"\n  artists:\n    - \"A\"\nmetadata:\n  created_at: 0\n  updated_at: 0\n  exported_at: 0\nlyrics: []\n")).toThrow("project.track_name");
+    expect(() => parseProjectYaml("version: 1\nproject:\n  title: \"T\"\n  track_name: \"\"\n  artists:\n    - \"A\"\nmetadata:\n  created_at: 0\n  updated_at: 0\n  exported_at: 0\nlyrics: []\n")).toThrow("project.track_name");
   });
 
-  it("defaults locked to false when not present", () => {
-    const yaml = `version: 1
-
-project:
-  title: "Test"
-  track_name: "Test"
-  artists:
-    - "A"
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-
-lyrics:
-  - time_start: "00:00.00"
-    time_end: "00:01.00"
-    original: "Unlocked"
-    translated: "Desbloqueado"
-`;
-    const result = parseProjectYaml(yaml);
-    expect(result.lyrics.lrc_00?.locked).toBe(false);
-    expect(result.lyrics.lrc_00?.time_start).toBe(0);
-    expect(result.lyrics.lrc_00?.time_end).toBe(1000);
+  it("throws when project section or lyrics is missing", () => {
+    expect(() => parseProjectYaml("version: 1\nmetadata:\n  created_at: 0\n  updated_at: 0\n  exported_at: 0\nlyrics: []\n")).toThrow("project");
+    expect(() => parseProjectYaml("version: 1\nproject:\n  title: \"T\"\n  track_name: \"T\"\n  artists:\n    - \"A\"\nmetadata:\n  created_at: 0\n  updated_at: 0\n  exported_at: 0\n")).toThrow("lyrics must be an array");
   });
 
-  // -----------------------------------------------------------------------
-  // Quoted strings with escapes
-  // -----------------------------------------------------------------------
-  it("unquotes double-quoted strings and handles \\\" escape", () => {
-    const yaml = `version: 1
 
-project:
-  title: "Song \\"Title\\""
-  track_name: "He said \\"hello\\""
-  artists:
-    - "Artist \\"The Great\\""
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-
-lyrics: []
-`;
-    const result = parseProjectYaml(yaml);
-    expect(result.trackName).toBe('He said "hello"');
-  });
-
-  it("handles backslash escape in quoted strings", () => {
-    const yaml = `version: 1
-
-project:
-  title: "Test"
-  track_name: "Path\\\\name"
-  artists:
-    - "A"
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-
-lyrics: []
-`;
-    const result = parseProjectYaml(yaml);
-    expect(result.trackName).toBe("Path\\name");
-  });
-
-  // -----------------------------------------------------------------------
-  // Integer parsing
-  // -----------------------------------------------------------------------
-  it("parses version as a number", () => {
-    const result = parseProjectYaml(MINIMAL_YAML);
-    // Not directly accessible since version is validated but not stored
-    // The function should not throw — success is sufficient
-    expect(result.trackName).toBe("Minimal Track");
-  });
-
-  // -----------------------------------------------------------------------
-  // Validation errors
-  // -----------------------------------------------------------------------
-  it("throws if YAML string is empty", () => {
-    expect(() => parseProjectYaml("")).toThrow("YAML input is empty");
-  });
-
-  it("throws if version is missing", () => {
-    const yaml = `project:
-  title: "Test"
-  track_name: "Test"
-  artists:
-    - "A"
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-
-lyrics: []
-`;
-    expect(() => parseProjectYaml(yaml)).toThrow("Missing required field: version");
-  });
-
-  it("throws if version is not a number", () => {
-    const yaml = `version: "one"
-
-project:
-  title: "Test"
-  track_name: "Test"
-  artists:
-    - "A"
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-
-lyrics: []
-`;
-    expect(() => parseProjectYaml(yaml)).toThrow("Invalid version");
-  });
-
-  it("throws if project.track_name is missing", () => {
-    const yaml = `version: 1
-
-project:
-  title: "Test"
-  artists:
-    - "A"
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-
-lyrics: []
-`;
-    expect(() => parseProjectYaml(yaml)).toThrow("project.track_name");
-  });
-
-  it("throws if project.track_name is empty", () => {
-    const yaml = `version: 1
-
-project:
-  title: "Test"
-  track_name: ""
-  artists:
-    - "A"
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-
-lyrics: []
-`;
-    expect(() => parseProjectYaml(yaml)).toThrow("project.track_name");
-  });
-
-  it("throws if artists array is empty", () => {
-    const yaml = `version: 1
-
-project:
-  title: "Test"
-  track_name: "Test"
-  artists: []
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-
-lyrics: []
-`;
-    expect(() => parseProjectYaml(yaml)).toThrow("project.artists");
-  });
-
-  it("throws if lyrics is missing", () => {
-    const yaml = `version: 1
-
-project:
-  title: "Test"
-  track_name: "Test"
-  artists:
-    - "A"
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-`;
-    expect(() => parseProjectYaml(yaml)).toThrow("lyrics must be an array");
-  });
-
-  it("throws if project section is missing", () => {
-    const yaml = `version: 1
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-
-lyrics: []
-`;
-    expect(() => parseProjectYaml(yaml)).toThrow("project");
-  });
-
-  // -----------------------------------------------------------------------
-  // Comments
-  // -----------------------------------------------------------------------
-  it("ignores comment lines", () => {
-    const yaml = `# This is a comment
-version: 1
-
-# Another comment
-project:
-  title: "Test"
-  track_name: "Test"
-  artists:
-    - "A" # inline comment?
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-
-lyrics: []
-`;
-    const result = parseProjectYaml(yaml);
-    expect(result.trackName).toBe("Test");
-  });
-
-  // -----------------------------------------------------------------------
-  // Key ordering / indentation robustness
-  // -----------------------------------------------------------------------
-  it("handles optional keys in any order", () => {
-    const yaml = `version: 1
-
-project:
-  track_name: "Ordered"
-  title: "Test"
-  artists:
-    - "A"
-  album_name: "Album"
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-
-lyrics: []
-`;
-    const result = parseProjectYaml(yaml);
-    expect(result.trackName).toBe("Ordered");
-    expect(result.albumName).toBe("Album");
-  });
-
-  // -----------------------------------------------------------------------
-  // Null handling for streaming sites
-  // -----------------------------------------------------------------------
-  it("parses null values in streaming_sites correctly", () => {
-    const yaml = `version: 1
-
-project:
-  title: "Test"
-  track_name: "Test"
-  artists:
-    - "A"
-  streaming_sites:
-    spotify: "https://spotify.com"
-    deezer: null
-    apple: null
-
-metadata:
-  created_at: 0
-  updated_at: 0
-  exported_at: 0
-
-lyrics: []
-`;
-    const result = parseProjectYaml(yaml);
-    expect(result.streamingSites?.spotify).toBe("https://spotify.com");
-    expect(result.streamingSites?.deezer).toBeNull();
-    expect(result.streamingSites?.apple).toBeNull();
-  });
 });

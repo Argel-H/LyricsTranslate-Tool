@@ -1,14 +1,13 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { MasterCard } from "@/features/shell/MasterCard";
 import { HeroSection } from "./HeroSection";
 import { ProjectCard } from "./ProjectCard";
-import { APP_NAME } from "@/lib/appConfig";
+import { APP_NAME } from "@/lib/config/appConfig";
 import { ArrowRight, Upload } from "lucide-react";
 import { downloadProjectAsYaml } from "@/lib/exportUtils";
 import { parseProjectYaml } from "@/lib/yamlParser";
-import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 import { searchLrcLib } from "@/services/lrclib";
 import { getFullMetadata } from "@/services/metadataAggregator";
 import {
@@ -20,11 +19,15 @@ import {
 } from "@/db/projectRepository";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useModalStore } from "@/stores/modalStore";
-import { useShellStore } from "@/stores/shellStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useI18n } from "@/hooks/useI18n";
+import { usePageShell } from "@/hooks/usePageShell";
+import { getProjectStatusLabel } from "@/lib/statusUtils";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { LoadingOverlay } from "@/components/shared/LoadingOverlay";
+import { MessageModal } from "@/components/shared/MessageModal";
 import type { Project } from "@/types/project";
-import { PROJECT_STATUS, type ProjectStatus } from "@/lib/constants";
+import { PROJECT_STATUS, type ProjectStatus } from "@/lib/config/constants";
 import type { LRCLibResult } from "@/types/music";
 
 export function DashboardPage() {
@@ -178,21 +181,16 @@ export function DashboardPage() {
         })
     : undefined;
 
-  useEffect(() => {
-    useShellStore.getState().reset();
-    useShellStore.getState().setConfig({
-      activePage: "home",
-      variant: "dashboard",
-      showTopbar: false,
-      sidebarBg: "bg-surface-container-lowest",
-      bodyBg: "bg-surface-container-lowest",
-      onOpenSettings: () => useModalStore.getState().openSettings(),
-      onOpenAbout: () => useModalStore.getState().openAbout(),
-    });
-    return () => {
-      useShellStore.getState().reset();
-    };
-  }, []);
+  const shellConfig = useMemo(() => ({
+    activePage: "home" as const,
+    variant: "dashboard" as const,
+    showTopbar: false,
+    sidebarBg: "bg-surface-container-lowest",
+    bodyBg: "bg-surface-container-lowest",
+    onOpenSettings: () => useModalStore.getState().openSettings(),
+    onOpenAbout: () => useModalStore.getState().openAbout(),
+  }), []);
+  usePageShell(shellConfig);
 
   return (
     <>
@@ -258,12 +256,6 @@ export function DashboardPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4 gap-6">
                   {projects.slice(0, 8).map((project) => {
                     const status: ProjectStatus = project.status;
-                    const statusLabels: Record<ProjectStatus, string> = {
-                      "not-started": t("dashboard.status.notStarted"),
-                      "in-progress": t("dashboard.status.inProgress"),
-                      "in-review": t("dashboard.status.inReview"),
-                      "completed": t("dashboard.status.completed"),
-                    };
                     return (
                       <ProjectCard
                         key={project.id}
@@ -272,7 +264,7 @@ export function DashboardPage() {
                         coverUrl={project.coverUrl ?? ""}
                         progress={project.progress}
                         status={status}
-                        statusLabel={statusLabels[status]}
+                        statusLabel={getProjectStatusLabel(status, t)}
                         onClick={() => navigate(`/editor/${project.id}`)}
                         onEdit={() => handleEditProject(project.id)}
                         onOpen={() => handleOpenProject(project.id)}
@@ -299,88 +291,38 @@ export function DashboardPage() {
           </div>
         </MasterCard>
 
-      {/* Loading Modal Overlay — creating project */}
       {creatingProject && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface-container-high rounded-3xl p-8 shadow-2xl border border-outline-variant/20 max-w-sm w-full mx-4 flex flex-col items-center gap-4">
-            <M3LoadingIndicator size={40} style={{ color: "rgb(208, 188, 255)" }} />
-            <p className="font-title-lg text-title-lg text-on-surface text-center">
-              {t("dashboard.creatingProject")}
-            </p>
-            <p className="font-body-md text-body-md text-on-surface-variant text-center">
-              {loadingStatus}
-            </p>
-            <div className="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden mt-2">
-              <div className="h-full bg-primary rounded-full animate-m3-loading-bar" />
-            </div>
-          </div>
-        </div>
+        <LoadingOverlay
+          title={t("dashboard.creatingProject")}
+          description={loadingStatus}
+        />
       )}
 
-      {/* Loading Modal Overlay — importing project */}
       {importingProject && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface-container-high rounded-3xl p-8 shadow-2xl border border-outline-variant/20 max-w-sm w-full mx-4 flex flex-col items-center gap-4">
-            <M3LoadingIndicator size={40} style={{ color: "rgb(208, 188, 255)" }} />
-            <p className="font-title-lg text-title-lg text-on-surface text-center">
-              {t("dashboard.importing")}
-            </p>
-            <p className="font-body-md text-body-md text-on-surface-variant text-center">
-              {t("dashboard.importingDesc")}
-            </p>
-            <div className="w-full h-1 bg-surface-container-highest rounded-full overflow-hidden mt-2">
-              <div className="h-full bg-primary rounded-full animate-m3-loading-bar" />
-            </div>
-          </div>
-        </div>
+        <LoadingOverlay
+          title={t("dashboard.importing")}
+          description={t("dashboard.importingDesc")}
+        />
       )}
 
-      {/* Delete Confirmation Modal */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface-container-high rounded-3xl p-6 shadow-2xl border border-outline-variant/20 max-w-sm w-full mx-4">
-            <h3 className="font-title-lg text-on-surface mb-2">
-              {t("dashboard.deleteProject")}
-            </h3>
-            <p className="font-body-md text-on-surface-variant mb-6">
-              {t("dashboard.deleteConfirm").replace(
-                "%s",
-                deleteTarget.trackName,
-              )}
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setDeleteTarget(null)}
-                className="px-5 py-2.5 rounded-full font-label-lg text-on-surface-variant hover:bg-surface-container-highest transition-colors"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                onClick={confirmDeleteProject}
-                className="px-5 py-2.5 rounded-full font-label-lg bg-error-container text-on-error-container hover:bg-error hover:text-on-error transition-all"
-              >
-                {t("common.delete")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={t("dashboard.deleteProject")}
+        description={t("dashboard.deleteConfirm").replace("%s", deleteTarget?.trackName ?? "")}
+        confirmLabel={t("common.delete")}
+        cancelLabel={t("common.cancel")}
+        onConfirm={confirmDeleteProject}
+        onCancel={() => setDeleteTarget(null)}
+        destructive
+      />
 
-      {/* Import Error Modal */}
-      {importError && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface-container-high rounded-3xl p-6 shadow-2xl border border-outline-variant/20 max-w-sm w-full mx-4">
-            <h3 className="font-title-lg text-on-surface mb-2">{t("dashboard.importError")}</h3>
-            <p className="font-body-md text-on-surface-variant mb-6">{importError}</p>
-            <button
-              onClick={() => setImportError(null)}
-              className="w-full py-2.5 rounded-full font-label-lg bg-primary-container text-on-primary-container hover:bg-primary hover:text-on-primary transition-all"
-            >
-              {t("common.ok")}
-            </button>
-          </div>
-        </div>
-      )}
+      <MessageModal
+        open={importError !== null}
+        title={t("dashboard.importError")}
+        message={importError ?? ""}
+        confirmLabel={t("common.ok")}
+        onClose={() => setImportError(null)}
+      />
     </>
   );
 }

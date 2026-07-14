@@ -10,9 +10,11 @@ import { DashboardPage } from "@/features/dashboard/DashboardPage";
 import { AllProjectsPage } from "@/features/dashboard/AllProjectsPage";
 import { ProjectSetupPage } from "@/features/project-setup/ProjectSetupPage";
 import { EditorPage } from "@/features/editor/EditorPage";
+import { SharedProjectPage } from "@/features/editor/SharedProjectPage";
+import { ViewOnlyPage } from "@/features/editor/ViewOnlyPage";
 import { SettingsModal } from "@/components/shared/SettingsModal";
 import { ChangelogModal } from "@/components/shared/ChangelogModal";
-import { APP_NAME, APP_VERSION } from "@/lib/appConfig";
+import { APP_NAME, APP_VERSION } from "@/lib/config/appConfig";
 import { migrateLyricTimestamps, normalizeLegacyStatuses } from "@/db/migration";
 import { useShellStore } from "@/stores/shellStore";
 import { AppShell } from "@/features/shell/AppShell";
@@ -85,7 +87,11 @@ function App() {
 
   return (
     <BrowserRouter>
-      <AppShellWrapper />
+      <Routes>
+        <Route path="/s/:data" element={<SharedProjectPage />} />
+        <Route path="/view/:data" element={<ViewOnlyPage />} />
+        <Route path="*" element={<AppShellWrapper />} />
+      </Routes>
 
       <SettingsModal open={settingsOpen} onClose={closeSettings} />
 

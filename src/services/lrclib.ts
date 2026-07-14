@@ -1,6 +1,6 @@
 import axios from "axios";
 import type { LRCLibResult } from "@/types/music";
-import { API } from "@/lib/apiConfig";
+import { API } from "@/lib/config/apiConfig";
 
 const LRCLIB_ENDPOINT = `${API.lrclib}/api/search?q=`;
 

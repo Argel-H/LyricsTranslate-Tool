@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSmartBack } from "@/hooks/useSmartBack";
 import { MasterCard } from "@/features/shell/MasterCard";
 import { ProjectCard } from "./ProjectCard";
 import { SearchInput } from "./SearchInput";
@@ -12,58 +13,22 @@ import {
 import { downloadProjectAsYaml } from "@/lib/exportUtils";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useModalStore } from "@/stores/modalStore";
-import { useShellStore } from "@/stores/shellStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useI18n } from "@/hooks/useI18n";
+import anyAscii from "any-ascii";
 import type { I18nKey } from "@/i18n";
 import { Filter, Check, Archive, Circle, Play, ClipboardCheck, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { getProjectStatusLabel } from "@/lib/statusUtils";
+import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { useClickOutside } from "@/hooks/useClickOutside";
+import { usePageShell } from "@/hooks/usePageShell";
 
 import type { Project } from "@/types/project";
-import { PROJECT_STATUS, type ProjectStatus } from "@/lib/constants";
+import { PROJECT_STATUS, type ProjectStatus } from "@/lib/config/constants";
 
-/**
- * Normalizes a string for search: lowercases and strips diacritics/accents
- * so "VOILÀ" matches "voila" and "Lø Spirit" matches "lo spirit".
- *
- * Steps:
- *  1. NFD-decompose composed characters (e.g. "À" → "A" + combining grave)
- *  2. Strip combining diacritical marks (U+0300–U+036F)
- *  3. Transliterate common non-decomposable letters (ø, æ, œ, ð, þ, ß, etc.)
- *  4. Lowercase the result
- */
 function normalizeForSearch(str: string): string {
-  const translitMap: Record<string, string> = {
-    ø: "o",
-    Ø: "o",
-    æ: "ae",
-    Æ: "ae",
-    œ: "oe",
-    Œ: "oe",
-    ð: "d",
-    Ð: "d",
-    þ: "th",
-    Þ: "th",
-    ß: "ss",
-    ü: "u",
-    Ü: "u",
-    ö: "o",
-    Ö: "o",
-    ä: "a",
-    Ä: "a",
-    å: "a",
-    Å: "a",
-    ñ: "n",
-    Ñ: "n",
-    ç: "c",
-    Ç: "c",
-  };
-
-  return str
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[øØæÆœŒðÐþÞßüÜöÖäÄåÅñÑçÇ]/g, (ch) => translitMap[ch] ?? ch)
-    .toLowerCase();
+  return anyAscii(str).toLowerCase();
 }
 
 /**
@@ -75,6 +40,7 @@ function normalizeForSearch(str: string): string {
  */
 export function AllProjectsPage() {
   const navigate = useNavigate();
+  const smartBack = useSmartBack();
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useI18n();
 
@@ -98,17 +64,7 @@ export function AllProjectsPage() {
   const [filterOpen, setFilterOpen] = useState(false);
   const filterRef = useRef<HTMLDivElement>(null);
 
-  // Click-outside to close filter popup
-  useEffect(() => {
-    if (!filterOpen) return;
-    const handler = (e: MouseEvent) => {
-      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
-        setFilterOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [filterOpen]);
+  useClickOutside(filterRef, () => setFilterOpen(false), filterOpen);
 
   // Sync search + filters to URL
   useEffect(() => {
@@ -275,23 +231,17 @@ export function AllProjectsPage() {
     refreshProjects();
   };
 
-  // Push shell config on mount
-  useEffect(() => {
-    useShellStore.getState().reset();
-    useShellStore.getState().setConfig({
-      title: t("projects.title"),
-      onBack: () => navigate(-1),
-      topbarBg: "bg-surface-container",
-      sidebarBg: "bg-surface-container",
-      showTopbarBorder: false,
-      bodyBg: "bg-surface-container",
-      onOpenSettings: () => useModalStore.getState().openSettings(),
-      onOpenAbout: () => useModalStore.getState().openAbout(),
-    });
-    return () => {
-      useShellStore.getState().reset();
-    };
-  }, [t, navigate]);
+  const shellConfig = useMemo(() => ({
+    title: t("projects.title"),
+    onBack: () => smartBack(),
+    topbarBg: "bg-surface-container",
+    sidebarBg: "bg-surface-container",
+    showTopbarBorder: false,
+    bodyBg: "bg-surface-container",
+    onOpenSettings: () => useModalStore.getState().openSettings(),
+    onOpenAbout: () => useModalStore.getState().openAbout(),
+  }), [t]);
+  usePageShell(shellConfig);
 
   // ── Render ──
 
@@ -404,12 +354,6 @@ export function AllProjectsPage() {
               <AnimatePresence>
                 {filteredProjects.map((project) => {
                   const status: ProjectStatus = project.status;
-                  const statusLabels: Record<ProjectStatus, string> = {
-                    "not-started": t("dashboard.status.notStarted"),
-                    "in-progress": t("dashboard.status.inProgress"),
-                    "in-review": t("dashboard.status.inReview"),
-                    completed: t("dashboard.status.completed"),
-                  };
                   return (
                     <motion.div
                       key={project.id}
@@ -425,7 +369,7 @@ export function AllProjectsPage() {
                         coverUrl={project.coverUrl ?? ""}
                         progress={project.progress}
                         status={status}
-                        statusLabel={statusLabels[status]}
+                        statusLabel={getProjectStatusLabel(status, t)}
                         onClick={() => navigate(`/editor/${project.id}`)}
                         onEdit={() => handleEditProject(project.id)}
                         onOpen={() => handleOpenProject(project.id)}
@@ -452,36 +396,16 @@ export function AllProjectsPage() {
         </div>
       </MasterCard>
 
-      {/* Delete Confirmation Modal (same pattern as DashboardPage) */}
-      {deleteTarget && (
-        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-surface-container-high rounded-3xl p-6 shadow-2xl border border-outline-variant/20 max-w-sm w-full mx-4">
-            <h3 className="font-title-lg text-on-surface mb-2">
-              {t("dashboard.deleteProject")}
-            </h3>
-            <p className="font-body-md text-on-surface-variant mb-6">
-              {t("dashboard.deleteConfirm").replace(
-                "%s",
-                deleteTarget.trackName,
-              )}
-            </p>
-            <div className="flex gap-3 justify-end">
-              <button
-                onClick={() => setDeleteTarget(null)}
-                className="px-5 py-2.5 rounded-full font-label-lg text-on-surface-variant hover:bg-surface-container-highest transition-colors"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                onClick={confirmDeleteProject}
-                className="px-5 py-2.5 rounded-full font-label-lg bg-error-container text-on-error-container hover:bg-error hover:text-on-error transition-all"
-              >
-                {t("common.delete")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={t("dashboard.deleteProject")}
+        description={t("dashboard.deleteConfirm").replace("%s", deleteTarget?.trackName ?? "")}
+        confirmLabel={t("common.delete")}
+        cancelLabel={t("common.cancel")}
+        onConfirm={confirmDeleteProject}
+        onCancel={() => setDeleteTarget(null)}
+        destructive
+      />
     </>
   );
 }

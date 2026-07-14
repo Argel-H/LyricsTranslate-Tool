@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { calculateLyricsProgress } from "@/lib/progressUtils";
 import type { Project, LyricLine } from "@/types/project";
-import { PROJECT_STATUS } from "@/lib/constants";
+import { PROJECT_STATUS } from "@/lib/config/constants";
 import {
   getProject,
   updateLyricLine as dbUpdateLyric,

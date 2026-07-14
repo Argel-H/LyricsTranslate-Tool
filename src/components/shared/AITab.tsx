@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { AI_PROVIDERS } from "@/lib/aiConfig";
-import type { AIProvider } from "@/lib/aiConfig";
+import { AI_PROVIDERS } from "@/lib/config/aiConfig";
+import type { AIProvider } from "@/lib/config/aiConfig";
 import { DropdownSelect } from "@/features/project-setup/DropdownSelect";
 import { Brain, Key, X, Eye, EyeOff } from "lucide-react";
 

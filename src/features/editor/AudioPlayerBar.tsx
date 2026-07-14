@@ -11,10 +11,12 @@ interface AudioPlayerBarProps {
   audioSrc: string | undefined;
   syncOffsetMs: number;
   sortedLines: TimestampedLine[];
-  onActiveLineChange: (key: string) => void;
+  onActiveLineChange: (key: string | null) => void;
   onAudioUrlChange: (url: string) => void;
   onLocalFileSelect: (file: File) => void;
   onClearAudio: () => void;
+  readOnly?: boolean;
+  audioRef?: React.MutableRefObject<HTMLAudioElement | null>;
 }
 
 /**
@@ -59,6 +61,8 @@ export function AudioPlayerBar({
   onAudioUrlChange,
   onLocalFileSelect,
   onClearAudio,
+  readOnly,
+  audioRef: externalAudioRef,
 }: AudioPlayerBarProps) {
   const [playing, setPlaying] = useState(false);
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
@@ -71,7 +75,8 @@ export function AudioPlayerBar({
 
   const { t } = useI18n();
 
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const internalAudioRef = useRef<HTMLAudioElement | null>(null);
+  const audioRef = externalAudioRef ?? internalAudioRef;
   const rafRef = useRef<number>(0);
   const lastActiveKeyRef = useRef<string | null>(null);
   const stableKeyRef = useRef<string | null>(null);
@@ -233,11 +238,21 @@ export function AudioPlayerBar({
       audioRef.current.pause();
     } else {
       audioRef.current.play().catch(() => {
-        // Browser may block autoplay
         setAudioError(true);
       });
     }
   };
+
+  function syncActiveLineOnSeek(timeMs: number): void {
+    const effectiveTime = timeMs - syncOffsetMs;
+    const activeKey = findActiveLine(sortedLines, effectiveTime);
+    if (activeKey !== lastActiveKeyRef.current) {
+      lastActiveKeyRef.current = activeKey;
+      stableKeyRef.current = activeKey;
+      stableCountRef.current = 0;
+      onActiveLineChange(activeKey ?? null);
+    }
+  }
 
   const progressPercent =
     audioSrc && durationMs > 0 ? (currentTimeMs / durationMs) * 100 : 0;
@@ -247,6 +262,7 @@ export function AudioPlayerBar({
       {/* Main controls row */}
       <div className="flex items-center gap-3 min-w-0">
         {/* Upload + popover */}
+        {!readOnly && (
         <div className="relative shrink-0">
           <button
             onClick={() => setSettingsOpen(!settingsOpen)}
@@ -346,6 +362,7 @@ export function AudioPlayerBar({
             </>
           )}
         </div>
+        )}
 
         {/* Play/Pause */}
         <button
@@ -381,6 +398,7 @@ export function AudioPlayerBar({
             audioRef.current.currentTime = time / 1000;
             setCurrentTimeMs(time);
             useProjectStore.getState().setAudioCurrentTime(time);
+            syncActiveLineOnSeek(time);
           }}
           leftLabel={formatTime(currentTimeMs)}
           rightLabel={formatTime(durationMs)}

@@ -9,5 +9,6 @@ export const API = {
   odesli: isDev ? "/api-odesli" : `${WORKER_URL}/odesli`,
   translate: isDev ? "/api-translate" : "https://api.simplytranslate.ai",
   metadata: isDev ? undefined : `${WORKER_URL}/metadata`,
+  share: `${WORKER_URL}/share`,
   proxy: WORKER_URL,
 } as const;

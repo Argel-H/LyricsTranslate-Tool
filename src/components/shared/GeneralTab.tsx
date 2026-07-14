@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useSettingsStore } from "@/stores/settingsStore";
-import { LANGUAGE_LABELS, type LanguageCode } from "@/lib/constants";
+import { LANGUAGE_LABELS, type LanguageCode } from "@/lib/config/constants";
 import { exportDatabase, importDatabase } from "@/lib/dbBackup";
 import { Globe, Trash2, Download, Upload, RefreshCw } from "lucide-react";
 

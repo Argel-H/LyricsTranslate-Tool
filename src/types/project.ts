@@ -1,4 +1,4 @@
-import type { ProjectStatus } from "@/lib/constants";
+import type { ProjectStatus } from "@/lib/config/constants";
 
 export interface LyricLine {
   time_start: number;
