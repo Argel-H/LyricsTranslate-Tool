@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Play, Pause, Upload, X, Volume2 } from "lucide-react";
+import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 import { useI18n } from "@/hooks/useI18n";
 import { findActiveLine } from "@/lib/timeUtils";
 import type { TimestampedLine } from "@/lib/timeUtils";
@@ -68,6 +69,7 @@ export function AudioPlayerBar({
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [durationMs, setDurationMs] = useState(0);
   const [audioError, setAudioError] = useState(false);
+  const [buffering, setBuffering] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [urlInputValue, setUrlInputValue] = useState("");
   const [volume, setVolume] = useState(80); // 0-100, logarithmic
@@ -82,6 +84,7 @@ export function AudioPlayerBar({
   const stableKeyRef = useRef<string | null>(null);
   const stableCountRef = useRef(0);
   const durationMsRef = useRef(0);
+  const hasLoadedRef = useRef(false);
 
   // Keep durationMsRef in sync
   useEffect(() => {
@@ -103,19 +106,22 @@ export function AudioPlayerBar({
       setCurrentTimeMs(0);
       setDurationMs(0);
       setAudioError(false);
+      setBuffering(false);
       lastActiveKeyRef.current = null;
       return;
     }
+
+    hasLoadedRef.current = false;
 
     // Create fresh audio element
     const audio = new Audio();
     audioRef.current = audio;
 
-    // Preload metadata only (don't autoplay)
-    audio.preload = "metadata";
+    audio.preload = "auto";
     audio.src = audioSrc;
 
     const onLoadedMetadata = () => {
+      hasLoadedRef.current = true;
       setDurationMs(audio.duration * 1000);
       setAudioError(false);
       // Restore saved playback position from store, then clear it
@@ -141,12 +147,23 @@ export function AudioPlayerBar({
     };
 
     const onError = () => {
-      setAudioError(true);
-      setPlaying(false);
+      if (hasLoadedRef.current) {
+        // Recoverable network error — audio was already loaded once
+        setBuffering(false);
+        setPlaying(false);
+      } else {
+        // Source never loaded — truly invalid URL or file
+        setAudioError(true);
+        setPlaying(false);
+      }
     };
 
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
+    const onWaiting = () => setBuffering(true);
+    const onPlaying = () => { setBuffering(false); setPlaying(true); };
+    const onCanPlay = () => setBuffering(false);
+    const onStalled = () => setBuffering(true);
 
     audio.addEventListener("loadedmetadata", onLoadedMetadata);
     audio.addEventListener("timeupdate", onTimeUpdate);
@@ -154,6 +171,10 @@ export function AudioPlayerBar({
     audio.addEventListener("error", onError);
     audio.addEventListener("play", onPlay);
     audio.addEventListener("pause", onPause);
+    audio.addEventListener("waiting", onWaiting);
+    audio.addEventListener("playing", onPlaying);
+    audio.addEventListener("canplay", onCanPlay);
+    audio.addEventListener("stalled", onStalled);
 
     return () => {
       // Save playback position before destroying (use ref for safety)
@@ -167,13 +188,17 @@ export function AudioPlayerBar({
       audio.removeEventListener("error", onError);
       audio.removeEventListener("play", onPlay);
       audio.removeEventListener("pause", onPause);
+      audio.removeEventListener("waiting", onWaiting);
+      audio.removeEventListener("playing", onPlaying);
+      audio.removeEventListener("canplay", onCanPlay);
+      audio.removeEventListener("stalled", onStalled);
       audio.pause();
       audio.removeAttribute("src");
       audio.load();
       audioRef.current = null;
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [audioSrc, syncOffsetMs, onActiveLineChange]);
+  }, [audioSrc]);
 
   // Sync volume to audio element
   useEffect(() => {
@@ -237,8 +262,9 @@ export function AudioPlayerBar({
     if (playing) {
       audioRef.current.pause();
     } else {
-      audioRef.current.play().catch(() => {
-        setAudioError(true);
+      audioRef.current.play().catch((err: DOMException) => {
+        if (err.name === "AbortError") return;
+        if (!hasLoadedRef.current) setAudioError(true);
       });
     }
   };
@@ -379,9 +405,11 @@ export function AudioPlayerBar({
             transition:
               "border-radius 0.3s ease, background-color 0.3s ease, color 0.3s ease",
           }}
-          title={playing ? t("player.pause") : t("player.play")}
+          title={buffering ? t("player.buffering") : playing ? t("player.pause") : t("player.play")}
         >
-          {playing ? (
+          {buffering ? (
+            <M3LoadingIndicator size={24} style={{ color: "#594983" }} />
+          ) : playing ? (
             <Pause className="size-5" />
           ) : (
             <Play className="size-5 ml-0.5" />

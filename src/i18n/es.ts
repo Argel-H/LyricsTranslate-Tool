@@ -180,6 +180,7 @@ export const es = {
   "player.sourceNone": "Ninguno",
   "player.sourceLocal": "Local",
   "player.sourceUrl": "URL",
+  "player.buffering": "Cargando…",
   "player.audioSource": "Fuente de audio",
 
   "editor.undoTooltip": "Deshacer",
