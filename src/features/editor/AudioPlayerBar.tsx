@@ -122,20 +122,26 @@ export function AudioPlayerBar({
       hasLoadedRef.current = true;
       setDurationMs(audio.duration * 1000);
       setAudioError(false);
-      // Restore saved playback position from store, then clear it
-      const saved = useProjectStore.getState().audioCurrentTime;
-      if (saved > 0 && saved < audio.duration * 1000) {
-        audio.currentTime = saved / 1000;
-        setCurrentTimeMs(saved);
-        useProjectStore.getState().setAudioCurrentTime(0);
+      // Restore saved playback position only if it belongs to THIS audio source.
+      // Positions saved for a different src (e.g., another project) are ignored.
+      const saved = useProjectStore.getState().audioPlayback;
+      if (
+        saved &&
+        saved.src === audioSrc &&
+        saved.timeMs > 0 &&
+        saved.timeMs < audio.duration * 1000
+      ) {
+        audio.currentTime = saved.timeMs / 1000;
+        setCurrentTimeMs(saved.timeMs);
+        useProjectStore.getState().clearAudioPlayback();
       }
     };
 
     const onTimeUpdate = () => {
       const timeMs = audio.currentTime * 1000;
       setCurrentTimeMs(timeMs);
-      // Persist position so it survives route changes
-      useProjectStore.getState().setAudioCurrentTime(timeMs);
+      // Persist position keyed by audio source so it survives route changes
+      useProjectStore.getState().setAudioPlayback(audioSrc, timeMs);
     };
 
     const onEnded = () => {
@@ -175,10 +181,10 @@ export function AudioPlayerBar({
     audio.addEventListener("stalled", onStalled);
 
     return () => {
-      // Save playback position before destroying (use ref for safety)
+      // Save playback position keyed by audio source before destroying (use ref for safety)
       const el = audioRef.current;
       if (el && el.currentTime > 0 && !el.ended) {
-        useProjectStore.getState().setAudioCurrentTime(el.currentTime * 1000);
+        useProjectStore.getState().setAudioPlayback(audioSrc, el.currentTime * 1000);
       }
       audio.removeEventListener("loadedmetadata", onLoadedMetadata);
       audio.removeEventListener("timeupdate", onTimeUpdate);
@@ -407,7 +413,7 @@ export function AudioPlayerBar({
             const time = (percent / 100) * durationMs;
             audioRef.current.currentTime = time / 1000;
             setCurrentTimeMs(time);
-            useProjectStore.getState().setAudioCurrentTime(time);
+            if (audioSrc) useProjectStore.getState().setAudioPlayback(audioSrc, time);
             syncActiveLineOnSeek(time);
           }}
           leftLabel={formatTime(currentTimeMs)}
