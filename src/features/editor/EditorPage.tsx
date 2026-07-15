@@ -41,7 +41,6 @@ import {
   Share2,
   Download,
 } from "lucide-react";
-import { createShortShareUrl } from "@/lib/share/shareProtocol";
 import { getShareBaseUrl } from "@/types/share";
 import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 import { Toast } from "@/components/shared/Toast";
@@ -519,6 +518,7 @@ export function EditorPage() {
     if (!currentProject) return;
     setShareLoading(true);
     try {
+      const { createShortShareUrl } = await import("@/lib/share/shareProtocol");
       const shortId = await createShortShareUrl(currentProject);
       await navigator.clipboard.writeText(getShareBaseUrl() + shortId);
       setToastMessage(t("share.copied"));

@@ -4,7 +4,6 @@ import { useI18n } from "@/hooks/useI18n";
 import { Share2, Copy, Eye, Check, Loader2, X } from "lucide-react";
 import { createShareRecord, getShareRecordsByProject } from "@/db/shareRepository";
 import type { ShareRecord } from "@/db/database";
-import { createShortShareUrl } from "@/lib/share/shareProtocol";
 import type { Project } from "@/types/project";
 import { getShareBaseUrl } from "@/types/share";
 import { useClickOutside } from "@/hooks/useClickOutside";
@@ -110,6 +109,7 @@ export function ShareDialog({ open, project, onClose }: ShareDialogProps) {
     setGenerating(true);
     setError(null);
     try {
+      const { createShortShareUrl } = await import("@/lib/share/shareProtocol");
       const shortId = await createShortShareUrl(project);
       await createShareRecord(project.id, shortId);
       const updated = await getShareRecordsByProject(project.id);

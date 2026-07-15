@@ -1,11 +1,9 @@
-import brotliInit from "brotli-wasm";
-import type { BrotliWasmType } from "brotli-wasm";
+// Cached Brotli WASM instance (initialized on first dynamic import)
+let brotliWasm: any = null;
 
-// Cached Brotli WASM instance (initialized on first use)
-let brotliWasm: BrotliWasmType | null = null;
-
-async function ensureBrotli(): Promise<BrotliWasmType> {
+async function ensureBrotli(): Promise<any> {
   if (!brotliWasm) {
+    const { default: brotliInit } = await import("brotli-wasm");
     brotliWasm = await brotliInit;
   }
   return brotliWasm;

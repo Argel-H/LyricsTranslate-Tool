@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense, useState } from "react";
 import type { ReactNode } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -6,18 +6,34 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { useModalStore } from "@/stores/modalStore";
 import { useI18n } from "@/hooks/useI18n";
 import { Modal } from "@/features/shell/Modal";
-import { DashboardPage } from "@/features/dashboard/DashboardPage";
-import { AllProjectsPage } from "@/features/dashboard/AllProjectsPage";
-import { ProjectSetupPage } from "@/features/project-setup/ProjectSetupPage";
-import { EditorPage } from "@/features/editor/EditorPage";
-import { SharedProjectPage } from "@/features/editor/SharedProjectPage";
-import { ViewOnlyPage } from "@/features/editor/ViewOnlyPage";
 import { SettingsModal } from "@/components/shared/SettingsModal";
 import { ChangelogModal } from "@/components/shared/ChangelogModal";
 import { APP_NAME, APP_VERSION } from "@/lib/config/appConfig";
 import { migrateLyricTimestamps, normalizeLegacyStatuses } from "@/db/migration";
 import { useShellStore } from "@/stores/shellStore";
 import { AppShell } from "@/features/shell/AppShell";
+import { PageLoader } from "@/components/shared/PageLoader";
+
+// Lazy-loaded page components — code-split into separate chunks
+// Pages use named exports, so we wrap them as default for React.lazy()
+const DashboardPage = lazy(() =>
+  import("@/features/dashboard/DashboardPage").then((m) => ({ default: m.DashboardPage })),
+);
+const AllProjectsPage = lazy(() =>
+  import("@/features/dashboard/AllProjectsPage").then((m) => ({ default: m.AllProjectsPage })),
+);
+const ProjectSetupPage = lazy(() =>
+  import("@/features/project-setup/ProjectSetupPage").then((m) => ({ default: m.ProjectSetupPage })),
+);
+const EditorPage = lazy(() =>
+  import("@/features/editor/EditorPage").then((m) => ({ default: m.EditorPage })),
+);
+const SharedProjectPage = lazy(() =>
+  import("@/features/editor/SharedProjectPage").then((m) => ({ default: m.SharedProjectPage })),
+);
+const ViewOnlyPage = lazy(() =>
+  import("@/features/editor/ViewOnlyPage").then((m) => ({ default: m.ViewOnlyPage })),
+);
 
 function AnimatedContent({ children }: { children: ReactNode }) {
   return (
@@ -75,23 +91,50 @@ function App() {
   const closeAbout = useModalStore((s) => s.closeAbout);
   const closeChangelog = useModalStore((s) => s.closeChangelog);
   const { t } = useI18n();
+  const [initialLoad, setInitialLoad] = useState(true);
 
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
 
   useEffect(() => {
-    migrateLyricTimestamps().catch(console.error);
-    normalizeLegacyStatuses().catch(console.error);
+    const id = requestIdleCallback(() => {
+      migrateLyricTimestamps().catch(console.error);
+      normalizeLegacyStatuses().catch(console.error);
+    }, { timeout: 3000 });
+    return () => cancelIdleCallback(id);
+  }, []);
+
+  // Trigger fade-out animation after React mounts (allows framer-motion
+  // to register the exit animation before the loader is removed).
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setInitialLoad(false));
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/s/:data" element={<SharedProjectPage />} />
-        <Route path="/view/:data" element={<ViewOnlyPage />} />
-        <Route path="*" element={<AppShellWrapper />} />
-      </Routes>
+      <AnimatePresence>
+        {initialLoad ? (
+          <PageLoader key="loader" />
+        ) : (
+          <motion.div
+            key="app"
+            className="min-h-screen bg-surface-container"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+          >
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/s/:data" element={<SharedProjectPage />} />
+                <Route path="/view/:data" element={<ViewOnlyPage />} />
+                <Route path="*" element={<AppShellWrapper />} />
+              </Routes>
+            </Suspense>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <SettingsModal open={settingsOpen} onClose={closeSettings} />
 
