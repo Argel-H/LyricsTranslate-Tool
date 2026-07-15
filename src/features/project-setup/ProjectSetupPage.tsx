@@ -238,7 +238,7 @@ export function ProjectSetupPage() {
         </div>
       ),
     });
-  }, [isEditing, t]);
+  }, [isEditing, t, songName, artists]);
 
   return (
     <>

@@ -80,7 +80,7 @@ export function AppShell({
 
       <main
         className={cn(
-          "flex-1 pr-6 flex transition-colors duration-300 lg:ml-20 overflow-x-hidden",
+          "flex-1 pr-6 flex transition-colors duration-300 lg:ml-20 overflow-x-hidden scroll-pb-[4.5rem]",
           bottomBar ? "pb-36 md:pb-28" : "pb-24 md:pb-16",
           !showTopbar && "pt-10 md:pt-5",
           bodyBg,

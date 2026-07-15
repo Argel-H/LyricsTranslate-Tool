@@ -385,6 +385,14 @@ export function EditorPage() {
 
       setFocusedColumn(column);
       setActiveLineKey(targetKey);
+
+      // Scroll new active row into view after React renders the expanded state
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const el = document.querySelector(`[data-row-key="${targetKey}"]`);
+          el?.scrollIntoView({ behavior: "smooth", block: "center" });
+        });
+      });
     },
     [pushLeavingSnapshot],
   );
@@ -873,7 +881,7 @@ export function EditorPage() {
         </div>
 
         {/* Floating action area — bottom right */}
-        <div className={`fixed right-8 z-50 flex flex-col items-end gap-3 ${aiProvider && aiApiKey ? "bottom-28" : "bottom-16"}`}>
+        <div className="fixed right-8 z-50 flex flex-col items-end gap-3 bottom-32">
           <AnimatePresence>
             <div className="flex items-center gap-3">
             {currentProject &&
