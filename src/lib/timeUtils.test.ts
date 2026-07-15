@@ -123,10 +123,10 @@ describe('findActiveLine', () => {
 describe('getSortedLyricLines', () => {
   it('returns all lines including blank-timestamped lines', () => {
     const lyrics: Record<string, LyricLine> = {
-      lrc_00: { lyric: "Hello world", time_start: "00:01.00", time_end: "00:05.00" },
-      lrc_01: { lyric: " ", time_start: "00:05.00", time_end: "00:08.00" },
-      lrc_02: { lyric: "", time_start: "00:08.00", time_end: "00:12.00" },
-      lrc_03: { lyric: "[Chorus]", time_start: "00:12.00", time_end: "00:15.00" },
+      lrc_00: { lyric: "Hello world", time_start: 1000, time_end: 5000, translation: "" },
+      lrc_01: { lyric: " ", time_start: 5000, time_end: 8000, translation: "" },
+      lrc_02: { lyric: "", time_start: 8000, time_end: 12000, translation: "" },
+      lrc_03: { lyric: "[Chorus]", time_start: 12000, time_end: 15000, translation: "" },
     };
 
     const result = getSortedLyricLines(lyrics);
@@ -138,9 +138,9 @@ describe('getSortedLyricLines', () => {
 
   it('sorts by time_start ascending', () => {
     const lyrics: Record<string, LyricLine> = {
-      lrc_last: { lyric: "Last", time_start: "00:10.00", time_end: "00:15.00" },
-      lrc_first: { lyric: "First", time_start: "00:01.00", time_end: "00:05.00" },
-      lrc_mid: { lyric: "Middle", time_start: "00:05.00", time_end: "00:10.00" },
+      lrc_last: { lyric: "Last", time_start: 10000, time_end: 15000, translation: "" },
+      lrc_first: { lyric: "First", time_start: 1000, time_end: 5000, translation: "" },
+      lrc_mid: { lyric: "Middle", time_start: 5000, time_end: 10000, translation: "" },
     };
 
     const result = getSortedLyricLines(lyrics);
@@ -156,7 +156,7 @@ describe('getSortedLyricLines', () => {
 
   it('converts timestamps to milliseconds correctly', () => {
     const lyrics: Record<string, LyricLine> = {
-      lrc_00: { lyric: "One minute", time_start: "01:00.00", time_end: "01:30.00" },
+      lrc_00: { lyric: "One minute", time_start: 60000, time_end: 90000, translation: "" },
     };
 
     const result = getSortedLyricLines(lyrics);
