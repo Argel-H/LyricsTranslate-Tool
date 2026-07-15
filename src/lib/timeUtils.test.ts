@@ -3,8 +3,10 @@ import {
   parseTimestampToMilliseconds,
   formatMillisecondsToTimestamp,
   findActiveLine,
+  getSortedLyricLines,
 } from './timeUtils';
 import type { TimestampedLine } from './timeUtils';
+import type { LyricLine } from "@/types/project";
 
 describe('parseTimestampToMilliseconds', () => {
   it('converts timestamps and handles zero/empty/number input', () => {
@@ -115,5 +117,56 @@ describe('findActiveLine', () => {
     expect(findActiveLine(multi, 2500)).toBe('third');
     expect(findActiveLine(multi, 3500)).toBe('fourth');
     expect(findActiveLine(multi, 4000)).toBeNull();
+  });
+});
+
+describe('getSortedLyricLines', () => {
+  it('returns all lines including blank-timestamped lines', () => {
+    const lyrics: Record<string, LyricLine> = {
+      lrc_00: { lyric: "Hello world", time_start: "00:01.00", time_end: "00:05.00" },
+      lrc_01: { lyric: " ", time_start: "00:05.00", time_end: "00:08.00" },
+      lrc_02: { lyric: "", time_start: "00:08.00", time_end: "00:12.00" },
+      lrc_03: { lyric: "[Chorus]", time_start: "00:12.00", time_end: "00:15.00" },
+    };
+
+    const result = getSortedLyricLines(lyrics);
+
+    expect(result).toHaveLength(4);
+    const keys = result.map((r) => r.key);
+    expect(keys).toEqual(['lrc_00', 'lrc_01', 'lrc_02', 'lrc_03']);
+  });
+
+  it('sorts by time_start ascending', () => {
+    const lyrics: Record<string, LyricLine> = {
+      lrc_last: { lyric: "Last", time_start: "00:10.00", time_end: "00:15.00" },
+      lrc_first: { lyric: "First", time_start: "00:01.00", time_end: "00:05.00" },
+      lrc_mid: { lyric: "Middle", time_start: "00:05.00", time_end: "00:10.00" },
+    };
+
+    const result = getSortedLyricLines(lyrics);
+
+    expect(result).toHaveLength(3);
+    expect(result[0]!.key).toBe('lrc_first');
+    expect(result[1]!.key).toBe('lrc_mid');
+    expect(result[2]!.key).toBe('lrc_last');
+    expect(result[0]!.timeMs).toBe(1000);
+    expect(result[1]!.timeMs).toBe(5000);
+    expect(result[2]!.timeMs).toBe(10000);
+  });
+
+  it('converts timestamps to milliseconds correctly', () => {
+    const lyrics: Record<string, LyricLine> = {
+      lrc_00: { lyric: "One minute", time_start: "01:00.00", time_end: "01:30.00" },
+    };
+
+    const result = getSortedLyricLines(lyrics);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.timeMs).toBe(60000);
+    expect(result[0]!.timeEndMs).toBe(90000);
+  });
+
+  it('returns empty array for empty lyrics record', () => {
+    expect(getSortedLyricLines({})).toEqual([]);
   });
 });

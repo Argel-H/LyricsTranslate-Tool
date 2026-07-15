@@ -89,15 +89,23 @@ export function useEditorShortcuts(
         }
         case "ArrowUp":
         case "ArrowDown": {
-          if (!hasAudio || sortedLines.length === 0) break;
-          const currentIndex = sortedLines.findIndex(
-            (l) => l.key === audioActiveLineKey,
-          );
-          if (currentIndex === -1) break;
+          if (sortedLines.length === 0) break;
+
+          const currentIndex = audioActiveLineKey !== null
+            ? sortedLines.findIndex((l) => l.key === audioActiveLineKey)
+            : -1;
+
+          if (currentIndex === -1) {
+            // Nothing active: both arrows select the first line
+            callbacks.navigateToLine(sortedLines[0].key);
+            break;
+          }
+
           const nextIndex =
             e.key === "ArrowUp"
               ? Math.max(0, currentIndex - 1)
               : Math.min(sortedLines.length - 1, currentIndex + 1);
+
           if (nextIndex !== currentIndex) {
             callbacks.navigateToLine(sortedLines[nextIndex].key);
           }

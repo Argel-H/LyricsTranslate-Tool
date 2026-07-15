@@ -32,15 +32,12 @@ export interface TimestampedLine {
 }
 
 /**
- * Returns lyric lines sorted by timestamp, with millisecond values precomputed.
- * Filters out lines with empty lyric text (instrumental breaks with spaces).
+ * Returns ALL lyric lines sorted by time_start, with millisecond values precomputed.
+ * Every line in the lyrics map is included — including blank-timestamped lines
+ * (instrumental breaks, pauses) — so they participate in audio sync and highlighting.
  */
 export function getSortedLyricLines(lyrics: Record<string, LyricLine>): TimestampedLine[] {
   return Object.entries(lyrics)
-    .filter(([, line]) => {
-      const text = line.lyric?.trim() ?? "";
-      return text.length > 0 && text !== " ";
-    })
     .map(([key, line]) => ({
       key,
       timeMs: parseTimestampToMilliseconds(line.time_start),
