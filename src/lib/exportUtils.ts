@@ -1,6 +1,24 @@
 import type { LyricLine, Project } from "@/types/project";
 import { formatMillisecondsToTimestamp } from "./timeUtils";
 
+/**
+ * Supported text-case transformations for LRC/SRT export.
+ * - "original": no transformation (default)
+ * - "uppercase": locale-aware upper-casing
+ * - "lowercase": locale-aware lower-casing
+ */
+export type TextCase = "original" | "uppercase" | "lowercase";
+
+/**
+ * Applies a case transformation to text. Locale-aware to handle
+ * non-English lyrics correctly.
+ */
+export function applyTextCase(text: string, textCase: TextCase): string {
+  if (textCase === "uppercase") return text.toLocaleUpperCase();
+  if (textCase === "lowercase") return text.toLocaleLowerCase();
+  return text;
+}
+
 function sortLinesByTimestamp(
   lyrics: Record<string, LyricLine>,
 ): LyricLine[] {
@@ -12,12 +30,13 @@ function sortLinesByTimestamp(
 export function generateLrcContent(
   lyrics: Record<string, LyricLine>,
   useTranslation: boolean,
+  textCase: TextCase = "original",
 ): string {
   return sortLinesByTimestamp(lyrics)
     .map((line) => {
       const text = useTranslation ? line.translation || line.lyric : line.lyric;
       const timestamp = formatMillisecondsToTimestamp(line.time_start);
-      return `[${timestamp}] ${text}`;
+      return `[${timestamp}] ${applyTextCase(text, textCase)}`;
     })
     .join("\n");
 }
@@ -25,13 +44,14 @@ export function generateLrcContent(
 export function generateSrtContent(
   lyrics: Record<string, LyricLine>,
   useTranslation: boolean,
+  textCase: TextCase = "original",
 ): string {
   return sortLinesByTimestamp(lyrics)
     .map((line, index) => {
       const text = useTranslation ? line.translation || line.lyric : line.lyric;
       const start = formatSrtTimestamp(line.time_start);
       const end = formatSrtTimestamp(line.time_end);
-      return `${index + 1}\n${start} --> ${end}\n${text}`;
+      return `${index + 1}\n${start} --> ${end}\n${applyTextCase(text, textCase)}`;
     })
     .join("\n\n");
 }

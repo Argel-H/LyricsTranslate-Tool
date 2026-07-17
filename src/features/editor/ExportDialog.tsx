@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Download, FileText, Globe } from "lucide-react";
+import { Download, FileText, Globe, CaseSensitive } from "lucide-react";
 import { DropdownSelect } from "@/features/project-setup/DropdownSelect";
 import { useI18n } from "@/hooks/useI18n";
+import type { TextCase } from "@/lib/exportUtils";
 
 interface ExportDialogProps {
   open: boolean;
@@ -9,6 +10,7 @@ interface ExportDialogProps {
   onDownload: (
     format: "lrc" | "srt" | "yaml",
     language: "original" | "translated" | "proyecto",
+    textCase: TextCase,
   ) => void;
 }
 
@@ -24,6 +26,7 @@ export function ExportDialog({ open, onClose, onDownload }: ExportDialogProps) {
   const { t } = useI18n();
   const [format, setFormat] = useState<"lrc" | "srt" | "yaml">("lrc");
   const [language, setLanguage] = useState<"original" | "translated" | "proyecto">("original");
+  const [textCase, setTextCase] = useState<TextCase>("original");
 
   // Sync language when format toggles to/from "yaml"
   useEffect(() => {
@@ -63,8 +66,31 @@ export function ExportDialog({ open, onClose, onDownload }: ExportDialogProps) {
     }
   };
 
+  const textCaseOptions = isYaml
+    ? [t("export.caseOriginal")]
+    : [t("export.caseOriginal"), t("export.caseUppercase"), t("export.caseLowercase")];
+
+  const textCaseDisplayValue = isYaml
+    ? t("export.caseOriginal")
+    : textCase === "original"
+      ? t("export.caseOriginal")
+      : textCase === "uppercase"
+        ? t("export.caseUppercase")
+        : t("export.caseLowercase");
+
+  const handleTextCaseChange = (display: string) => {
+    if (isYaml) return; // should not fire when disabled, but guard anyway
+    if (display === t("export.caseOriginal")) {
+      setTextCase("original");
+    } else if (display === t("export.caseUppercase")) {
+      setTextCase("uppercase");
+    } else if (display === t("export.caseLowercase")) {
+      setTextCase("lowercase");
+    }
+  };
+
   const handleDownload = () => {
-    onDownload(format, language);
+    onDownload(format, language, textCase);
     onClose();
   };
 
@@ -94,6 +120,17 @@ export function ExportDialog({ open, onClose, onDownload }: ExportDialogProps) {
             value={languageDisplayValue}
             options={languageOptions}
             onChange={handleLanguageChange}
+            variant="compact"
+            disabled={isYaml}
+          />
+
+          {/* Text Case dropdown */}
+          <DropdownSelect
+            icon={CaseSensitive}
+            label={t("export.textCase")}
+            value={textCaseDisplayValue}
+            options={textCaseOptions}
+            onChange={handleTextCaseChange}
             variant="compact"
             disabled={isYaml}
           />

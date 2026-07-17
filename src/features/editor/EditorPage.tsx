@@ -28,7 +28,7 @@ import { processLyricsMap } from "@/lib/lyricsParser";
 import type { LyricLine } from "@/types/project";
 import { findAllTranslations } from "@/lib/suggestionUtils";
 import { AI_PROVIDERS } from "@/lib/config/aiConfig";
-import { downloadProjectAsYaml, formatSrtTimestamp } from "@/lib/exportUtils";
+import { downloadProjectAsYaml, generateLrcContent, generateSrtContent, type TextCase } from "@/lib/exportUtils";
 import { ExportDialog } from "./ExportDialog";
 import {
   Edit,
@@ -396,39 +396,10 @@ export function EditorPage() {
     [pushLeavingSnapshot],
   );
 
-  // Export helpers
-  const generateLRC = (useTranslation: boolean): string => {
-    if (!currentProject) return "";
-    const entries = Object.entries(currentProject.lyrics);
-    return entries
-      .map(([, line]) => {
-        const text = useTranslation
-          ? line.translation || line.lyric
-          : line.lyric;
-        const timestamp = formatMillisecondsToTimestamp(line.time_start);
-        return `[${timestamp}] ${text}`;
-      })
-      .join("\n");
-  };
-
-  const generateSRT = (useTranslation: boolean): string => {
-    if (!currentProject) return "";
-    const entries = Object.entries(currentProject.lyrics);
-    return entries
-      .map(([, line], i) => {
-        const text = useTranslation
-          ? line.translation || line.lyric
-          : line.lyric;
-        const start = formatSrtTimestamp(line.time_start);
-        const end = formatSrtTimestamp(line.time_end);
-        return `${i + 1}\n${start} --> ${end}\n${text}`;
-      })
-      .join("\n\n");
-  };
-
   const handleDownload = (
     format: "lrc" | "srt" | "yaml",
     language: "original" | "translated" | "proyecto",
+    textCase: TextCase,
   ) => {
     if (!currentProject) return;
 
@@ -439,12 +410,12 @@ export function EditorPage() {
       return;
     }
 
-    // LRC or SRT export (existing logic, adapted)
+    // LRC or SRT export via exportUtils (includes case transformation)
     const useTranslation = language === "translated";
     const content =
       format === "lrc"
-        ? generateLRC(useTranslation)
-        : generateSRT(useTranslation);
+        ? generateLrcContent(currentProject.lyrics, useTranslation, textCase)
+        : generateSrtContent(currentProject.lyrics, useTranslation, textCase);
     const ext = format === "lrc" ? ".lrc" : ".srt";
     const suffix = useTranslation ? "_translated" : "_original";
     const filename = `${currentProject.trackName}${suffix}${ext}`;

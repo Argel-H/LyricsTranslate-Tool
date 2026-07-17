@@ -98,3 +98,49 @@ describe("existing export functions remain intact", () => {
     expect(srt).toContain("Hello");
   });
 });
+
+describe("text case option", () => {
+  it("LRC with uppercase transforms text but leaves timestamp untouched", () => {
+    const lyrics = {
+      l1: makeLyricLine({ time_start: 10000, time_end: 15000, lyric: "Hello World", translation: "Hola Mundo" }),
+    };
+    const result = generateLrcContent(lyrics, false, "uppercase");
+    expect(result).toContain("[00:10.00] HELLO WORLD");
+    expect(result).not.toContain("Hello World");
+  });
+
+  it("SRT with lowercase transforms text but leaves timestamps and index untouched", () => {
+    const lyrics = {
+      l1: makeLyricLine({ time_start: 10000, time_end: 15000, lyric: "HELLO WORLD", translation: "HOLA MUNDO" }),
+    };
+    const result = generateSrtContent(lyrics, false, "lowercase");
+    expect(result).toContain("00:00:10,000 --> 00:00:15,000");
+    expect(result).toContain("hello world");
+    expect(result).toContain("1\n");
+    expect(result).not.toContain("HELLO WORLD");
+  });
+
+  it("omitting the third arg produces identical output to current behavior", () => {
+    const lyrics = {
+      l1: makeLyricLine({ time_start: 10000, time_end: 15000, lyric: "Hello World", translation: "Hola Mundo" }),
+    };
+    const withoutArg = generateLrcContent(lyrics, false);
+    const withOriginal = generateLrcContent(lyrics, false, "original");
+    expect(withoutArg).toBe(withOriginal);
+    expect(withoutArg).toContain("Hello World");
+
+    const srtWithoutArg = generateSrtContent(lyrics, false);
+    const srtWithOriginal = generateSrtContent(lyrics, false, "original");
+    expect(srtWithoutArg).toBe(srtWithOriginal);
+    expect(srtWithoutArg).toContain("Hello World");
+  });
+
+  it("useTranslation: true + uppercase transforms translated text", () => {
+    const lyrics = {
+      l1: makeLyricLine({ time_start: 10000, time_end: 15000, lyric: "Hello", translation: "Hola" }),
+    };
+    const result = generateLrcContent(lyrics, true, "uppercase");
+    expect(result).toContain("[00:10.00] HOLA");
+    expect(result).not.toContain("Hola");
+  });
+});
