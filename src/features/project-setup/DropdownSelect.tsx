@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import type { ComponentType, SVGProps } from "react";
-import { ChevronDown, X as XIcon } from "lucide-react";
+import { ChevronDown, X as XIcon, Check, Plus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 interface DropdownSelectProps {
@@ -14,6 +14,8 @@ interface DropdownSelectProps {
   className?: string;
   variant?: "default" | "compact";
   disabled?: boolean;
+  editable?: boolean;
+  placeholder?: string;
 }
 
 export function DropdownSelect({
@@ -26,9 +28,12 @@ export function DropdownSelect({
   className,
   variant = "default",
   disabled = false,
+  editable = false,
+  placeholder,
 }: DropdownSelectProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [committedValue, setCommittedValue] = useState(value);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -43,6 +48,23 @@ export function DropdownSelect({
       document.addEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleScroll = (e: Event) => {
+      // close if the scroll did NOT originate inside the dropdown itself
+      const target = e.target as HTMLElement | null;
+      if (target && containerRef.current?.contains(target)) return;
+      setOpen(false);
+    };
+    window.addEventListener("scroll", handleScroll, true);
+    return () => window.removeEventListener("scroll", handleScroll, true);
+  }, [open]);
+
+  // snapshot current value as saved option for UX
+  useEffect(() => {
+    if (open) setCommittedValue(value);
   }, [open]);
 
   const handleClick = () => {
@@ -68,6 +90,12 @@ export function DropdownSelect({
     <div className="absolute bottom-0 left-[10%] right-[10%] h-px bg-gradient-to-r from-transparent via-primary to-transparent scale-x-0 group-hover:scale-x-100 transition-transform duration-300 ease-out origin-center rounded-full" />
   );
 
+  const isCustomValue = (v: string) =>
+    v.trim() !== "" && !options?.some((opt) => getOptionLabel(opt) === v.trim());
+
+  const committedCustom = isCustomValue(committedValue) ? committedValue.trim() : null;
+  const pendingCustom = isCustomValue(value) && value.trim() !== committedValue.trim() ? value.trim() : null;
+
   const dropdownPanel = options && (
     <AnimatePresence>
       {open && (
@@ -78,6 +106,39 @@ export function DropdownSelect({
           className="absolute top-full left-0 mt-0 bg-surface-container-high border border-outline-variant/20 border-t-0 rounded-b-md rounded-t-none shadow-2xl z-50 w-full overflow-hidden"
         >
           <div className="max-h-48 overflow-y-auto">
+            {committedCustom && (
+              <button
+                key="__committed__"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelect(committedCustom);
+                }}
+                className={cn(
+                  "w-full text-left px-4 py-3 transition-colors cursor-pointer flex items-center gap-3 border-b border-outline-variant/15",
+                  committedCustom === value
+                    ? "bg-primary-container text-on-primary-container"
+                    : "text-on-surface hover:bg-surface-container-highest",
+                )}
+              >
+                <Check className="h-5 w-auto shrink-0 text-primary" />
+                {committedCustom}
+              </button>
+            )}
+            {pendingCustom && (
+              <button
+                key="__pending__"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleSelect(pendingCustom);
+                }}
+                className={cn(
+                  "w-full text-left px-4 py-3 transition-colors cursor-pointer flex items-center gap-3 text-on-surface hover:bg-surface-container-highest border-b border-outline-variant/15"
+                )}
+              >
+                <Plus className="h-5 w-auto shrink-0 text-on-surface-variant" />
+                {pendingCustom}
+              </button>
+            )}
             {options.map((opt) => {
               const label = getOptionLabel(opt);
               const OptIcon = getOptionIcon(opt);
@@ -111,8 +172,8 @@ export function DropdownSelect({
         ref={containerRef}
         onClick={!disabled ? (options ? handleClick : undefined) : undefined}
         className={cn(
-          "relative bg-surface-container-high px-4 py-2 flex items-center gap-3 border border-outline-variant/50 transition-all group",
-          open ? "rounded-t-md border-b-0 duration-150" : "rounded-none duration-500",
+          "relative bg-surface-container-high rounded-sm px-4 py-2 flex items-center gap-3 border border-outline-variant/50 transition-all group",
+          open ? "rounded-t-md border-b-0 duration-150" : "rounded-sm duration-500",
           options && !disabled && "cursor-pointer",
           disabled && "opacity-50 cursor-not-allowed select-none",
           className,
@@ -126,8 +187,10 @@ export function DropdownSelect({
           <input
             type="text"
             value={value}
-            readOnly
-            className="bg-transparent border-none p-0 text-on-surface font-body-md focus:ring-0 outline-none select-none cursor-pointer"
+            readOnly={!(editable && open)}
+            placeholder={editable ? placeholder : undefined}
+            onChange={editable ? (e) => onChange?.(e.target.value) : undefined}
+            className={`bg-transparent border-none p-0 text-on-surface font-body-md focus:ring-0 outline-none ${editable ? '' : 'select-none cursor-pointer'}`}
           />
         </div>
         <ChevronDown className="size-4 text-on-surface-variant hover:text-on-surface ml-auto" />

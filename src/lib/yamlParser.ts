@@ -384,6 +384,17 @@ export function parseProjectYaml(yamlString: string): ProjectCreateInput {
     input.syncOffsetMs = Number(projectRaw.sync_offset_ms);
   }
 
+  // wallpaper (optional)
+  if (projectRaw.wallpaper_artist_name != null) {
+    input.wallpaperArtistName = String(projectRaw.wallpaper_artist_name);
+  }
+  if (projectRaw.wallpaper_source != null) {
+    input.wallpaperSource = String(projectRaw.wallpaper_source);
+  }
+  if (projectRaw.wallpaper_url != null) {
+    input.wallpaperUrl = String(projectRaw.wallpaper_url);
+  }
+
   // Optional array fields
   if (Array.isArray(projectRaw.artist_links)) {
     input.artistLinks = projectRaw.artist_links.map(

@@ -110,6 +110,11 @@ export const en = {
   "setup.deleteConfirm":
     "Are you sure you want to delete this project? This action cannot be undone.",
   "setup.artistNumber": "Artist #%d",
+  "setup.wallpaper": "Wallpaper",
+  "setup.wallpaperArtistName": "Artist Name",
+  "setup.wallpaperSource": "Source",
+  "setup.wallpaperUrl": "Image URL",
+  "setup.wallpaperSourcePlaceholder": "Type or select source...",
 
   "settings.title": "Settings",
   "settings.language": "Language",

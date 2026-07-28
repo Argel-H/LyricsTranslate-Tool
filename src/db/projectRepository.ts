@@ -23,6 +23,9 @@ export async function createProject(input: ProjectCreateInput): Promise<number> 
     translationLanguage: input.translationLanguage,
     albumName: input.albumName,
     songLinkUrl: input.songLinkUrl,
+    wallpaperArtistName: input.wallpaperArtistName,
+    wallpaperSource: input.wallpaperSource,
+    wallpaperUrl: input.wallpaperUrl,
     artistLinks: input.artistLinks,
     recommendedSocialLinks: input.recommendedSocialLinks,
     audioUrl: input.audioUrl,
@@ -45,7 +48,7 @@ export async function getAllProjects(includeArchived = false): Promise<Project[]
 
 export async function updateProject(
   id: number,
-  updates: Partial<Pick<Project, "title" | "status" | "progress" | "coverUrl" | "streamingSites" | "originLanguage" | "translationLanguage" | "artistName" | "trackName" | "albumName" | "songLinkUrl" | "recommendedSocialLinks" | "artistLinks">>,
+  updates: Partial<Pick<Project, "title" | "status" | "progress" | "coverUrl" | "streamingSites" | "originLanguage" | "translationLanguage" | "artistName" | "trackName" | "albumName" | "songLinkUrl" | "wallpaperArtistName" | "wallpaperSource" | "wallpaperUrl" | "recommendedSocialLinks" | "artistLinks">>,
 ): Promise<void> {
   await db.projects.update(id, { ...updates, updatedAt: Date.now() });
 }

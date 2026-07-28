@@ -293,8 +293,10 @@ async function fetchMetadataFromWorker(isrc: string): Promise<WorkerMetadataResu
       if (track.artist.link) artistLinks.push({ name: track.artist.name, url: track.artist.link });
     }
     track.contributors?.forEach((c: { name: string; link?: string }) => {
-      if (c.name !== track.artist?.name) artists.push(c.name);
-      if (c.link) artistLinks.push({ name: c.name, url: c.link });
+      if (c.name !== track.artist?.name) {
+        artists.push(c.name);
+        if (c.link) artistLinks.push({ name: c.name, url: c.link });
+      }
     });
 
     // Build odesli result from worker response

@@ -23,6 +23,9 @@ export interface Project {
   originLanguage?: string;
   translationLanguage?: string;
   albumName?: string;
+  wallpaperArtistName?: string;
+  wallpaperSource?: string;
+  wallpaperUrl?: string;
   songLinkUrl?: string;
   artistLinks?: Array<{ name: string; url: string }>;
   recommendedSocialLinks?: Array<{ platform: string; url: string; artistName?: string }>;
@@ -42,6 +45,9 @@ export interface ProjectCreateInput {
   originLanguage?: string;
   translationLanguage?: string;
   albumName?: string;
+  wallpaperArtistName?: string;
+  wallpaperSource?: string;
+  wallpaperUrl?: string;
   songLinkUrl?: string;
   artistLinks?: Array<{ name: string; url: string }>;
   recommendedSocialLinks?: Array<{ platform: string; url: string; artistName?: string }>;

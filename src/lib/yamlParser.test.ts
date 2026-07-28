@@ -17,6 +17,9 @@ project:
   song_link: "https://open.spotify.com/track/abc123"
   audio_url: "https://example.com/audio.mp3"
   sync_offset_ms: 0
+  wallpaper_artist_name: "WLOP"
+  wallpaper_source: "ArtStation"
+  wallpaper_url: "https://www.artstation.com/artwork/abc123"
   artist_links:
     - name: "Artist One"
       url: "https://open.spotify.com/artist/abc"
@@ -80,6 +83,9 @@ describe("parseProjectYaml", () => {
     expect(result.songLinkUrl).toBe("https://open.spotify.com/track/abc123");
     expect(result.audioUrl).toBe("https://example.com/audio.mp3");
     expect(result.syncOffsetMs).toBe(0);
+    expect(result.wallpaperArtistName).toBe("WLOP");
+    expect(result.wallpaperSource).toBe("ArtStation");
+    expect(result.wallpaperUrl).toBe("https://www.artstation.com/artwork/abc123");
     expect(result.streamingSites?.spotify).toBe("https://open.spotify.com/track/abc123");
     expect(result.streamingSites?.deezer).toBeNull();
   });
@@ -109,6 +115,13 @@ describe("parseProjectYaml", () => {
     expect(result.albumName).toBeUndefined();
     expect(result.coverUrl).toBeUndefined();
     expect(result.syncOffsetMs).toBeUndefined();
+  });
+
+  it("parses wallpaper fields from YAML", () => {
+    const result = parseProjectYaml(VALID_YAML);
+    expect(result.wallpaperArtistName).toBe("WLOP");
+    expect(result.wallpaperSource).toBe("ArtStation");
+    expect(result.wallpaperUrl).toBe("https://www.artstation.com/artwork/abc123");
   });
 
   it("throws when version missing or not a number", () => {

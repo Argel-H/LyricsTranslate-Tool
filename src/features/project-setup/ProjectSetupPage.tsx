@@ -26,7 +26,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import type { ProjectCreateInput } from "@/types/project";
-import { getPlatformIcon, PLATFORMS } from "@/lib/platformIcons";
+import { getPlatformIcon, PLATFORMS, WALLPAPER_SOURCES } from "@/lib/platformIcons";
 import { LANGUAGE_LABELS } from "@/lib/languageFlags";
 import {
   makeRotatingFlagIcon,
@@ -71,6 +71,9 @@ export function ProjectSetupPage() {
     defaultTranslationLang,
   );
   const [socialEntries, setSocialEntries] = useState<SocialEntry[]>([]);
+  const [wallpaperArtistName, setWallpaperArtistName] = useState("");
+  const [wallpaperSource, setWallpaperSource] = useState("");
+  const [wallpaperUrl, setWallpaperUrl] = useState("");
   const [activeArtistTab, setActiveArtistTab] = useState(0);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const debouncedCoverUrl = useDebounce(coverUrl, 500);
@@ -102,6 +105,9 @@ export function ProjectSetupPage() {
           setTranslationLanguage(
             project.translationLanguage ?? defaultTranslationLang,
           );
+          setWallpaperArtistName(project.wallpaperArtistName ?? "");
+          setWallpaperSource(project.wallpaperSource ?? "");
+          setWallpaperUrl(project.wallpaperUrl ?? "");
         }
       });
     }
@@ -163,6 +169,9 @@ export function ProjectSetupPage() {
       translationLanguage,
       albumName: albumName.trim() || undefined,
       songLinkUrl: songLinkUrl.trim() || undefined,
+      wallpaperArtistName: wallpaperArtistName.trim() || undefined,
+      wallpaperSource: wallpaperSource.trim() || undefined,
+      wallpaperUrl: wallpaperUrl.trim() || undefined,
     };
 
     if (isEditing) {
@@ -175,6 +184,9 @@ export function ProjectSetupPage() {
         translationLanguage,
         albumName: input.albumName,
         songLinkUrl: input.songLinkUrl,
+        wallpaperArtistName: input.wallpaperArtistName,
+        wallpaperSource: input.wallpaperSource,
+        wallpaperUrl: input.wallpaperUrl,
         recommendedSocialLinks:
           socialEntries.length > 0
             ? socialEntries.map((e) => ({
@@ -332,6 +344,40 @@ export function ProjectSetupPage() {
                   </div>
                 )}
               </div>
+            </SectionCard>
+
+            <SectionCard title={t("setup.wallpaper")}>
+              <RoundedInput
+                label={t("setup.wallpaperArtistName")}
+                value={wallpaperArtistName}
+                onChange={setWallpaperArtistName}
+              />
+              <DropdownSelect
+                icon={Image}
+                label={t("setup.wallpaperSource")}
+                value={wallpaperSource}
+                options={WALLPAPER_SOURCES}
+                onChange={setWallpaperSource}
+                variant="compact"
+                editable
+                placeholder={t("setup.wallpaperSourcePlaceholder")}
+              />
+              <RoundedInput
+                label={t("setup.wallpaperUrl")}
+                value={wallpaperUrl}
+                onChange={setWallpaperUrl}
+              />
+              {wallpaperUrl && (
+                <a
+                  href={wallpaperUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-primary hover:underline font-label-md mt-2"
+                >
+                  <ExternalLink className="size-4" />
+                  {t("setup.openLink")}
+                </a>
+              )}
             </SectionCard>
           </div>
 

@@ -26,9 +26,9 @@ function extractArtists(track: DeezerTrack): { artists: string[]; artistLinks: A
   track.contributors?.forEach((c) => {
     if (c.name !== track.artist?.name) {
       artists.push(c.name);
-    }
-    if (c.link) {
-      artistLinks.push({ name: c.name, url: c.link });
+      if (c.link) {
+        artistLinks.push({ name: c.name, url: c.link });
+      }
     }
   });
 

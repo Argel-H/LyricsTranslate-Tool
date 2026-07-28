@@ -1,3 +1,107 @@
+// ═══════════════════════════════════════════════════════════════════════════════
+// BINARY FORMAT v3 — LyricsTranslate Share Protocol  (SHARE_VERSION = 0x03)
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// An entire Project is serialized into a compact binary buffer, Brotli-compressed
+// (quality 11), and Base64URL-encoded for embedding in a shareable URL. The
+// decoder also supports the legacy v2 format for backwards compatibility.
+//
+// All integers are little-endian and unsigned unless explicitly noted otherwise.
+//
+// Every string field is stored on the wire as two consecutive parts:
+//   [length prefix] then [UTF-8 payload bytes].
+//   · 1-byte prefix (u8)      → max 255 B payload  (names, ISRC, IDs, timestamps)
+//   · 2-byte prefix (u16 LE)  → max 65535 B         (URLs)
+//   · A length of 0 means the field is absent (null/undefined).
+//
+// ╔══════════════════════════════════════════════════════════════════════════════
+// ║  SECTION                           │  SIZE             │  NOTES
+// ╠══════════════════════════════════════════════════════════════════════════════
+// ║                                    │                   │
+// ║  ─── HEADER ───
+// ║  VERSION                           │  1 byte (u8)      │  0x03
+// ║  LANGUAGE PAIR                     │  1 byte (u8)      │  bits 7:4 = origin
+// ║                                    │                   │  bits 3:0 = trans
+// ║  track name                        │                   │
+// ║    ├─ length (u8)                  │  1 byte           │  0 = absent
+// ║    └─ payload (UTF-8)              │  N bytes          │  max 255
+// ║  album name                        │                   │
+// ║    ├─ length (u8)                  │  1 byte           │  0 = absent
+// ║    └─ payload (UTF-8)              │  N bytes          │  max 255
+// ║  ISRC                              │                   │
+// ║    ├─ length (u8)                  │  1 byte           │  0 = absent
+// ║    └─ payload (UTF-8)              │  N bytes          │  max 255
+// ║  song link URL                     │                   │
+// ║    ├─ length (u16 LE)              │  2 bytes          │  0 = absent
+// ║    └─ payload (UTF-8)              │  N bytes          │  max 65535
+// ║  audio URL                         │                   │
+// ║    ├─ length (u16 LE)              │  2 bytes          │  0 = absent
+// ║    └─ payload (UTF-8)              │  N bytes          │  max 65535
+// ║  cover URL                         │                   │
+// ║    ├─ length (u16 LE)              │  2 bytes          │  0 = absent
+// ║    └─ payload (UTF-8)              │  N bytes          │  max 65535
+// ║  sync offset (ms)                  │  2 bytes (i16 LE) │  signed, ±32767 ms
+// ║                                    │                   │
+// ║  ─── ARTISTS ───
+// ║  artist count + padding            │  1 byte (u8)      │  bits 7:4 = count
+// ║                                    │                   │  bits 3:0 = 0
+// ║  FOR EACH ARTIST:
+// ║    section size                    │  3 bytes (u24 LE) │  skippable block
+// ║    artist name                     │                   │
+// ║      ├─ length (u8)                │  1 byte           │
+// ║      └─ payload (UTF-8)            │  N bytes          │  max 255
+// ║    link count + padding            │  1 byte (u8)      │  bits 7:4 = count
+// ║    FOR EACH LINK:
+// ║      platform ID + full-URL flag   │  1 byte (u8)      │  bits 7:4 = plat ID
+// ║                                    │                   │  bit  3   = fullURL
+// ║                                    │                   │  bits 2:0 = 0
+// ║      link data                     │                   │  ID strip or full
+// ║        ├─ length (u8)              │  1 byte           │
+// ║        └─ payload (UTF-8)          │  N bytes          │  max 255
+// ║                                    │                   │
+// ║  ─── STREAMING SITES ───
+// ║  entry count                       │  1 byte (u8)      │
+// ║  FOR EACH ENTRY:
+// ║    platform ID + padding           │  1 byte (u8)      │  bits 7:4 = plat ID
+// ║    track ID                        │                   │  reconstructed URL
+// ║      ├─ length (u8)                │  1 byte           │
+// ║      └─ payload (UTF-8)            │  N bytes          │  max 255
+// ║                                    │                   │
+// ║  ─── METADATA TIMESTAMPS ───
+// ║  created_at                        │                   │  epoch ms as string
+// ║    ├─ length (u8)                  │  1 byte           │
+// ║    └─ payload (UTF-8)              │  N bytes          │  max 255
+// ║  updated_at                        │                   │  epoch ms as string
+// ║    ├─ length (u8)                  │  1 byte           │
+// ║    └─ payload (UTF-8)              │  N bytes          │  max 255
+// ║  encoded_at                        │                   │  Date.now() at write
+// ║    ├─ length (u8)                  │  1 byte           │
+// ║    └─ payload (UTF-8)              │  N bytes          │  max 255
+// ║                                    │                   │
+// ║  ─── LYRICS (compact buffer) ───
+// ║  row count N                       │  2 bytes (u16 LE) │  max 65535 rows
+// ║  DELTAS                            │  N × 2 bytes      │  u16 LE
+// ║    · row 0 = absolute time_start (ms)
+// ║    · row i = time_start[i] − time_start[i−1]
+// ║    · max delta = 65535 ms (~65 s between lines)
+// ║  DURATIONS                         │  N × 2 bytes      │  u16 LE
+// ║    · time_end − time_start per row
+// ║  LOCK FLAGS                        │  ceil(N/8) bytes  │  1 bit/row, LSB-1st
+// ║    · bit (i & 7) of byte (i >> 3) = row i locked
+// ║  TEXT BLOCK                        │  X bytes (UTF-8)  │
+// ║    · fields joined by real "\n", ordered: translation → lyric
+// ║    · escape: literal \ → \\ , literal newline in text → \\n
+// ║    · translation stored first for better Brotli compression
+// ║
+// ╚══════════════════════════════════════════════════════════════════════════════
+//
+// PIPELINE:  BinaryWriter → Brotli(quality=11) → Base64URL → URL
+// DECODE:    URL → Base64URL decode → Brotli decompress → BinaryReader → Project
+//
+// The lyrics section is handled by the lyrics transcoder (src/lib/share/transcoder/lyrics.ts).
+// Platform URL prefixes are stripped/reconstructed via urlTemplateUtils.
+// Language IDs are defined in types/share.ts (LANGUAGE_DICT).
+
 import type { Project, ProjectCreateInput, LyricLine } from "@/types/project";
 import {
   SHARE_VERSION,

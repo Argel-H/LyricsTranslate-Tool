@@ -111,6 +111,11 @@ export const es = {
   "setup.deleteConfirm":
     "¿Estás seguro de que quieres eliminar este proyecto? Esta acción no se puede deshacer.",
   "setup.artistNumber": "Artista #%d",
+  "setup.wallpaper": "Fondo de pantalla",
+  "setup.wallpaperArtistName": "Nombre del artista",
+  "setup.wallpaperSource": "Fuente",
+  "setup.wallpaperUrl": "URL de la Imagen",
+  "setup.wallpaperSourcePlaceholder": "Escribe o selecciona fuente...",
 
   "settings.title": "Ajustes",
   "settings.language": "Idioma",

@@ -1,7 +1,9 @@
 import type { IconType } from "react-icons";
 import {
   SiApplemusic,
+  SiArtstation,
   SiDeezer,
+  SiDeviantart,
   SiFacebook,
   SiInstagram,
   SiSoundcloud,
@@ -27,6 +29,8 @@ export function getPlatformIcon(platform: string): IconType {
   if (lower.includes("tiktok")) return SiTiktok;
   if (lower.includes("twitter") || lower.includes("x")) return SiX;
   if (lower.includes("youtube")) return SiYoutube;
+  if (lower.includes("artstation")) return SiArtstation;
+  if (lower.includes("deviantart")) return SiDeviantart;
   if (lower.includes("amazon")) return FaAmazon;
   if (lower.includes("website")) return FaGlobe;
 
@@ -46,4 +50,11 @@ export const PLATFORMS = [
   { label: "TikTok", icon: SiTiktok },
   { label: "Facebook", icon: SiFacebook },
   { label: "Website", icon: FaGlobe },
+];
+
+export const WALLPAPER_SOURCES = [
+  { label: "ArtStation", icon: SiArtstation },
+  { label: "DeviantArt", icon: SiDeviantart },
+  { label: "Twitter", icon: SiX },
+  { label: "YouTube", icon: SiYoutube },
 ];

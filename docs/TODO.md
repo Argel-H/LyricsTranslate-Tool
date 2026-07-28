@@ -51,7 +51,11 @@
 - [x] 3D parallax tilt on cover art
 
 ## Pending
-- [ ] Read lyrics from imported LRC/SRT files
+- [ ] Read lyrics from imported LRC/SRT files/textbox at the start of manual setup
 - [ ] Audio sync offset configuration UI (syncOffsetMs field)
-- [ ] Batch replace in lyrics
+- [ ] Add more lyrics providers
+- [ ] Comments system
+
+### Unimportant
 - [ ] Dark/light theme toggle
+- [ ] Batch replace in lyrics

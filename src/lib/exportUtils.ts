@@ -107,7 +107,7 @@ function escapeYamlValue(value: string): string {
 export function generateYamlContent(project: Project): string {
   const lines: string[] = [];
 
-  // Sort lyrics by time_start before serializing
+  // sort lyrics by time_start before serializing
   const sortedLyrics = Object.values(project.lyrics).sort((a, b) =>
     a.time_start - b.time_start,
   );
@@ -121,13 +121,10 @@ export function generateYamlContent(project: Project): string {
   lines.push(`  title: ${escapeYamlValue(project.title)}`);
   lines.push(`  track_name: ${escapeYamlValue(project.trackName)}`);
 
-  // artists array
   lines.push("  artists:");
   for (const artist of project.artistName) {
     lines.push(`    - ${escapeYamlValue(artist)}`);
   }
-
-  // optional fields in project section
   if (project.albumName != null) {
     lines.push(`  album_name: ${escapeYamlValue(project.albumName)}`);
   }
@@ -149,11 +146,18 @@ export function generateYamlContent(project: Project): string {
   if (project.audioUrl != null) {
     lines.push(`  audio_url: ${escapeYamlValue(project.audioUrl)}`);
   }
-  if (project.syncOffsetMs != null) {
-    lines.push(`  sync_offset_ms: ${project.syncOffsetMs}`);
+  // if (project.syncOffsetMs != null) {
+  //   lines.push(`  sync_offset_ms: ${project.syncOffsetMs}`);
+  // }
+  if (project.wallpaperArtistName != null) {
+    lines.push(`  wallpaper_artist_name: ${escapeYamlValue(project.wallpaperArtistName)}`);
   }
-
-  // artist_links (optional array of objects)
+  if (project.wallpaperSource != null) {
+    lines.push(`  wallpaper_source: ${escapeYamlValue(project.wallpaperSource)}`);
+  }
+  if (project.wallpaperUrl != null) {
+    lines.push(`  wallpaper_url: ${escapeYamlValue(project.wallpaperUrl)}`);
+  }
   if (project.artistLinks != null && project.artistLinks.length > 0) {
     lines.push("  artist_links:");
     for (const link of project.artistLinks) {
@@ -166,7 +170,7 @@ export function generateYamlContent(project: Project): string {
   if (project.recommendedSocialLinks != null && project.recommendedSocialLinks.length > 0) {
     lines.push("  social_links:");
 
-    // Group by artistName
+    // group by artistName
     const groups = new Map<string, typeof project.recommendedSocialLinks>();
     const noArtist: typeof project.recommendedSocialLinks = [];
     for (const link of project.recommendedSocialLinks) {
@@ -178,7 +182,7 @@ export function generateYamlContent(project: Project): string {
       }
     }
 
-    // Write groups keyed by artist_name
+    // write groups keyed by artist_name
     for (const [artistName, links] of groups) {
       lines.push(`    - artist_name: ${escapeYamlValue(artistName)}`);
       lines.push("      platforms:");
@@ -188,7 +192,6 @@ export function generateYamlContent(project: Project): string {
       }
     }
 
-    // Write entries without an artist_name (unnamed group)
     if (noArtist.length > 0) {
       lines.push("    - platforms:");
       for (const link of noArtist) {
@@ -198,7 +201,7 @@ export function generateYamlContent(project: Project): string {
     }
   }
 
-  // streaming_sites (optional record)
+  // streaming_sites
   if (project.streamingSites != null && Object.keys(project.streamingSites).length > 0) {
     lines.push("  streaming_sites:");
     for (const [key, value] of Object.entries(project.streamingSites)) {

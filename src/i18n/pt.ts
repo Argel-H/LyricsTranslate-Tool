@@ -112,6 +112,11 @@ export const pt = {
   "setup.deleteConfirm":
     "Tem certeza de que deseja excluir este projeto? Esta ação não pode ser desfeita.",
   "setup.artistNumber": "Artista #%d",
+  "setup.wallpaper": "Papel de parede",
+  "setup.wallpaperArtistName": "Nome do artista",
+  "setup.wallpaperSource": "Fonte",
+  "setup.wallpaperUrl": "URL da imagem",
+  "setup.wallpaperSourcePlaceholder": "Digite ou selecione a fonte...",
 
   "settings.title": "Configurações",
   "settings.language": "Idioma",
