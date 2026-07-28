@@ -1,7 +1,7 @@
 [
   {
     "version": "0.0.4",
-    "date": "2025-07-14",
+    "date": "2025-07-27",
     "changes": [
       "Share projects with a single short link, complete with a QR code and a 30-day history of your links",
       "Open a shared link to preview the project and either import your own copy or browse it read-only",
@@ -13,7 +13,9 @@
       "Archive and unarchive projects to keep your list tidy",
       "Back up and restore your whole library to a file",
       "3D parallax tilt on cover art for a more expressive feel",
-      "Project search now ignores accents, so \"Alone\" matches \"Alon\u00f8\""
+      "Project search now ignores accents, so \"Alone\" matches \"Alon\u00f8\"",
+      "Wallpaper metadata fields (artist, source, and post URL) saved per project and included in YAML export/import",
+      "Editable source dropdown lets you pick from presets or type a custom value with visual feedback",
     ]
   },
   {

@@ -49,6 +49,7 @@
 - [x] Language flags with random-order rotation for multi-region languages
 - [x] Diacritic-insensitive project search
 - [x] 3D parallax tilt on cover art
+- [x] Wallpaper fields
 
 ## Pending
 - [ ] Read lyrics from imported LRC/SRT files/textbox at the start of manual setup
