@@ -7,7 +7,7 @@ const MUSICBRAINZ_BASE = API.musicbrainz;
 export async function searchMusicBrainzRecording(
   artistName: string,
   trackName: string,
-): Promise<{ isrc: string | null; artistMbids: string[]; artistNames: string[] }> {
+): Promise<{ isrc: string | null; artistMbids: string[]; artistNames: string[]; trackTitle: string | null }> {
   try {
     const response = await axios.get<{ recordings?: MusicBrainzRecording[] }>(
       `${MUSICBRAINZ_BASE}/ws/2/recording/`,
@@ -21,6 +21,7 @@ export async function searchMusicBrainzRecording(
     );
     const recording = response.data?.recordings?.[0];
     const isrc = recording?.isrcs?.[0] ?? null;
+    const trackTitle = recording?.title ?? null;
     const artistMbids: string[] = [];
     const artistNames: string[] = [];
     recording?.["artist-credit"]?.forEach((ac) => {
@@ -29,10 +30,10 @@ export async function searchMusicBrainzRecording(
         artistNames.push(ac.name);
       }
     });
-    return { isrc, artistMbids, artistNames };
+    return { isrc, artistMbids, artistNames, trackTitle };
   } catch (err) {
     console.error("searchMusicBrainzRecording failed:", err);
-    return { isrc: null, artistMbids: [], artistNames: [] };
+    return { isrc: null, artistMbids: [], artistNames: [], trackTitle: null };
   }
 }
 

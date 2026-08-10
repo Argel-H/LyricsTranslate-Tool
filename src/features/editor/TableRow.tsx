@@ -20,7 +20,7 @@ interface TableRowProps {
   translation: string;
   translationPlaceholder?: string;
   suggestions?: TranslationSuggestion[];
-  state?: "default" | "active" | "instrumental";
+  state?: "default" | "active";
   rowKey: string;
   orderedKeys: string[];
   onNavigateToRow: (targetKey: string, column: string) => void;
@@ -75,8 +75,6 @@ export function TableRow({
   className,
 }: TableRowProps) {
   const isActive = state === "active";
-  const isInstrumental = state === "instrumental";
-
   const { t } = useI18n();
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -274,11 +272,7 @@ export function TableRow({
       {/* Lyric */}
       <div
         data-column="lyric"
-        className={cn(
-          isInstrumental
-            ? "text-body-md text-on-surface-variant bg-surface-container rounded-3xl p-4 italic flex items-center"
-            : "flex items-center",
-        )}
+        className="flex items-center"
       >
         {isActive ? (
           <textarea
@@ -403,22 +397,20 @@ export function TableRow({
       </div>
 
       {/* Delete button */}
-      {!isInstrumental && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete?.();
-          }}
-          className={cn(
-            "absolute top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error transition-all duration-200",
-            isActive
-              ? "left-0 size-8 opacity-100"
-              : "-left-2 size-6 opacity-0 group-hover:opacity-100 group-hover:size-8",
-          )}
-        >
-          <Trash2 className="size-4" />
-        </button>
-      )}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete?.();
+        }}
+        className={cn(
+          "absolute top-1/2 -translate-y-1/2 rounded-full flex items-center justify-center text-on-surface-variant hover:text-error transition-all duration-200",
+          isActive
+            ? "left-0 size-8 opacity-100"
+            : "-left-2 size-6 opacity-0 group-hover:opacity-100 group-hover:size-8",
+        )}
+      >
+        <Trash2 className="size-4" />
+      </button>
     </div>
   );
 }

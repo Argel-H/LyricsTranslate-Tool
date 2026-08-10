@@ -31,6 +31,9 @@ export class LyricsTranslateDB extends Dexie {
     this.version(2).stores({
       shareRecords: "++id, projectId, expiresAt",
     });
+    this.version(3).stores({
+      projects: "id, artistName, status, createdAt, updatedAt",
+    });
   }
 }
 

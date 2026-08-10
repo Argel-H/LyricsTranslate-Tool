@@ -10,7 +10,8 @@ export interface LyricLine {
 
 export interface Project {
   id: number;
-  title: string;
+  /** Deprecated: derived on-the-fly as `${artistName[0]} - ${trackName}`. Not indexed/stored anymore. */
+  title?: string;
   artistName: string[];
   trackName: string;
   lyrics: Record<string, LyricLine>;

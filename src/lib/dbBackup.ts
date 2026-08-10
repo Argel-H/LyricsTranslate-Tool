@@ -74,7 +74,9 @@ export async function importDatabase(
 
   // Basic validation of each project
   for (const p of projects) {
-    if (typeof p.id !== "number" || typeof p.title !== "string") {
+    // `title` was removed from the Project schema — it is derived on-the-fly
+    // from artistName + trackName, so backups without it are still valid.
+    if (typeof p.id !== "number") {
       throw new Error("INVALID_PROJECT");
     }
   }

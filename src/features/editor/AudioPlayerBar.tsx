@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { Play, Pause, Upload, X, Volume2 } from "lucide-react";
 import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 import { useI18n } from "@/hooks/useI18n";
-import { findActiveLine } from "@/lib/timeUtils";
+import { findActiveLine, formatMillisecondsToTimestamp } from "@/lib/timeUtils";
 import type { TimestampedLine } from "@/lib/timeUtils";
 import { cn } from "@/lib/utils";
 import { useProjectStore } from "@/stores/projectStore";
@@ -29,6 +29,15 @@ function formatTime(ms: number): string {
   const min = Math.floor(totalSec / 60);
   const sec = totalSec % 60;
   return `${min}:${String(sec).padStart(2, "0")}`;
+}
+
+/**
+ * Formats milliseconds to "m:ss.cs" precise display format (e.g., "1:23.45").
+ * Used for tooltip on hover.
+ */
+function formatTimePrecise(ms: number): string {
+  if (ms <= 0 || !isFinite(ms)) return "0:00.00";
+  return formatMillisecondsToTimestamp(ms);
 }
 
 /**
@@ -418,6 +427,8 @@ export function AudioPlayerBar({
           }}
           leftLabel={formatTime(currentTimeMs)}
           rightLabel={formatTime(durationMs)}
+          leftLabelTooltip={formatTimePrecise(currentTimeMs)}
+          rightLabelTooltip={formatTimePrecise(durationMs)}
         />
 
         {/* Source chip */}

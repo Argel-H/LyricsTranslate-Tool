@@ -1,5 +1,17 @@
 [
   {
+    "version": "0.0.5",
+    "date": "2025-08-10",
+    "changes": [
+      "Import LRC/SRT lyrics on the new-project setup page — paste content or upload a file, with real-time format detection and validation",
+      "Metadata lookup button on the setup page: searches LRCLIB, MusicBrainz, Deezer, and Odesli to auto-fill track info, cover art, ISRC, social links, and streaming platforms",
+      "Precise time tooltip (m:ss.cs) on hover over the audio player timestamps",
+      "Removed 'instrumental' classification from the editor — section markers like [Verse] and [Chorus] are now fully editable and deletable",
+      "Fixed social links, ISRCs, and streaming platform data not being persisted when creating a project from the setup page",
+      "Fixed ISRCs and extra artists discovered by the pipeline not appearing in the lookup confirmation card"
+    ]
+  },
+  {
     "version": "0.0.4",
     "date": "2025-07-27",
     "changes": [

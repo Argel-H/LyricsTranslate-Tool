@@ -43,6 +43,10 @@ export interface WavyProgressBarProps {
   leftLabel?: string;
   /** Optional label on the right side */
   rightLabel?: string;
+  /** Tooltip shown on hover over the left label */
+  leftLabelTooltip?: string;
+  /** Tooltip shown on hover over the right label */
+  rightLabelTooltip?: string;
   /** Custom className for the outer container */
   className?: string;
 }
@@ -54,6 +58,8 @@ export function WavyProgressBar({
   onSeek,
   leftLabel,
   rightLabel,
+  leftLabelTooltip,
+  rightLabelTooltip,
   className,
 }: WavyProgressBarProps) {
   const clipPathId = useId();
@@ -141,8 +147,13 @@ export function WavyProgressBar({
   return (
     <div className={cn("flex-1 flex items-center gap-2 min-w-0", className)}>
       {leftLabel !== undefined && (
-        <span className="text-xs font-mono text-on-surface-variant w-10 text-right tabular-nums">
+        <span className="relative text-xs font-mono text-on-surface-variant w-10 text-right tabular-nums group cursor-default">
           {leftLabel}
+          {leftLabelTooltip && (
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 bg-surface-container-high rounded-lg shadow-lg border border-outline-variant/20 px-2 py-1 text-xs font-mono text-on-surface whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none">
+              {leftLabelTooltip}
+            </div>
+          )}
         </span>
       )}
 
@@ -220,8 +231,13 @@ export function WavyProgressBar({
       </div>
 
       {rightLabel !== undefined && (
-        <span className="text-xs font-mono text-on-surface-variant w-10 tabular-nums">
+        <span className="relative text-xs font-mono text-on-surface-variant w-10 tabular-nums group cursor-default">
           {rightLabel}
+          {rightLabelTooltip && (
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 bg-surface-container-high rounded-lg shadow-lg border border-outline-variant/20 px-2 py-1 text-xs font-mono text-on-surface whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none">
+              {rightLabelTooltip}
+            </div>
+          )}
         </span>
       )}
     </div>

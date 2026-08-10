@@ -24,7 +24,17 @@ import {
   X,
   Trash2,
   ExternalLink,
+  Upload,
+  AlertCircle,
+  CheckCircle2,
+  Search,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { validateAndParseLyrics, type ValidationResult } from "@/lib/lyricsUploadValidator";
+import { toLyricLineMap } from "@/lib/lyricsParser";
+import { searchLrcLib } from "@/services/lrclib";
+import { getFullMetadata } from "@/services/metadataAggregator";
+import type { LRCLibResult } from "@/types/music";
 import type { ProjectCreateInput } from "@/types/project";
 import { getPlatformIcon, PLATFORMS, WALLPAPER_SOURCES } from "@/lib/platformIcons";
 import { LANGUAGE_LABELS } from "@/lib/languageFlags";
@@ -77,6 +87,22 @@ export function ProjectSetupPage() {
   const [activeArtistTab, setActiveArtistTab] = useState(0);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const debouncedCoverUrl = useDebounce(coverUrl, 500);
+  const [lyricsText, setLyricsText] = useState("");
+  const [lyricsValidation, setLyricsValidation] = useState<ValidationResult | null>(null);
+  const [lyricsFileName, setLyricsFileName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupResult, setLookupResult] = useState<{
+    metadata: ProjectCreateInput;
+    rawLyrics: string;
+    lrcResult: LRCLibResult | undefined;
+  } | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const discoveredMetaRef = useRef<{
+    isrcs?: string;
+    streamingSites?: Record<string, string | null>;
+    artistLinks?: Array<{ name: string; url: string }>;
+  }>({});
   const { tilt: coverTilt, handlers: { onMouseMove: handleCoverMouseMove, onMouseLeave: handleCoverMouseLeave } } = useCoverTilt();
 
   useEffect(() => {
@@ -112,6 +138,14 @@ export function ProjectSetupPage() {
       });
     }
   }, [editId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (lyricsText.trim()) {
+      setLyricsValidation(validateAndParseLyrics(lyricsText));
+    } else {
+      setLyricsValidation(null);
+    }
+  }, [lyricsText]);
 
   const addArtist = () => setArtists([...artists, ""]);
 
@@ -156,14 +190,100 @@ export function ProjectSetupPage() {
     setSocialEntries(socialEntries.filter((_, i) => i !== index));
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLyricsFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result;
+      if (typeof content === "string") {
+        setLyricsText(content);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  };
+
+  const handleLookup = async () => {
+    const mainArtist = artists[0]?.trim();
+    if (!songName.trim() || !mainArtist) return;
+
+    setLookupLoading(true);
+    setLookupError(null);
+    setLookupResult(null);
+
+    try {
+      // Step 1: Search LRCLIB for lyrics
+      const query = `${mainArtist} ${songName.trim()}`;
+      const lrcResults = await searchLrcLib(query);
+      // Prefer synced lyrics, fall back to any result
+      const lrcResult = lrcResults.find((r) => r.syncedLyrics) ?? lrcResults[0];
+      const rawLyrics = lrcResult?.syncedLyrics || lrcResult?.plainLyrics || "";
+
+      // Step 2: Run full metadata pipeline — use LRCLIB track name for correct casing
+      const resolvedTrackName = lrcResult?.trackName || songName.trim();
+      const metadata = await getFullMetadata(mainArtist, resolvedTrackName, lrcResult);
+
+      setLookupResult({ metadata, rawLyrics, lrcResult });
+    } catch (e) {
+      setLookupError(e instanceof Error ? e.message : "Lookup failed");
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
+  const applyLookup = () => {
+    if (!lookupResult) return;
+    const { metadata, rawLyrics } = lookupResult;
+
+    setSongName(metadata.trackName);
+    setArtists(metadata.artistName.length > 0 ? metadata.artistName : artists);
+    setAlbumName(metadata.albumName ?? "");
+    setCoverUrl(metadata.coverUrl ?? "");
+    setSongLinkUrl(metadata.songLinkUrl ?? "");
+
+    if (rawLyrics) {
+      setLyricsText(rawLyrics);
+    }
+
+    if (metadata.recommendedSocialLinks && metadata.recommendedSocialLinks.length > 0) {
+      setSocialEntries(
+        metadata.recommendedSocialLinks.map((link) => ({
+          artistIndex: Math.max(
+            0,
+            (metadata.artistName ?? artists).indexOf(link.artistName ?? ""),
+          ),
+          platform: link.platform,
+          url: link.url,
+        })),
+      );
+    }
+
+    // Reset artist tab to show the first artist's social links
+    setActiveArtistTab(0);
+
+    // Store non-editable metadata for inclusion in ProjectCreateInput
+    discoveredMetaRef.current = {
+      isrcs: metadata.isrcs,
+      streamingSites: metadata.streamingSites,
+      artistLinks: metadata.artistLinks,
+    };
+
+    setLookupResult(null);
+  };
+
   const handleSubmit = async () => {
     const validArtists = artists.filter((a) => a.trim());
     if (!songName.trim() || validArtists.length === 0) return;
 
+    const discovered = discoveredMetaRef.current;
     const input: ProjectCreateInput = {
       artistName: validArtists,
       trackName: songName.trim(),
-      lyrics: {},
+      lyrics: (lyricsValidation?.valid && lyricsValidation?.lines)
+        ? Object.fromEntries(toLyricLineMap(lyricsValidation.lines))
+        : {},
       coverUrl: coverUrl.trim() || undefined,
       originLanguage,
       translationLanguage,
@@ -172,11 +292,21 @@ export function ProjectSetupPage() {
       wallpaperArtistName: wallpaperArtistName.trim() || undefined,
       wallpaperSource: wallpaperSource.trim() || undefined,
       wallpaperUrl: wallpaperUrl.trim() || undefined,
+      isrcs: discovered.isrcs,
+      streamingSites: discovered.streamingSites,
+      artistLinks: discovered.artistLinks,
+      recommendedSocialLinks:
+        socialEntries.length > 0
+          ? socialEntries.map((e) => ({
+              platform: e.platform,
+              url: e.url,
+              artistName: artists[e.artistIndex],
+            }))
+          : undefined,
     };
 
     if (isEditing) {
       await updateProject(Number(editId), {
-        title: `${validArtists[0]} - ${songName.trim()}`,
         artistName: validArtists,
         trackName: songName.trim(),
         coverUrl: input.coverUrl,
@@ -269,6 +399,120 @@ export function ProjectSetupPage() {
                 value={albumName}
                 onChange={setAlbumName}
               />
+              {!isEditing && (
+                <>
+                  <Button
+                    variant="secondary"
+                    onClick={handleLookup}
+                    disabled={!songName.trim() || !artists[0]?.trim() || lookupLoading}
+                    className="bg-tertiary-container text-on-tertiary-container font-label-lg text-label-lg py-2 px-6 rounded-full flex items-center justify-center gap-2 self-center hover:bg-tertiary-container/80 transition-all h-auto mt-1"
+                  >
+                    {lookupLoading ? (
+                      <span className="inline-block size-4 border-2 border-on-tertiary-container/30 border-t-on-tertiary-container rounded-full animate-spin" />
+                    ) : (
+                      <Search className="size-4" />
+                    )}
+                    {lookupLoading ? t("setup.lookupSearching") : t("setup.lookup")}
+                  </Button>
+
+                  {lookupError && (
+                    <div className="flex items-center gap-2 p-3 rounded-2xl bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300">
+                      <AlertCircle className="size-4 shrink-0" />
+                      <span className="font-body-sm">{lookupError}</span>
+                      <button
+                        onClick={() => setLookupError(null)}
+                        className="ml-auto text-red-500 hover:text-red-700"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                  )}
+
+                  {lookupResult && (
+                    <div className="bg-surface-container-low rounded-2xl border border-outline-variant/20 p-4 flex flex-col gap-3">
+                      <div className="flex items-center gap-3">
+                        {lookupResult.metadata.coverUrl && (
+                          <img
+                            src={lookupResult.metadata.coverUrl}
+                            alt="Cover"
+                            className="size-14 rounded-xl object-cover shrink-0"
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-label-lg text-on-surface truncate">
+                            {lookupResult.metadata.artistName.join(", ")} — {lookupResult.metadata.trackName}
+                          </p>
+                          {lookupResult.metadata.albumName && (
+                            <p className="font-body-sm text-on-surface-variant truncate">
+                              {lookupResult.metadata.albumName}
+                            </p>
+                          )}
+                          {lookupResult.metadata.isrcs && (
+                            <p className="font-body-xs text-on-surface-variant/70 font-mono truncate mt-0.5">
+                              ISRC: {lookupResult.metadata.isrcs}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
+                            {lookupResult.rawLyrics && (
+                              <span className="font-body-xs text-on-surface-variant">
+                                📝 {t("setup.lookupLines").replace(
+                                  "{count}",
+                                  String(lookupResult.rawLyrics.split("\n").filter((l) => l.trim()).length),
+                                )}
+                                {" "}·{" "}
+                                {lookupResult.lrcResult?.syncedLyrics
+                                  ? t("setup.lookupSynced")
+                                  : t("setup.lookupPlainText")}
+                              </span>
+                            )}
+                            {/* Extra artists found */}
+                            {(() => {
+                              const typedCount = artists.filter((a) => a.trim()).length;
+                              const foundCount = lookupResult.metadata.artistName.length;
+                              if (foundCount > typedCount) {
+                                const extra = lookupResult.metadata.artistName.slice(typedCount);
+                                return (
+                                  <span className="font-body-xs text-on-surface-variant">
+                                    👥 +{extra.length} artist{extra.length > 1 ? "s" : ""}: {extra.join(", ")}
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
+                            {lookupResult.metadata.recommendedSocialLinks &&
+                              lookupResult.metadata.recommendedSocialLinks.length > 0 && (
+                                <span className="font-body-xs text-on-surface-variant">
+                                  🔗 {lookupResult.metadata.recommendedSocialLinks.map((l) => l.platform).filter((v, i, a) => a.indexOf(v) === i).join(", ")}
+                                </span>
+                              )}
+                            {lookupResult.metadata.streamingSites &&
+                              Object.keys(lookupResult.metadata.streamingSites).filter((k) => lookupResult.metadata.streamingSites![k]).length > 0 && (
+                                <span className="font-body-xs text-on-surface-variant">
+                                  🎵 {Object.keys(lookupResult.metadata.streamingSites).filter((k) => lookupResult.metadata.streamingSites![k]).join(", ")}
+                                </span>
+                              )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={applyLookup}
+                          className="bg-primary-container text-on-primary-container font-label-md px-4 py-2 rounded-full hover:bg-primary hover:text-on-primary transition-all h-auto flex-1"
+                        >
+                          {t("setup.lookupApply")}
+                        </Button>
+                        <Button
+                          variant="secondary"
+                          onClick={() => setLookupResult(null)}
+                          className="bg-surface-container-highest text-on-surface-variant font-label-md px-4 py-2 rounded-full hover:bg-surface-container-high transition-all h-auto flex-1"
+                        >
+                          {t("setup.lookupDismiss")}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </SectionCard>
 
             <SectionCard title={t("setup.artists")}>
@@ -383,6 +627,89 @@ export function ProjectSetupPage() {
 
           {/* Right Column */}
           <div className="lg:col-span-8 flex flex-col gap-lg">
+            {!isEditing && (
+              <SectionCard title={t("setup.importLyrics")} gap="lg">
+                <div className="flex flex-col gap-md">
+                  <Textarea
+                    placeholder={t("setup.pasteLyrics")}
+                    value={lyricsText}
+                    onChange={(e) => setLyricsText(e.target.value)}
+                    className="min-h-[180px] font-mono text-sm resize-y"
+                  />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="secondary"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="bg-secondary-container text-on-secondary-container font-label-lg text-label-lg py-2 px-4 rounded-full hover:bg-secondary-container/80 transition-all h-auto flex items-center gap-2"
+                      >
+                        <Upload className="size-4" />
+                        {t("setup.chooseFile")}
+                      </Button>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".lrc,.srt"
+                        onChange={handleFileUpload}
+                        className="hidden"
+                      />
+                      {lyricsFileName && (
+                        <span className="font-body-sm text-on-surface-variant truncate max-w-[200px]">
+                          {lyricsFileName}
+                        </span>
+                      )}
+                    </div>
+                    {lyricsText && (
+                      <button
+                        onClick={() => {
+                          setLyricsText("");
+                          setLyricsFileName(null);
+                          setLyricsValidation(null);
+                        }}
+                        className="text-on-surface-variant hover:text-error font-label-md transition-colors"
+                      >
+                        {t("setup.clearLyrics")}
+                      </button>
+                    )}
+                  </div>
+
+                  {lyricsValidation && (
+                    <div
+                      className={`flex items-center gap-2 p-3 rounded-2xl ${
+                        lyricsValidation.valid
+                          ? "bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300"
+                          : "bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300"
+                      }`}
+                    >
+                      {lyricsValidation.valid ? (
+                        <CheckCircle2 className="size-4 shrink-0" />
+                      ) : (
+                        <AlertCircle className="size-4 shrink-0" />
+                      )}
+                      <span className="font-body-sm">
+                        {lyricsValidation.valid
+                          ? t("setup.lyricsValid")
+                              .replace("{format}", lyricsValidation.format.toUpperCase())
+                              .replace("{count}", String(lyricsValidation.lineCount))
+                              .replace(
+                                "{sync}",
+                                lyricsValidation.isSynced
+                                  ? t("setup.lyricsSynced")
+                                  : t("setup.lyricsUnsynced")
+                              )
+                          : t("setup.lyricsInvalid").replace("{error}", lyricsValidation.error ?? "")}
+                      </span>
+                    </div>
+                  )}
+
+                  {!lyricsText && (
+                    <p className="font-body-sm text-on-surface-variant/60">
+                      {t("setup.emptyLyricsNote")}
+                    </p>
+                  )}
+                </div>
+              </SectionCard>
+            )}
             <SectionCard title={t("setup.localization")}>
               <div className="flex flex-wrap items-center gap-md">
                 <DropdownSelect

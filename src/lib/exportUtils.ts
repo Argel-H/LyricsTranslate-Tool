@@ -83,13 +83,13 @@ export function downloadTextFile(
 /**
  * Escapes a string value for safe inclusion in a YAML document.
  * Wraps in double quotes if the value contains special YAML characters
- * (:, #, ", ', newlines) or starts/ends with spaces.
+ * (:, #, ", newlines), starts/ends with spaces, or starts with a single quote.
  */
 function escapeYamlValue(value: string): string {
   if (value === "") return '""';
 
   // Check if quoting is required
-  const needsQuoting = /[:#"'\n]|^\s|\s$/.test(value);
+  const needsQuoting = /[:#"\n]|^\s|\s$/.test(value) || value.startsWith("'");
   if (!needsQuoting) {
     return value;
   }
@@ -118,7 +118,8 @@ export function generateYamlContent(project: Project): string {
 
   // --- project section ---
   lines.push("project:");
-  lines.push(`  title: ${escapeYamlValue(project.title)}`);
+  // Title is derived on-the-fly: `${artistName[0]} - ${trackName}`.
+  lines.push(`  title: ${escapeYamlValue(`${project.artistName[0] ?? ""} - ${project.trackName}`)}`);
   lines.push(`  track_name: ${escapeYamlValue(project.trackName)}`);
 
   lines.push("  artists:");

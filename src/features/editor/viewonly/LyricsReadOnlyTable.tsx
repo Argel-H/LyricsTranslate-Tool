@@ -24,7 +24,6 @@ export function LyricsReadOnlyTable({ lyricsEntries, activeLineKey }: LyricsRead
           <div className="text-center py-12 text-on-surface-variant font-body-lg">{t("editor.noLyrics")}</div>
         )}
         {lyricsEntries.map(([key, line]) => {
-          const instrumental = line.lyric.startsWith("[") && line.lyric.endsWith("]");
           const isAudioActive = activeLineKey === key;
           return (
             <div key={key} data-row-key={key} className={`grid grid-cols-[120px_120px_1fr_1fr] gap-4 p-md rounded-[24px] transition-all duration-200 relative ${
@@ -39,7 +38,7 @@ export function LyricsReadOnlyTable({ lyricsEntries, activeLineKey }: LyricsRead
               )}
               <div className="font-mono text-body-md text-on-surface flex items-center px-2">{formatMillisecondsToTimestamp(line.time_start)}</div>
               <div className="font-mono text-body-md text-on-surface flex items-center px-2">{formatMillisecondsToTimestamp(line.time_end)}</div>
-              <div className={instrumental ? "text-body-md text-on-surface-variant bg-surface-container rounded-3xl p-4 italic flex items-center" : "flex items-center"}>
+              <div className="flex items-center">
                 <div className="w-full text-body-lg text-on-surface leading-relaxed flex items-start gap-2">
                   <span className="whitespace-pre-wrap">{line.lyric}</span>
                   {line.locked && <Lock className="size-3.5 text-tertiary shrink-0 mt-0.5" />}

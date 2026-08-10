@@ -174,9 +174,6 @@ export function EditorPage() {
     const targetLines: Array<{ timestamp: number; original: string }> = [];
 
     for (const [, line] of sorted) {
-      // Skip instrumental/comment lines (lines with brackets)
-      if (line.lyric.startsWith("[") && line.lyric.endsWith("]")) continue;
-
       if (line.locked) {
         // Locked lines are ALWAYS context-only
         contextLines.push({
@@ -764,14 +761,8 @@ export function EditorPage() {
                 </div>
               )}
               {lyricsEntries.map(([key, line], index) => {
-                const isInstrumental =
-                  line.lyric.includes("[") && line.lyric.includes("]");
                 const isActive = activeLineKey === key;
-                const state = isInstrumental
-                  ? ("instrumental" as const)
-                  : isActive
-                    ? ("active" as const)
-                    : ("default" as const);
+                const state = isActive ? ("active" as const) : ("default" as const);
                 const suggestions = allSuggestions[index];
 
                 return (

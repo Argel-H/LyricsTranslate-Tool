@@ -10,7 +10,6 @@ export async function createProject(input: ProjectCreateInput): Promise<number> 
   const { progress, status } = calculateLyricsProgress(input.lyrics);
   const project: Project = {
     id,
-    title: `${input.artistName[0]} - ${input.trackName}`,
     artistName: input.artistName,
     trackName: input.trackName,
     lyrics: input.lyrics,
@@ -48,7 +47,7 @@ export async function getAllProjects(includeArchived = false): Promise<Project[]
 
 export async function updateProject(
   id: number,
-  updates: Partial<Pick<Project, "title" | "status" | "progress" | "coverUrl" | "streamingSites" | "originLanguage" | "translationLanguage" | "artistName" | "trackName" | "albumName" | "songLinkUrl" | "wallpaperArtistName" | "wallpaperSource" | "wallpaperUrl" | "recommendedSocialLinks" | "artistLinks">>,
+  updates: Partial<Pick<Project, "status" | "progress" | "coverUrl" | "streamingSites" | "originLanguage" | "translationLanguage" | "artistName" | "trackName" | "albumName" | "songLinkUrl" | "wallpaperArtistName" | "wallpaperSource" | "wallpaperUrl" | "recommendedSocialLinks" | "artistLinks">>,
 ): Promise<void> {
   await db.projects.update(id, { ...updates, updatedAt: Date.now() });
 }

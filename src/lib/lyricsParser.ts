@@ -9,7 +9,7 @@ const LRC_TIMESTAMP_PATTERNS: RegExp[] = [
 
 const DEFAULT_TIMESTAMP_MS = 0;
 
-interface ParsedLrcLine {
+export interface ParsedLrcLine {
   timestamp: string | number;
   text: string;
 }
@@ -125,4 +125,84 @@ export function processLyricsMap(lyricsString: string): Map<string, LyricLine> |
   const lines = parseLrcContent(lyricsString);
   if (lines.length === 0) return null;
   return toLyricLineMap(lines);
+}
+
+/**
+ * Validates a single LRC timestamp string for correct format and range.
+ * Supports both mm:ss.cs and hh:mm:ss.cs formats.
+ * - Minutes: 0-59, Seconds: 0-59, Centiseconds: 0-99
+ */
+function isValidTimestamp(timestamp: string): boolean {
+  const parts = timestamp.split(":");
+
+  if (parts.length === 2) {
+    // Format: mm:ss.cs
+    const minutes = parseInt(parts[0]!, 10);
+    const secParts = parts[1]!.split(".");
+    if (secParts.length !== 2) return false;
+    const seconds = parseInt(secParts[0]!, 10);
+    const centiseconds = parseInt(secParts[1]!, 10);
+    return (
+      minutes >= 0 && minutes <= 59 &&
+      seconds >= 0 && seconds <= 59 &&
+      centiseconds >= 0 && centiseconds <= 99
+    );
+  }
+
+  if (parts.length === 3) {
+    // Format: hh:mm:ss.cs (or mm:ss:cs form)
+    const minutes = parseInt(parts[1]!, 10);
+    const secParts = parts[2]!.split(".");
+    if (secParts.length !== 2) return false;
+    const seconds = parseInt(secParts[0]!, 10);
+    const centiseconds = parseInt(secParts[1]!, 10);
+    return (
+      minutes >= 0 && minutes <= 59 &&
+      seconds >= 0 && seconds <= 59 &&
+      centiseconds >= 0 && centiseconds <= 99
+    );
+  }
+
+  return false;
+}
+
+/**
+ * Validates raw LRC content. Returns validation status and parsed lines.
+ * - If content has no timestamps: treated as plain text (valid, isSynced=false)
+ * - If content has timestamps: each timestamp is validated for correct format.
+ *   Invalid timestamps (unparseable minutes/seconds) cause valid=false.
+ */
+export function validateLrcContent(raw: string): { valid: boolean; error?: string; lines?: ParsedLrcLine[] } {
+  if (!raw || !raw.trim()) {
+    return { valid: true, lines: [] };
+  }
+
+  const lines = raw.split("\n");
+
+  if (hasTimestamps(lines)) {
+    // Validate each timestamp in every line
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]!;
+      for (const pattern of LRC_TIMESTAMP_PATTERNS) {
+        const match = line.match(pattern);
+        if (match?.[1]) {
+          const timestamp = match[1];
+          if (!isValidTimestamp(timestamp)) {
+            return { valid: false, error: `Invalid timestamp at line ${i + 1}: ${timestamp}` };
+          }
+          break; // Only match first timestamp pattern per line
+        }
+      }
+    }
+    // All timestamps valid — parse with existing logic
+    return { valid: true, lines: parseLrcContent(raw) };
+  }
+
+  // Plain text (no timestamps): split by lines, filter empty, assign timestamp=0
+  const textLines: ParsedLrcLine[] = lines
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0)
+    .map((text) => ({ timestamp: 0, text }));
+
+  return { valid: true, lines: textLines };
 }

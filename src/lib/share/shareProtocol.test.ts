@@ -20,7 +20,6 @@ function makeRichProject(overrides: Partial<Project> = {}): Project {
 
   return makeProject({
     id: 12345,
-    title: 'Test Artist - Test Song',
     trackName: 'Test Song',
     lyrics,
     coverUrl: 'https://example.com/cover.jpg',

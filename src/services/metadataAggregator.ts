@@ -65,9 +65,11 @@ async function resolveArtistsViaMusicBrainz(
     ? `${parsedArtists[0]}, ${parsedArtists[1]}`
     : (parsedArtists[0] ?? ctx.artistName);
 
-  const { isrc, artistMbids, artistNames: mbArtistNames } = await deps.searchMusicBrainzRecording(searchArtist, ctx.trackName);
+  const { isrc, artistMbids, artistNames: mbArtistNames, trackTitle } = await deps.searchMusicBrainzRecording(searchArtist, ctx.trackName);
 
   const next = { ...ctx, isrc, artistMbids };
+  // Use MusicBrainz title for correct casing when available
+  if (trackTitle) next.trackName = trackTitle;
   if (mbArtistNames.length > 0) {
     next.artistNames = mbArtistNames;
   }

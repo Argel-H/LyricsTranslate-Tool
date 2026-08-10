@@ -13,7 +13,6 @@ export function makeLyricLine(overrides?: Partial<LyricLine>): LyricLine {
 export function makeProject(overrides?: Partial<Project>): Project {
   return {
     id: 1,
-    title: "Test Artist - Test Track",
     artistName: ["Test Artist"],
     trackName: "Test Track",
     lyrics: {},
