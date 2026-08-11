@@ -332,7 +332,7 @@ export function ProjectSetupPage() {
       navigate(`/editor/${editId}`);
     } else {
       const id = await createProject(input);
-      navigate(`/editor/${id}`);
+      navigate(`/editor/${id}`, { replace: true });
     }
   };
 

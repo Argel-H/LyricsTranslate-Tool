@@ -5,6 +5,7 @@ import {
   SiDeezer,
   SiDeviantart,
   SiFacebook,
+  SiGenius,
   SiInstagram,
   SiSoundcloud,
   SiSpotify,
@@ -31,6 +32,7 @@ export function getPlatformIcon(platform: string): IconType {
   if (lower.includes("youtube")) return SiYoutube;
   if (lower.includes("artstation")) return SiArtstation;
   if (lower.includes("deviantart")) return SiDeviantart;
+  if (lower.includes("genius")) return SiGenius;
   if (lower.includes("amazon")) return FaAmazon;
   if (lower.includes("website")) return FaGlobe;
 

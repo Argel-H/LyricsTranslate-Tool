@@ -27,6 +27,28 @@ interface ProjectDetailsModalProps {
 
 type ArtistSection = { artist: string; links: { platform: string; url: string; artistName?: string }[]; deezerLink?: { name: string; url: string } };
 
+const PLATFORM_SORT_WEIGHTS: Record<string, number> = {
+  "Instagram": 0,
+  "Twitter/X": 1,
+  "Facebook": 2,
+  "TikTok": 3,
+  "SoundCloud": 4,
+  "Bandcamp": 5,
+  "Patreon": 6,
+  "Website": 10,
+  "Spotify": 20,
+  "Apple Music": 21,
+  "Tidal": 22,
+  "Deezer": 23,
+  "YouTube": 24,
+  "Amazon Music": 25,
+  "Genius": 26,
+};
+
+function socialLinkSortWeight(platform: string): number {
+  return PLATFORM_SORT_WEIGHTS[platform] ?? 50;
+}
+
 function MetaRow({ label, value, mono, icon: Icon }: { label: string; value: string; mono?: boolean; icon?: React.ComponentType<{ className?: string }> }) {
   return (
     <div className="flex justify-between gap-4 py-1">
@@ -168,7 +190,7 @@ export function ProjectDetailsModal({ project, onClose, title, lookupExtras, onA
                         </span>
                         <div className="ml-12 flex flex-wrap gap-1.5 justify-end">
                           {[...project.recommendedSocialLinks]
-                            .sort((a, b) => a.platform.localeCompare(b.platform))
+                            .sort((a, b) => socialLinkSortWeight(a.platform) - socialLinkSortWeight(b.platform) || a.platform.localeCompare(b.platform))
                             .map((l, i) => {
                             const Icon = getPlatformIcon(l.platform);
                             const artistIdx = Math.max(0, (project.artistName ?? []).indexOf(l.artistName ?? ""));
