@@ -1,7 +1,7 @@
 const WORKER_URL = "https://subs-tool-endpoints.iamargelh.mov";
 
 export const API = {
-  /** LRCLIB — lyrics search stays client-side. */
+  /** LRCLIB - lyrics search stays client-side. */
   lrclib: "https://lrclib.net",
 
   /** Worker: full metadata orchestrator (MB + Deezer + Odesli + social links). */

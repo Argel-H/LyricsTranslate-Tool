@@ -158,11 +158,11 @@ export function AudioPlayerBar({
 
     const onError = () => {
       if (hasLoadedRef.current) {
-        // Recoverable network error — audio was already loaded once
+        // Recoverable network error - audio was already loaded once
         setBuffering(false);
         setPlaying(false);
       } else {
-        // Source never loaded — truly invalid URL or file
+        // Source never loaded - truly invalid URL or file
         setAudioError(true);
         setPlaying(false);
       }

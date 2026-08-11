@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// BINARY FORMAT v3 — LyricsTranslate Share Protocol  (SHARE_VERSION = 0x03)
+// BINARY FORMAT v3 - LyricsTranslate Share Protocol  (SHARE_VERSION = 0x03)
 // ═══════════════════════════════════════════════════════════════════════════════
 //
 // An entire Project is serialized into a compact binary buffer, Brotli-compressed
@@ -124,7 +124,7 @@ import { buildLyricsBuffer, parseLyricsBuffer } from "@/lib/share/transcoder/lyr
 import { API } from "@/lib/config/apiConfig";
 
 // ═══════════════════════════════════════════════════════════════════════
-// Encode — private helpers
+// Encode - private helpers
 // ═══════════════════════════════════════════════════════════════════════
 
 function writeHeader(writer: BinaryWriter, project: Project): void {
@@ -234,7 +234,7 @@ function writeLyrics(writer: BinaryWriter, project: Project): void {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// Decode — private helpers
+// Decode - private helpers
 // ═══════════════════════════════════════════════════════════════════════
 
 function readHeader(reader: BinaryReader): {

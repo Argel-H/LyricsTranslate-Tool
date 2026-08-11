@@ -1,5 +1,5 @@
 /**
- * BinaryWriter — auto-growing buffer with little-endian write primitives.
+ * BinaryWriter - auto-growing buffer with little-endian write primitives.
  * Extracted from the encodeShareUrl closure to provide a single source of
  * truth for all binary encoding in the share protocol.
  */

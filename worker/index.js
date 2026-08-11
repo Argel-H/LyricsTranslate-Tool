@@ -205,7 +205,7 @@ async function handleFullMetadata(request) {
         : Promise.resolve({ deezer: null, odesli: null }),
     ]);
 
-    // ISRC path produced no cover — fall back to search by name.
+    // ISRC path produced no cover - fall back to search by name.
     let coverUrl = isrcResult.deezer?.cover ?? "";
     let nameDeezer = null;
     let nameOdesli = null;
@@ -440,7 +440,7 @@ async function optimizeCoverUrl(url) {
     clearTimeout(timeoutId);
     if (response.ok) return webpUrl;
   } catch {
-    // HEAD failed (timeout, 404, network) — fall through to jpg.
+    // HEAD failed (timeout, 404, network) - fall through to jpg.
   }
 
   return jpgUrl;
@@ -490,7 +490,7 @@ function assembleFullMetadata({
   };
 
   // The by-name Deezer result only exists when the ISRC path produced no
-  // cover, so `??` is safe — the ISRC result wins when both exist.
+  // cover, so `??` is safe - the ISRC result wins when both exist.
   const deezerTrack = isrcDeezer ?? nameDeezer;
   const odesli = isrcOdesli ?? nameOdesli;
 
@@ -540,7 +540,7 @@ function assembleFullMetadata({
 }
 
 // ============================================================================
-// SECTION 4 — AI Proxy
+// SECTION 4 - AI Proxy
 // ============================================================================
 
 async function proxy(request, targetUrl) {

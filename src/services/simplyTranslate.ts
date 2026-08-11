@@ -10,7 +10,7 @@ export interface AutoTranslateInput {
   songTitle: string;
   artistName: string;
   targetLanguage: string;
-  /** Lines provided for LLM context — the LLM must NOT translate these */
+  /** Lines provided for LLM context - the LLM must NOT translate these */
   contextLines: Array<{ timestamp: string | number; original: string; translated?: string; locked?: boolean }>;
   /** Lines the LLM must translate */
   targetLines: Array<{ timestamp: string | number; original: string }>;
@@ -37,10 +37,10 @@ function buildGenericRules(ctx: TranslationPromptContext): string[] {
     "Instructions:",
     "1. Translate using an interpretative/communicative approach that feels poetic and singable. Prioritize natural rhythm and emotional impact over literal accuracy. The translation should read as if it was originally written in the target language.",
     `2. Use Neutral ${ctx.targetLanguage} that is natural and easy to understand for any speaker. Adapt slang and idioms to their closest culturally equivalent expression without forced literalism.`,
-    "3. When consecutive lines form a continuous thought or sentence, make them flow seamlessly — do not force each line to stand alone if context connects them.",
+    "3. When consecutive lines form a continuous thought or sentence, make them flow seamlessly - do not force each line to stand alone if context connects them.",
     "4. Do NOT invent or insert words, adverbs, or time markers that are not present or clearly implied in the original lyric.",
     "5. When quoted speech or dialogue spans multiple lines, place quotation marks on all continuation lines, not just the first.",
-    "6. Use connectors where they add emotional weight — do not strip them out just to save syllables.",
+    "6. Use connectors where they add emotional weight - do not strip them out just to save syllables.",
     "7. Vocalizations like 'yeah', 'oh', 'ooh' should be translated contextually depending on tone. Do not leave them in the source language.",
     "8. STRICTLY maintain the original .lrc time tags (e.g., [00:12.34]) exactly as they appear in the input. Do not alter, add, or remove any timestamps.",
     "9. Output ONLY the translated .lrc content. Do not include any introductory text, explanations, notes, or concluding remarks.",
@@ -148,7 +148,7 @@ export function buildAutoTranslatePrompt(input: AutoTranslateInput, provider: AI
 
   // Context section
   parts.push("");
-  parts.push("Context (DO NOT translate — use for consistency only):");
+  parts.push("Context (DO NOT translate - use for consistency only):");
   if (input.contextLines.length > 0) {
     for (const line of input.contextLines) {
       const ts = formatTimestamp(line.timestamp);
@@ -171,7 +171,7 @@ export function buildAutoTranslatePrompt(input: AutoTranslateInput, provider: AI
       parts.push(`[${ts}] ${line.original}`);
     }
   } else {
-    parts.push("(no lines to translate — return empty)");
+    parts.push("(no lines to translate - return empty)");
   }
 
   return parts.join("\n");

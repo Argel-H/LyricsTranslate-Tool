@@ -71,7 +71,7 @@ export async function importDatabase(
   const preferences = (backup.preferences as UserPreferences | null) ?? null;
 
   for (const p of projects) {
-    // `title` was removed from the Project schema — it is derived on-the-fly
+    // `title` was removed from the Project schema - it is derived on-the-fly
     // from artistName + trackName, so backups without it are still valid.
     if (typeof p.id !== "number") {
       throw new Error("INVALID_PROJECT");

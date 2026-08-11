@@ -118,10 +118,10 @@ export function TableRow({
       let shift = 0;
 
       if (card.left < margin) {
-        // Overflowing left edge — shift right
+        // Overflowing left edge - shift right
         shift = margin - card.left;
       } else if (card.right > viewportW - margin) {
-        // Overflowing right edge — shift left
+        // Overflowing right edge - shift left
         shift = viewportW - margin - card.right;
       }
 
@@ -368,7 +368,7 @@ export function TableRow({
             </button>
             {tooltipVisible && (
               <>
-                {/* Tooltip card — shifts horizontally to stay in viewport */}
+                {/* Tooltip card - shifts horizontally to stay in viewport */}
                 <div
                   ref={tooltipCardRef}
                   className="absolute bottom-full z-50 mb-3"
@@ -383,7 +383,7 @@ export function TableRow({
                       : t("editor.lockTooltip")}
                   </div>
                 </div>
-                {/* Arrow — always centered on the button, above the card */}
+                {/* Arrow - always centered on the button, above the card */}
                 <div
                   className="absolute bottom-full left-1/2 -translate-x-1/2 z-50"
                   style={{ marginBottom: "11px" }}

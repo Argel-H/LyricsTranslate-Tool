@@ -124,7 +124,7 @@ export function SearchInput({
                     <Search className="size-4 text-on-surface-variant shrink-0" />
                     <div className="min-w-0 flex-1">
                       <p className="font-body-md text-on-surface truncate">
-                        {result.artistName} — {result.trackName}
+                        {result.artistName} - {result.trackName}
                       </p>
                       {result.albumName && (
                         <p className="font-label-md text-on-surface-variant truncate mt-0.5">

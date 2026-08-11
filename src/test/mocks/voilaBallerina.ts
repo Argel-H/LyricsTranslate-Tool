@@ -11,7 +11,7 @@ export const MOCK_LRCLIB_RESULT: LRCLibResult = {
   id: 15028187,
   trackName: "Ballerina (with The Word Alive)",
   artistName: "VOILÀ, The Word Alive",
-  plainLyrics: "", // not needed — we use synced
+  plainLyrics: "", // not needed - we use synced
   syncedLyrics: [
     "[00:27.12] If silence is golden then we must be rich",
     "[00:30.19] But the breath that we're holding's feeling counterfeit",

@@ -193,7 +193,7 @@ export function WavyProgressBar({
             </clipPath>
           </defs>
 
-          {/* Track (background) — straight gray line, only visible in unplayed portion */}
+          {/* Track (background) - straight gray line, only visible in unplayed portion */}
           <line
             x1="0"
             y1={WAVE_HEIGHT / 2}
@@ -206,7 +206,7 @@ export function WavyProgressBar({
             clipPath={`url(#${trackClipPathId})`}
           />
 
-          {/* Progress wave (filled) — purple, animated when playing */}
+          {/* Progress wave (filled) - purple, animated when playing */}
           <path
             d={progressWavePath}
             stroke="#D0BCFF"

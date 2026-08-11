@@ -34,7 +34,7 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // === Lyrical Modernist — DESIGN.md tokens ===
+        // === Lyrical Modernist - DESIGN.md tokens ===
         surface: '#141317',
         'surface-dim': '#141317',
         'surface-bright': '#3a383d',

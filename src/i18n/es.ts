@@ -201,7 +201,7 @@ export const es = {
   "player.load": "Cargar",
   "player.chooseFile": "Elegir Archivo",
   "player.clear": "Limpiar",
-  "player.unavailable": "Audio no disponible — revisa la URL o el archivo",
+  "player.unavailable": "Audio no disponible - revisa la URL o el archivo",
   "player.dismiss": "Descartar",
   "player.sourceNone": "Ninguno",
   "player.sourceLocal": "Local",

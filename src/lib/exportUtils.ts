@@ -222,7 +222,7 @@ export function generateYamlContent(project: Project): string {
     lines.push(`    time_end: ${line.time_end}`);
     lines.push(`    original: ${escapeYamlValue(line.lyric)}`);
     lines.push(`    translated: ${escapeYamlValue(line.translation)}`);
-    // locked is optional — only include when explicitly set (omitted if undefined)
+    // locked is optional - only include when explicitly set (omitted if undefined)
     if (line.locked !== undefined) {
       lines.push(`    locked: ${line.locked}`);
     }

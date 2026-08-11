@@ -21,7 +21,7 @@ import type { PlatformDef } from "@/types/share";
  *
  * @param platformDef - The platform definition (from PLATFORM_DICT).
  * @param fullUrl     - The complete URL to strip.
- * @param context     - "artist" or "track" — chooses which prefix to use.
+ * @param context     - "artist" or "track" - chooses which prefix to use.
  * @returns The ID portion, the full URL (for isFullUrl), or null on failure.
  */
 export function stripUrlPrefix(
@@ -63,7 +63,7 @@ export function stripUrlPrefix(
  *
  * @param platformDef - The platform definition (from PLATFORM_DICT).
  * @param id          - The ID portion (or full URL for isFullUrl).
- * @param context     - "artist" or "track" — chooses which prefix to use.
+ * @param context     - "artist" or "track" - chooses which prefix to use.
  * @returns The reconstructed full URL, or null if no prefix is available.
  */
 export function reconstructUrl(

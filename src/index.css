@@ -36,13 +36,13 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
-  /* Custom scrollbar — Firefox */
+  /* Custom scrollbar - Firefox */
   * {
     scrollbar-width: auto;
     scrollbar-color: hsl(var(--muted)) hsl(var(--surface-container));
   }
 
-  /* Custom scrollbar — Chrome, Safari, Edge */
+  /* Custom scrollbar - Chrome, Safari, Edge */
   *::-webkit-scrollbar {
     width: 10px;
     height: 10px;

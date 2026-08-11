@@ -1,5 +1,5 @@
 /**
- * BinaryReader — cursor-based read from a Uint8Array with little-endian
+ * BinaryReader - cursor-based read from a Uint8Array with little-endian
  * primitives. Extracted from the decodeShareUrl closure to provide a single
  * source of truth for all binary decoding in the share protocol.
  */

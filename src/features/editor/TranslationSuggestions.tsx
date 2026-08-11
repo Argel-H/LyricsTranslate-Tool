@@ -11,7 +11,7 @@ interface TranslationSuggestionsProps {
   onIndexChange: (index: number) => void;
   /** Called when the user chooses to fill the current suggestion */
   onFill: (text: string) => void;
-  /** Whether the translation textarea is focused — controls hint visibility */
+  /** Whether the translation textarea is focused - controls hint visibility */
   focused: boolean;
 }
 

@@ -201,7 +201,7 @@ export const en = {
   "player.load": "Load",
   "player.chooseFile": "Choose File",
   "player.clear": "Clear",
-  "player.unavailable": "Audio unavailable — check the URL or file",
+  "player.unavailable": "Audio unavailable - check the URL or file",
   "player.dismiss": "Dismiss",
   "player.sourceNone": "None",
   "player.sourceLocal": "Local",

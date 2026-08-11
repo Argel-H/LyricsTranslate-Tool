@@ -98,7 +98,7 @@ export function ViewOnlyPage() {
       closeRow: () => {},
       reSync: handleSync,
     },
-    false,            // isRowOpen — never editing in view-only
+    false,            // isRowOpen - never editing in view-only
     activeLineKey,    // audioActiveLineKey
     sortedLinesForAudio,
     true,             // enabled

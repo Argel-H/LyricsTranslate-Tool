@@ -5,7 +5,7 @@ import { parseTimestampToMilliseconds } from "./timeUtils";
 // Simple line-by-line YAML parser
 // ---------------------------------------------------------------------------
 // Parses a strict, known YAML structure (the format exported by this app).
-// This is NOT a general-purpose YAML parser — it handles only the subset of
+// This is NOT a general-purpose YAML parser - it handles only the subset of
 // YAML that our export produces: top-level scalars, nested maps, string
 // arrays, and arrays of objects with known keys.
 //
@@ -62,7 +62,7 @@ function parseScalar(raw: string): RawYamlValue {
     if (Number.isFinite(num)) return num;
   }
 
-  // Quoted string — unquote and process escapes
+  // Quoted string - unquote and process escapes
   if (trimmed.startsWith('"')) {
     return unquoteYamlString(trimmed);
   }
@@ -95,7 +95,7 @@ function unquoteYamlString(raw: string): string {
         i += 2;
         continue;
       }
-      // Any other escape sequence — pass through as-is
+      // Any other escape sequence - pass through as-is
       result.push(ch);
       i += 1;
       continue;
@@ -173,7 +173,7 @@ function parseBlock(
 
       // Edge-case: key must be non-empty
       if (key.length === 0) {
-        // Malformed — skip silently but advance
+        // Malformed - skip silently but advance
         i++;
         continue;
       }
@@ -191,7 +191,7 @@ function parseBlock(
         i++;
       }
     } else {
-      // Line that doesn't match any expected pattern — skip
+      // Line that doesn't match any expected pattern - skip
       i++;
     }
   }

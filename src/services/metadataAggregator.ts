@@ -25,7 +25,7 @@ export async function getFullMetadata(
     albumName: lrcResult?.albumName,
   });
 
-  // Process lyrics from LRCLIB (client-side — lightweight parsing)
+  // Process lyrics from LRCLIB (client-side - lightweight parsing)
   let lyrics: Record<string, LyricLine> = {};
   if (lrcResult) {
     const lyricsStr = lrcResult.syncedLyrics || lrcResult.plainLyrics;

@@ -32,7 +32,7 @@ function normalizeForSearch(str: string): string {
 }
 
 /**
- * AllProjectsPage — shows ALL projects with a client-side search bar
+ * AllProjectsPage - shows ALL projects with a client-side search bar
  * filtering by album, artist, or song name.
  *
  * Follows the same DashboardPage architecture (AppShell + MasterCard +
@@ -106,14 +106,14 @@ export function AllProjectsPage() {
   const filteredProjects = useMemo(() => {
     let result = projects;
 
-    // Status filter (multi-select — empty set = show all)
+    // Status filter (multi-select - empty set = show all)
     if (statusFilters.size > 0) {
       result = result.filter((p) => statusFilters.has(p.status));
     }
 
     // Archived filter
     if (showArchived && statusFilters.size === 0) {
-      // Only archived — no status filter active
+      // Only archived - no status filter active
       result = result.filter((p) => p.archived);
     } else if (!showArchived) {
       // Hide archived

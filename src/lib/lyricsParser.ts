@@ -69,9 +69,9 @@ function parseSyncedLines(lines: string[]): ParsedLrcLine[] {
       }
     }
     // If no timestamp matched but we've already found timestamped lines,
-    // this is a non-timestamped line (e.g. blank stanza break) — skip it.
+    // this is a non-timestamped line (e.g. blank stanza break) - skip it.
     if (!matched && result.length === 0) {
-      // No timestamps found at all yet — this shouldn't happen because
+      // No timestamps found at all yet - this shouldn't happen because
       // hasTimestamps() gates entry to this function, but handle gracefully.
     }
   }
@@ -117,7 +117,7 @@ export function toLyricLineMap(parsedLines: ParsedLrcLine[]): Map<string, LyricL
 }
 
 /**
- * Legacy wrapper — parses raw lyrics string into a Map.
+ * Legacy wrapper - parses raw lyrics string into a Map.
  * Kept for backward compatibility with existing callers.
  * Returns null if the input produces no parsed lines.
  */

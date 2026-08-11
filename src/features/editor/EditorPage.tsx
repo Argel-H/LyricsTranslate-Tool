@@ -198,7 +198,7 @@ export function EditorPage() {
 
     // If nothing to translate, don't call the API
     if (targetLines.length === 0) {
-      return; // Silently skip — all lines are either locked or already translated
+      return; // Silently skip - all lines are either locked or already translated
     }
 
     const targetLanguage = currentProject.translationLanguage || "Spanish";
@@ -692,7 +692,7 @@ export function EditorPage() {
 
   return (
     <>
-      {/* Translation progress bar — top of viewport, above shell */}
+      {/* Translation progress bar - top of viewport, above shell */}
       <div className="fixed top-0 left-0 right-0 z-[60] h-1 bg-surface-container-highest">
         <div
           className="h-full bg-primary rounded-r-full transition-all duration-500 ease-out"
@@ -820,7 +820,7 @@ export function EditorPage() {
           </div>
         </div>
 
-        {/* Floating action area — bottom right */}
+        {/* Floating action area - bottom right */}
         <div className="fixed right-8 z-50 flex flex-col items-end gap-3 bottom-32">
           <AnimatePresence>
             <div className="flex items-center gap-3">

@@ -185,7 +185,7 @@ export const pt = {
   "search.unsynced": "Texto simples",
   "common.or": "ou",
 
-  "editor.lockTooltip": "Bloquear esta linha — não será substituída pela tradução automática",
+  "editor.lockTooltip": "Bloquear esta linha - não será substituída pela tradução automática",
   "editor.unlockTooltip": "Desbloquear esta linha",
   "settings.tabGeneral": "Geral",
   "settings.tabAI": "Tradução IA",
@@ -201,7 +201,7 @@ export const pt = {
   "player.load": "Carregar",
   "player.chooseFile": "Escolher Arquivo",
   "player.clear": "Limpar",
-  "player.unavailable": "Áudio indisponível — verifique a URL ou o arquivo",
+  "player.unavailable": "Áudio indisponível - verifique a URL ou o arquivo",
   "player.dismiss": "Descartar",
   "player.sourceNone": "Nenhum",
   "player.sourceLocal": "Local",

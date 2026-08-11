@@ -14,7 +14,7 @@ import { useShellStore } from "@/stores/shellStore";
 import { AppShell } from "@/features/shell/AppShell";
 import { PageLoader } from "@/components/shared/PageLoader";
 
-// Lazy-loaded page components — code-split into separate chunks
+// Lazy-loaded page components - code-split into separate chunks
 // Pages use named exports, so we wrap them as default for React.lazy()
 const DashboardPage = lazy(() =>
   import("@/features/dashboard/DashboardPage").then((m) => ({ default: m.DashboardPage })),

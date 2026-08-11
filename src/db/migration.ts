@@ -1,4 +1,4 @@
-// Database migration — runs on every app start. Idempotent (no-op when already migrated).
+// Database migration - runs on every app start. Idempotent (no-op when already migrated).
 import { db } from "./database";
 import { parseTimestampToMilliseconds } from "@/lib/timeUtils";
 

@@ -33,8 +33,8 @@ export interface TimestampedLine {
 
 /**
  * Returns ALL lyric lines sorted by time_start, with millisecond values precomputed.
- * Every line in the lyrics map is included — including blank-timestamped lines
- * (instrumental breaks, pauses) — so they participate in audio sync and highlighting.
+ * Every line in the lyrics map is included - including blank-timestamped lines
+ * (instrumental breaks, pauses) - so they participate in audio sync and highlighting.
  */
 export function getSortedLyricLines(lyrics: Record<string, LyricLine>): TimestampedLine[] {
   return Object.entries(lyrics)

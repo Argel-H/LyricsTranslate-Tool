@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Binary Share Protocol — Constants and Type Definitions
+// Binary Share Protocol - Constants and Type Definitions
 //
 // Encodes a Project into a compact binary buffer, compresses with Brotli,
 // and Base64URL-encodes for embedding in a shareable URL.
@@ -45,7 +45,7 @@ export interface PlatformDef {
   id: number;
   /** Human-readable platform name (e.g., "Spotify") */
   name: string;
-  /** If true, the URL cannot be reconstructed from an ID — store the full URL */
+  /** If true, the URL cannot be reconstructed from an ID - store the full URL */
   isFullUrl: boolean;
   /** URL prefix to strip when encoding artist links (omit trailing slash ID) */
   artistUrlPrefix?: string;

@@ -1,15 +1,15 @@
 // ---------------------------------------------------------------------------
-// Lyrics Section — Binary + Text format
+// Lyrics Section - Binary + Text format
 //
 // Encodes/decodes an array of LyricLine into a compact binary+text buffer:
 //   [deltas N×2B] [durations N×2B] [locks ceil(N/8)B] [text]
 //
-// Deltas are u16LE — first row stores absolute time_start, subsequent rows
+// Deltas are u16LE - first row stores absolute time_start, subsequent rows
 // store the delta from the previous row. Durations are u16LE (time_end − start).
 // Lock flags are packed LSB-first, 1 bit per row.
 // Text fields are newline-separated, with \ and \n backslash-escaped.
 // Translation text is stored before the original lyric for better compression.
-// The row count (u16LE) is NOT included — the outer share protocol writes it.
+// The row count (u16LE) is NOT included - the outer share protocol writes it.
 // ---------------------------------------------------------------------------
 
 import type { LyricLine } from "@/types/project";

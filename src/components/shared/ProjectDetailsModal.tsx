@@ -125,7 +125,7 @@ export function ProjectDetailsModal({ project, onClose, title, lookupExtras, onA
         </div>
         <div className="px-6 pb-6 overflow-y-auto">
           {hasLookupExtras ? (
-            /* Lookup mode: two-column — cover left, details right, actions below */
+            /* Lookup mode: two-column - cover left, details right, actions below */
             <div className="flex flex-col gap-4">
               <div className="grid grid-cols-2 gap-6">
                 <div className="flex flex-col gap-4">
