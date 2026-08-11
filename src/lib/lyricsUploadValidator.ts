@@ -1,5 +1,5 @@
 import type { ParsedLrcLine } from "./lyricsParser";
-import { validateLrcContent, parseLrcContent } from "./lyricsParser";
+import { validateLrcContent } from "./lyricsParser";
 import { validateSrtContent, parseSrtContent } from "./srtParser";
 
 export type LyricsFormat = "lrc" | "srt" | "plain" | "unknown";
@@ -96,7 +96,7 @@ export function validateAndParseLyrics(raw: string): ValidationResult {
       format: "lrc",
       lines: lrcValidation.lines,
       lineCount: lrcValidation.lines?.length ?? 0,
-      isSynced: lrcValidation.lines?.some((l) => typeof l.timestamp === "string" && l.timestamp !== 0) ?? false,
+      isSynced: lrcValidation.lines?.some((l) => l.timestamp !== 0 && l.timestamp !== "") ?? false,
     };
   }
 
