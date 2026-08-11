@@ -231,7 +231,6 @@ Start after end`;
   });
 
   it("returns error when no valid blocks found", () => {
-    // Single line with no timestamp structure — caught as incomplete block
     const input = `not a valid SRT block at all`;
     const result = validateSrtContent(input);
     expect(result.valid).toBe(false);

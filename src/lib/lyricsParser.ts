@@ -136,7 +136,6 @@ function isValidTimestamp(timestamp: string): boolean {
   const parts = timestamp.split(":");
 
   if (parts.length === 2) {
-    // Format: mm:ss.cs
     const minutes = parseInt(parts[0]!, 10);
     const secParts = parts[1]!.split(".");
     if (secParts.length !== 2) return false;
@@ -150,7 +149,6 @@ function isValidTimestamp(timestamp: string): boolean {
   }
 
   if (parts.length === 3) {
-    // Format: hh:mm:ss.cs (or mm:ss:cs form)
     const minutes = parseInt(parts[1]!, 10);
     const secParts = parts[2]!.split(".");
     if (secParts.length !== 2) return false;
@@ -180,7 +178,6 @@ export function validateLrcContent(raw: string): { valid: boolean; error?: strin
   const lines = raw.split("\n");
 
   if (hasTimestamps(lines)) {
-    // Validate each timestamp in every line
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
       for (const pattern of LRC_TIMESTAMP_PATTERNS) {
@@ -194,11 +191,9 @@ export function validateLrcContent(raw: string): { valid: boolean; error?: strin
         }
       }
     }
-    // All timestamps valid — parse with existing logic
     return { valid: true, lines: parseLrcContent(raw) };
   }
 
-  // Plain text (no timestamps): split by lines, filter empty, assign timestamp=0
   const textLines: ParsedLrcLine[] = lines
     .map((l) => l.trim())
     .filter((l) => l.length > 0)

@@ -50,7 +50,6 @@ export async function importDatabase(
 ): Promise<{ projectCount: number }> {
   const text = await file.text();
 
-  // Parse JSON
   let data: unknown;
   try {
     data = JSON.parse(text);
@@ -64,7 +63,6 @@ export async function importDatabase(
 
   const backup = data as Record<string, unknown>;
 
-  // Validate projects array
   if (!Array.isArray(backup.projects)) {
     throw new Error("MISSING_PROJECTS");
   }
@@ -72,7 +70,6 @@ export async function importDatabase(
   const projects = backup.projects as Project[];
   const preferences = (backup.preferences as UserPreferences | null) ?? null;
 
-  // Basic validation of each project
   for (const p of projects) {
     // `title` was removed from the Project schema — it is derived on-the-fly
     // from artistName + trackName, so backups without it are still valid.
@@ -81,7 +78,6 @@ export async function importDatabase(
     }
   }
 
-  // Atomic transaction: clear + bulk import
   await db.transaction("rw", db.projects, db.preferences, async () => {
     await db.projects.clear();
     await db.preferences.clear();

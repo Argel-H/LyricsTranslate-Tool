@@ -61,7 +61,6 @@ export function findAllTranslations(
     if (!translation) continue;
     if ((line.lyric ?? "").trim().toLowerCase() !== normalizedCurrent) continue;
 
-    // Deduplicate by translation text (case-insensitive)
     const normalizedTranslation = translation.toLowerCase();
     if (seen.has(normalizedTranslation)) continue;
     seen.add(normalizedTranslation);

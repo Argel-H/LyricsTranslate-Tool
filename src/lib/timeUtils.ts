@@ -65,7 +65,6 @@ export function findActiveLine(
 ): string | null {
   if (sortedLines.length === 0) return null;
 
-  // Binary search: find the last index where timeMs <= audioTimeMs
   let low = 0;
   let high = sortedLines.length - 1;
 
@@ -78,11 +77,8 @@ export function findActiveLine(
     }
   }
 
-  // `high` is now the greatest index with timeMs <= audioTimeMs
-  // If high === -1, audioTimeMs precedes the first line
   if (high < 0) return null;
 
-  // Verify audioTimeMs is strictly within the [start, end) interval
   const candidate = sortedLines[high]!;
   if (audioTimeMs < candidate.timeEndMs) {
     return candidate.key;

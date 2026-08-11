@@ -107,7 +107,6 @@ function escapeYamlValue(value: string): string {
 export function generateYamlContent(project: Project): string {
   const lines: string[] = [];
 
-  // sort lyrics by time_start before serializing
   const sortedLyrics = Object.values(project.lyrics).sort((a, b) =>
     a.time_start - b.time_start,
   );
@@ -147,9 +146,6 @@ export function generateYamlContent(project: Project): string {
   if (project.audioUrl != null) {
     lines.push(`  audio_url: ${escapeYamlValue(project.audioUrl)}`);
   }
-  // if (project.syncOffsetMs != null) {
-  //   lines.push(`  sync_offset_ms: ${project.syncOffsetMs}`);
-  // }
   if (project.wallpaperArtistName != null) {
     lines.push(`  wallpaper_artist_name: ${escapeYamlValue(project.wallpaperArtistName)}`);
   }
@@ -167,11 +163,9 @@ export function generateYamlContent(project: Project): string {
     }
   }
 
-  // social_links (grouped by artist_name to avoid repetition)
   if (project.recommendedSocialLinks != null && project.recommendedSocialLinks.length > 0) {
     lines.push("  social_links:");
 
-    // group by artistName
     const groups = new Map<string, typeof project.recommendedSocialLinks>();
     const noArtist: typeof project.recommendedSocialLinks = [];
     for (const link of project.recommendedSocialLinks) {
@@ -183,7 +177,6 @@ export function generateYamlContent(project: Project): string {
       }
     }
 
-    // write groups keyed by artist_name
     for (const [artistName, links] of groups) {
       lines.push(`    - artist_name: ${escapeYamlValue(artistName)}`);
       lines.push("      platforms:");

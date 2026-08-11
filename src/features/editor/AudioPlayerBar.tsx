@@ -81,7 +81,7 @@ export function AudioPlayerBar({
   const [buffering, setBuffering] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [urlInputValue, setUrlInputValue] = useState("");
-  const [volume, setVolume] = useState(80); // 0-100, logarithmic
+  const [volume, setVolume] = useState(80);
   const [localFileName, setLocalFileName] = useState<string | null>(null);
 
   const { t } = useI18n();
@@ -93,7 +93,6 @@ export function AudioPlayerBar({
   const durationMsRef = useRef(0);
   const hasLoadedRef = useRef(false);
 
-  // Keep durationMsRef in sync
   useEffect(() => {
     durationMsRef.current = durationMs;
   }, [durationMs]);
@@ -103,7 +102,6 @@ export function AudioPlayerBar({
   // ──────────────────────────────────────────────
   useEffect(() => {
     if (!audioSrc) {
-      // Clean up existing audio
       if (audioRef.current) {
         audioRef.current.pause();
         audioRef.current.removeAttribute("src");
@@ -120,7 +118,6 @@ export function AudioPlayerBar({
 
     hasLoadedRef.current = false;
 
-    // Create fresh audio element
     const audio = new Audio();
     audioRef.current = audio;
 
@@ -213,7 +210,6 @@ export function AudioPlayerBar({
     };
   }, [audioSrc]);
 
-  // Sync volume to audio element
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.volume = Math.pow(volume / 100, 2);
@@ -282,9 +278,7 @@ export function AudioPlayerBar({
 
   return (
     <div className="flex-1 flex flex-col justify-center gap-0 relative min-w-0">
-      {/* Main controls row */}
       <div className="flex items-center gap-3 min-w-0">
-        {/* Upload + popover */}
         {!readOnly && (
         <div className="relative shrink-0">
           <button
@@ -295,7 +289,6 @@ export function AudioPlayerBar({
             <Upload className="size-4" />
           </button>
 
-          {/* Settings Popover */}
           {settingsOpen && (
             <>
               <div
@@ -303,7 +296,6 @@ export function AudioPlayerBar({
                 onClick={() => setSettingsOpen(false)}
               />
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 w-72 bg-surface-container border border-outline-variant/20 rounded-2xl shadow-xl p-4 flex flex-col gap-3">
-                {/* Arrow pointing down, centered */}
                 <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-surface-container border-r border-b border-outline-variant/20 rotate-45" />
 
                 <span className="text-xs font-medium text-on-surface">
@@ -387,7 +379,6 @@ export function AudioPlayerBar({
         </div>
         )}
 
-        {/* Play/Pause */}
         <button
           onClick={handlePlayPause}
           disabled={!audioSrc || audioError}
@@ -431,7 +422,6 @@ export function AudioPlayerBar({
           rightLabelTooltip={formatTimePrecise(durationMs)}
         />
 
-        {/* Source chip */}
         {!audioSrc ? (
           <span className="text-[10px] font-medium text-on-surface-variant bg-surface-container-highest px-2 py-0.5 rounded-full shrink-0">
             {t("player.sourceNone")}
@@ -446,7 +436,6 @@ export function AudioPlayerBar({
           </span>
         )}
 
-        {/* Volume control */}
         <div className="flex items-center gap-1 shrink-0">
           <Volume2 className="size-3.5 text-on-surface-variant" />
           <input
@@ -462,7 +451,6 @@ export function AudioPlayerBar({
         </div>
       </div>
 
-      {/* Filename display — only when audio is loaded */}
       {audioSrc && (
         <div className="flex justify-center items-center -mt-3 min-w-0">
           <span className="text-[10px] font-mono text-on-surface-variant/60 truncate max-w-[320px]">
@@ -471,7 +459,6 @@ export function AudioPlayerBar({
         </div>
       )}
 
-      {/* Error Overlay */}
       {audioError && (
         <div className="absolute inset-0 flex items-center justify-center bg-surface-container-high/80 backdrop-blur-sm rounded-lg">
           <div className="flex items-center gap-2 text-error text-sm">

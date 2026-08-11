@@ -130,7 +130,6 @@ export function EditorPage() {
           useHistoryStore.getState().pushSnapshot(leaving, project.id);
         }
       } else {
-        // Different row: always push
         useHistoryStore.getState().pushSnapshot(leaving, project.id);
       }
     },
@@ -159,12 +158,10 @@ export function EditorPage() {
     const entries = Object.entries(lyrics);
     if (entries.length === 0) return;
 
-    // Sort by timestamp
     const sorted = entries
       .slice()
       .sort(([, a], [, b]) => a.time_start - b.time_start);
 
-    // Separate lines into context vs target based on lock + overwrite settings
     const contextLines: Array<{
       timestamp: number;
       original: string;
@@ -221,7 +218,6 @@ export function EditorPage() {
 
       const prompt = buildAutoTranslatePrompt(promptInput, aiProvider!);
 
-      // Call the AI provider with the pre-built prompt
       let result: string | null = null;
       if (aiProvider === "google") {
         result = await callGoogleGemini(prompt, aiApiKey!);
@@ -246,9 +242,7 @@ export function EditorPage() {
       const targetTimestamps = new Set(targetLines.map((l) => l.timestamp));
 
       for (const [originalKey, originalLine] of Object.entries(lyrics)) {
-        // Skip locked lines
         if (originalLine.locked) continue;
-        // Only update lines that were sent for translation
         if (!targetTimestamps.has(originalLine.time_start)) continue;
 
         const translation = parsedEntries.find(
@@ -279,11 +273,10 @@ export function EditorPage() {
     const keys = Object.keys(lyrics);
     const newKey = `lrc_${String(keys.length).padStart(2, "0")}`;
 
-    // Default times: start from last line's end, or 0ms
     const lastEnd =
       keys.length > 0 ? lyrics[keys[keys.length - 1]!]!.time_end : 0;
-    const startTime = lastEnd + 10; // 10ms after previous end
-    const endTime = startTime + 3000; // +3 seconds default
+    const startTime = lastEnd + 10;
+    const endTime = startTime + 3000;
 
     lyrics[newKey] = {
       time_start: startTime,
@@ -311,7 +304,7 @@ export function EditorPage() {
     await toggleLineLock(key);
   };
 
-  const STEP_MS = 100; // 0.1 seconds per click
+  const STEP_MS = 100;
 
   const handleTimeAdjust = (
     key: string,
@@ -329,17 +322,12 @@ export function EditorPage() {
     const newValue = current + direction * STEP_MS;
 
     if (field === "time_start") {
-      // Min: previous row's time_end (or 0 for first row)
       const min = idx > 0 ? lyrics[keys[idx - 1]!]!.time_end : 0;
-      // Max: current row's time_end - STEP_MS
       const max = lyrics[key]!.time_end - STEP_MS;
       if (newValue < min || newValue > max) return;
       updateLine(key, "time_start", newValue);
     } else {
-      // time_end
-      // Min: current row's time_start + STEP_MS
       const min = lyrics[key]!.time_start + STEP_MS;
-      // Max: next row's time_start (or no max for last row)
       const max =
         idx < keys.length - 1 ? lyrics[keys[idx + 1]!]!.time_start : Infinity;
       if (newValue < min || newValue > max) return;
@@ -350,10 +338,8 @@ export function EditorPage() {
   const handleRowClick = (key: string, column?: string) => {
     if (!currentProject) return;
 
-    // Push snapshot for the row we're leaving (handles same-row re-click bug fix)
     pushLeavingSnapshot(key);
 
-    // Capture pre-edit state of the NEW row
     activeLyricsRef.current = structuredClone(currentProject.lyrics) as Record<
       string,
       LyricLine
@@ -367,10 +353,8 @@ export function EditorPage() {
 
   const handleVerticalTabNavigation = useCallback(
     (targetKey: string, column: string) => {
-      // Push snapshot for the row we're leaving
       pushLeavingSnapshot(targetKey);
 
-      // Capture pre-edit state of the NEW row
       const project = useProjectStore.getState().currentProject;
       if (project) {
         activeLyricsRef.current = structuredClone(project.lyrics) as Record<
@@ -382,7 +366,6 @@ export function EditorPage() {
       setFocusedColumn(column);
       setActiveLineKey(targetKey);
 
-      // Scroll new active row into view after React renders the expanded state
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const el = document.querySelector(`[data-row-key="${targetKey}"]`);
@@ -401,13 +384,11 @@ export function EditorPage() {
     if (!currentProject) return;
 
     if (format === "yaml") {
-      // YAML export - full project
       downloadProjectAsYaml(currentProject);
       setSaveOpen(false);
       return;
     }
 
-    // LRC or SRT export via exportUtils (includes case transformation)
     const useTranslation = language === "translated";
     const content =
       format === "lrc"
@@ -461,13 +442,11 @@ export function EditorPage() {
 
   const handleAudioUrlChange = useCallback((url: string) => {
     useProjectStore.getState().updateAudioUrl(url);
-    // Clear local file when switching to URL
     useProjectStore.getState().clearLocalAudio();
   }, []);
 
   const handleLocalFileSelect = useCallback((file: File) => {
     const store = useProjectStore.getState();
-    // Revoke previous blob URL
     if (store.localAudioSrc) {
       URL.revokeObjectURL(store.localAudioSrc);
     }
@@ -478,7 +457,6 @@ export function EditorPage() {
   const handleClearAudio = useCallback(() => {
     useProjectStore.getState().clearLocalAudio();
     setAudioActiveLineKey(null);
-    // Clear persisted URL too
     useProjectStore.getState().updateAudioUrl(undefined);
   }, []);
 

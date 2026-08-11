@@ -1,15 +1,15 @@
-const isDev = import.meta.env.DEV;
-
 const WORKER_URL = "https://subs-tool-endpoints.iamargelh.mov";
 
 export const API = {
+  /** LRCLIB — lyrics search stays client-side. */
   lrclib: "https://lrclib.net",
-  deezer: isDev ? "/api-deezer" : `${WORKER_URL}/deezer`,
-  musicbrainz: "https://musicbrainz.org",
-  odesli: isDev ? "/api-odesli" : `${WORKER_URL}/odesli`,
-  translate: isDev ? "/api-translate" : "https://api.simplytranslate.ai",
-  metadata: isDev ? undefined : `${WORKER_URL}/metadata`,
+
+  /** Worker: full metadata orchestrator (MB + Deezer + Odesli + social links). */
+  metadataFull: `${WORKER_URL}/metadata/full`,
+
+  /** Worker: share paste create/retrieve. */
   share: `${WORKER_URL}/share`,
+
+  /** Worker base URL for generic proxy needs. */
   proxy: WORKER_URL,
-  musicbrainzBatch: `${WORKER_URL}/musicbrainz/artists`,
 } as const;

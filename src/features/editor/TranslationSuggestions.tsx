@@ -41,13 +41,11 @@ export function TranslationSuggestions({
 
   return (
     <>
-      {/* Rich placeholder overlay — shown when textarea is empty */}
       <div
         aria-hidden="true"
         className="absolute inset-0 pointer-events-none overflow-hidden p-4"
       >
         {focused ? (
-          /* Focused: suggestion text at top, keyboard hints at bottom */
           <div className="flex flex-col justify-between h-full w-full">
             <span className="text-body-lg text-on-surface-variant/60 truncate">
               {currentSuggestion.text}
@@ -66,7 +64,6 @@ export function TranslationSuggestions({
             </div>
           </div>
         ) : (
-          /* Not focused: just the suggestion text */
           <div className="w-full">
             <span className="text-body-lg text-gray-400 truncate">
               {currentSuggestion.text}
@@ -75,7 +72,6 @@ export function TranslationSuggestions({
         )}
       </div>
 
-      {/* Navigation and fill buttons — only when focused */}
       {focused && (
         <div className="absolute bottom-3 right-3 flex items-center gap-1 z-10">
           {suggestionsCount > 1 && (

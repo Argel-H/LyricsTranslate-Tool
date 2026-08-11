@@ -146,7 +146,6 @@ export function ShareDialog({ open, project, onClose }: ShareDialogProps) {
       className="fixed top-[72px] right-4 z-[200] bg-surface-container-high rounded-3xl shadow-2xl border border-outline-variant/20 w-[340px] max-h-[80vh] flex flex-col"
       ref={popupRef}
     >
-      {/* Pointer arrow */}
       <div className="absolute -top-2 right-[52px] w-4 h-4 bg-surface-container-high border-l border-t border-outline-variant/20 rotate-45" />
         {/* ── Header ───────────────────────────────────────────────── */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-outline-variant/20">
@@ -235,14 +234,12 @@ export function ShareDialog({ open, project, onClose }: ShareDialogProps) {
                       : "hover:bg-surface-container-highest"
                   }`}
                 >
-                  {/* Status dot */}
                   <span
                     className={`w-2 h-2 rounded-full shrink-0 ${
                       expired ? "bg-error" : "bg-green-400"
                     }`}
                   />
 
-                  {/* Info column */}
                   <div className="flex-1 min-w-0">
                     <span className="font-body-md text-on-surface block truncate">
                       {formatDate(record.createdAt)}
@@ -254,7 +251,6 @@ export function ShareDialog({ open, project, onClose }: ShareDialogProps) {
                     </span>
                   </div>
 
-                  {/* View (QR) button — hidden for expired links */}
                   {!expired && (
                     <button
                       onClick={() => setSelectedRecord(record)}
@@ -265,7 +261,6 @@ export function ShareDialog({ open, project, onClose }: ShareDialogProps) {
                     </button>
                   )}
 
-                  {/* Copy button */}
                   <button
                     onClick={() => handleCopy(record.shortId)}
                     className="w-8 h-8 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-highest transition-colors"

@@ -29,7 +29,6 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
   pushSnapshot: (lyrics, projectId) => {
     const state = get();
 
-    // Auto-clear if project changed
     if (state.projectId !== null && state.projectId !== projectId) {
       const snapshot: LyricsSnapshot = {
         lyrics: structuredClone(lyrics) as Record<string, LyricLine>,
@@ -38,7 +37,6 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
       return;
     }
 
-    // Deduplicate: skip if identical to last snapshot
     const last = state.undoStack[state.undoStack.length - 1];
     if (last) {
       const lastStr = JSON.stringify(last.lyrics);
@@ -51,7 +49,6 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
     };
 
     const newUndo = [...state.undoStack, snapshot];
-    // Enforce max steps limit
     while (newUndo.length > MAX_UNDO_STEPS) newUndo.shift();
 
     set({

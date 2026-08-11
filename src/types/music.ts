@@ -75,3 +75,24 @@ export interface MusicBrainzBatchArtistResult {
 export interface MusicBrainzBatchSocialResponse {
   artists: Record<string, MusicBrainzBatchArtistResult>;
 }
+
+/** Request body for the Worker's /metadata/full endpoint. */
+export interface FullMetadataRequest {
+  artistName: string;
+  trackName: string;
+  albumName?: string;
+}
+
+/** Response from the Worker's /metadata/full endpoint. */
+export interface FullMetadataResponse {
+  trackName: string;
+  artistNames: string[];
+  artistMbids: string[];
+  isrc: string | null;
+  coverUrl: string;
+  albumName?: string;
+  streamingSites: Record<string, string | null>;
+  songLinkUrl?: string;
+  artistLinks: Array<{ name: string; url: string }>;
+  socialLinks: Array<{ platform: string; url: string; artistName?: string }>;
+}

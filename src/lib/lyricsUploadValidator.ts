@@ -100,7 +100,6 @@ export function validateAndParseLyrics(raw: string): ValidationResult {
     };
   }
 
-  // format === "plain"
   const textLines = raw
     .split("\n")
     .map((l) => l.trim())

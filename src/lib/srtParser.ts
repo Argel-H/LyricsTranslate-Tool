@@ -5,7 +5,6 @@ import type { ParsedLrcLine } from "./lyricsParser";
  * Throws if the timestamp is unparseable or values are out of range.
  */
 function parseSrtTimestamp(timestamp: string): number {
-  // HH:MM:SS,mmm
   const parts = timestamp.split(":");
   if (parts.length !== 3) throw new Error(`Invalid SRT timestamp: ${timestamp}`);
   const hours = parseInt(parts[0]!, 10);
@@ -38,22 +37,20 @@ export function parseSrtContent(raw: string): ParsedLrcLine[] {
     const lines = block.trim().split("\n");
     if (lines.length < 2) continue; // Need at least index and timestamp line
 
-    // Line 0: index
-    // Line 1: timestamp
     const timestampLine = lines[1]?.trim() ?? "";
     const arrowMatch = timestampLine.match(
       /^(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})$/,
     );
-    if (!arrowMatch) continue; // Skip malformed blocks
+    if (!arrowMatch) continue;
 
     try {
       const timeStartMs = parseSrtTimestamp(arrowMatch[1]!);
       const timeEndMs = parseSrtTimestamp(arrowMatch[2]!);
 
-      if (timeStartMs >= timeEndMs) continue; // Skip invalid blocks
+      if (timeStartMs >= timeEndMs) continue;
 
       const text = lines.slice(2).join("\n").trim();
-      if (!text) continue; // Skip empty text blocks
+      if (!text) continue;
 
       result.push({ timestamp: timeStartMs, text });
     } catch {
@@ -115,7 +112,6 @@ export function validateSrtContent(raw: string): { valid: boolean; error?: strin
       return { valid: false, error: `Block ${i + 1}: ${(e as Error).message}` };
     }
 
-    // Check that there's text content
     if (lines.length < 3 || lines.slice(2).join("").trim().length === 0) {
       return {
         valid: false,
