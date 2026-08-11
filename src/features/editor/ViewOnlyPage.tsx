@@ -12,7 +12,7 @@ import { MasterCard } from "@/features/shell/MasterCard";
 import { AudioPlayerBar } from "@/features/editor/AudioPlayerBar";
 import { Music, RefreshCw } from "lucide-react";
 import { LyricsReadOnlyTable } from "@/features/editor/viewonly/LyricsReadOnlyTable";
-import { ProjectInfoModal } from "@/features/editor/viewonly/ProjectInfoModal";
+import { ProjectDetailsModal } from "@/components/shared/ProjectDetailsModal";
 import { LanguageLabel } from "@/components/shared/LanguageLabel";
 
 export function ViewOnlyPage() {
@@ -127,7 +127,7 @@ export function ViewOnlyPage() {
   if (loading) {
     return (
       <div className="h-screen bg-surface-container flex items-center justify-center">
-        <div className="flex flex-col items-center gap-6">
+        <div className="flex flex-col items-center gap-4">
           <div className="w-20 h-20 rounded-full bg-surface-container-low flex items-center justify-center">
             <M3LoadingIndicator size={40} style={{ color: "rgb(208, 188, 255)" }} />
           </div>
@@ -246,7 +246,7 @@ export function ViewOnlyPage() {
       )}
 
       {modalOpen && project && (
-        <ProjectInfoModal project={project} onClose={() => setModalOpen(false)} />
+        <ProjectDetailsModal project={project} onClose={() => setModalOpen(false)} />
       )}
     </>
   );

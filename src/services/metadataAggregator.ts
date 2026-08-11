@@ -1,4 +1,4 @@
-import { searchMusicBrainzRecording, fetchArtistSocialLinks } from "./musicbrainz";
+import { searchMusicBrainzRecording, fetchBatchArtistSocialLinks } from "./musicbrainz";
 import { fetchDeezerByISRC, fetchDeezerByName, type DeezerResult } from "./deezer";
 import { fetchOdesliUrls } from "./odesli";
 import { processLyricsMap } from "@/lib/lyricsParser";
@@ -14,7 +14,7 @@ import type { LRCLibResult } from "@/types/music";
 
 interface ExtractionDependencies {
   searchMusicBrainzRecording: typeof searchMusicBrainzRecording;
-  fetchArtistSocialLinks: typeof fetchArtistSocialLinks;
+  fetchBatchArtistSocialLinks: typeof fetchBatchArtistSocialLinks;
   fetchDeezerByISRC: typeof fetchDeezerByISRC;
   fetchDeezerByName: typeof fetchDeezerByName;
   fetchOdesliUrls: typeof fetchOdesliUrls;
@@ -76,18 +76,26 @@ async function resolveArtistsViaMusicBrainz(
   return next;
 }
 
-/** Step: Resolve social media links from MusicBrainz artist MBIDs (max 3). */
+/** Step: Resolve social media links from MusicBrainz artist MBIDs (batch, max 5). */
 async function resolveSocialMediaLinks(
   ctx: ExtractionContext,
-  deps: Pick<ExtractionDependencies, "fetchArtistSocialLinks">,
+  deps: Pick<ExtractionDependencies, "fetchBatchArtistSocialLinks">,
 ): Promise<ExtractionContext> {
-  const links: Array<{ platform: string; url: string; artistName?: string }> = [];
+  // Limit to max 5 MBIDs per batch request
+  const mbids = ctx.artistMbids.slice(0, 5);
+  if (mbids.length === 0) return ctx;
 
-  for (let i = 0; i < Math.min(ctx.artistMbids.length, 3); i++) {
-    const artistLinks = await deps.fetchArtistSocialLinks(ctx.artistMbids[i]);
+  const allLinks = await deps.fetchBatchArtistSocialLinks(mbids);
+
+  const links: Array<{ platform: string; url: string; artistName?: string }> = [];
+  for (let i = 0; i < mbids.length; i++) {
+    const mbid = mbids[i];
     const artistName = ctx.artistNames[i];
-    for (const link of artistLinks) {
-      links.push({ ...link, artistName });
+    const result = allLinks[mbid];
+    if (result?.links) {
+      for (const link of result.links) {
+        links.push({ ...link, artistName });
+      }
     }
   }
 
@@ -240,7 +248,7 @@ export async function getFullMetadata(
 ): Promise<ProjectCreateInput> {
   const deps: ExtractionDependencies = {
     searchMusicBrainzRecording,
-    fetchArtistSocialLinks,
+    fetchBatchArtistSocialLinks,
     fetchDeezerByISRC,
     fetchDeezerByName,
     fetchOdesliUrls,

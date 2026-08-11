@@ -62,3 +62,16 @@ export interface MusicBrainzArtistRelation {
 }
 
 export type PlatformLinks = Record<string, string | null>;
+
+export interface SocialLink {
+  platform: string;
+  url: string;
+}
+
+export interface MusicBrainzBatchArtistResult {
+  links: SocialLink[];
+}
+
+export interface MusicBrainzBatchSocialResponse {
+  artists: Record<string, MusicBrainzBatchArtistResult>;
+}

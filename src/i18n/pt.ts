@@ -128,6 +128,7 @@ export const pt = {
   "setup.emptyLyricsNote": "Deixe vazio para começar com um editor de letras em branco. Opcionalmente, cole ou envie um arquivo .lrc/.srt acima para pré-carregar as letras.",
   "setup.lookup": "Buscar",
   "setup.lookupSearching": "Buscando...",
+  "setup.lookupFound": "Metadados encontrados",
   "setup.lookupApply": "Aplicar",
   "setup.lookupDismiss": "Descartar",
   "setup.lookupLines": "{count} linhas",

@@ -43,6 +43,8 @@ import {
   makeRotatingLanguageOptions,
 } from "@/components/shared/RotatingFlag";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { ProjectDetailsModal } from "@/components/shared/ProjectDetailsModal";
+import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 import { useCoverTilt } from "@/hooks/useCoverTilt";
 import { usePageShell } from "@/hooks/usePageShell";
 import { useShellStore } from "@/stores/shellStore";
@@ -206,24 +208,25 @@ export function ProjectSetupPage() {
   };
 
   const handleLookup = async () => {
+    if (!songName.trim()) return;
     const mainArtist = artists[0]?.trim();
-    if (!songName.trim() || !mainArtist) return;
 
     setLookupLoading(true);
     setLookupError(null);
     setLookupResult(null);
 
     try {
-      // Step 1: Search LRCLIB for lyrics
-      const query = `${mainArtist} ${songName.trim()}`;
+      // Query: combine artist + song if available, otherwise just song name
+      const query = mainArtist ? `${mainArtist} ${songName.trim()}` : songName.trim();
       const lrcResults = await searchLrcLib(query);
-      // Prefer synced lyrics, fall back to any result
       const lrcResult = lrcResults.find((r) => r.syncedLyrics) ?? lrcResults[0];
       const rawLyrics = lrcResult?.syncedLyrics || lrcResult?.plainLyrics || "";
 
-      // Step 2: Run full metadata pipeline — use LRCLIB track name for correct casing
+      // Use LRCLIB track name for correct casing; fall back to user input
       const resolvedTrackName = lrcResult?.trackName || songName.trim();
-      const metadata = await getFullMetadata(mainArtist, resolvedTrackName, lrcResult);
+      // Use LRCLIB artist name for pipeline; fall back to user input or empty
+      const artistForPipeline = lrcResult?.artistName || mainArtist || "";
+      const metadata = await getFullMetadata(artistForPipeline, resolvedTrackName, lrcResult);
 
       setLookupResult({ metadata, rawLyrics, lrcResult });
     } catch (e) {
@@ -389,129 +392,50 @@ export function ProjectSetupPage() {
           {/* Left Column */}
           <div className="lg:col-span-4 flex flex-col gap-lg">
             <SectionCard title={t("setup.trackDetails")}>
-              <RoundedInput
-                label={t("setup.songName")}
-                value={songName}
-                onChange={setSongName}
-              />
+              <div className="flex items-center gap-2">
+                <div className="flex-1">
+                  <RoundedInput
+                    label={t("setup.songName")}
+                    value={songName}
+                    onChange={setSongName}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && songName.trim() && !lookupLoading) {
+                        handleLookup();
+                      }
+                    }}
+                  />
+                </div>
+                {!isEditing && (
+                  <Button
+                    variant="secondary"
+                    onClick={handleLookup}
+                    disabled={!songName.trim() || lookupLoading}
+                    className={`font-label-lg text-label-lg py-3 px-3 rounded-sm flex items-center justify-center gap-2 transition-all h-12 aspect-square shrink-0 ${lookupLoading ? "bg-tertiary-container text-on-surface-variant" : "bg-tertiary-container text-on-tertiary-container hover:bg-tertiary-container/80"}`}
+                  >
+                    {lookupLoading ? (
+                      <M3LoadingIndicator size={18} />
+                    ) : (
+                      <Search className="size-4" />
+                    )}
+                  </Button>
+                )}
+              </div>
               <RoundedInput
                 label={t("setup.albumName")}
                 value={albumName}
                 onChange={setAlbumName}
               />
-              {!isEditing && (
-                <>
-                  <Button
-                    variant="secondary"
-                    onClick={handleLookup}
-                    disabled={!songName.trim() || !artists[0]?.trim() || lookupLoading}
-                    className="bg-tertiary-container text-on-tertiary-container font-label-lg text-label-lg py-2 px-6 rounded-full flex items-center justify-center gap-2 self-center hover:bg-tertiary-container/80 transition-all h-auto mt-1"
+              {lookupError && (
+                <div className="flex items-center gap-2 p-3 rounded-2xl bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300">
+                  <AlertCircle className="size-4 shrink-0" />
+                  <span className="font-body-sm">{lookupError}</span>
+                  <button
+                    onClick={() => setLookupError(null)}
+                    className="ml-auto text-red-500 hover:text-red-700"
                   >
-                    {lookupLoading ? (
-                      <span className="inline-block size-4 border-2 border-on-tertiary-container/30 border-t-on-tertiary-container rounded-full animate-spin" />
-                    ) : (
-                      <Search className="size-4" />
-                    )}
-                    {lookupLoading ? t("setup.lookupSearching") : t("setup.lookup")}
-                  </Button>
-
-                  {lookupError && (
-                    <div className="flex items-center gap-2 p-3 rounded-2xl bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300">
-                      <AlertCircle className="size-4 shrink-0" />
-                      <span className="font-body-sm">{lookupError}</span>
-                      <button
-                        onClick={() => setLookupError(null)}
-                        className="ml-auto text-red-500 hover:text-red-700"
-                      >
-                        <X className="size-3.5" />
-                      </button>
-                    </div>
-                  )}
-
-                  {lookupResult && (
-                    <div className="bg-surface-container-low rounded-2xl border border-outline-variant/20 p-4 flex flex-col gap-3">
-                      <div className="flex items-center gap-3">
-                        {lookupResult.metadata.coverUrl && (
-                          <img
-                            src={lookupResult.metadata.coverUrl}
-                            alt="Cover"
-                            className="size-14 rounded-xl object-cover shrink-0"
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="font-label-lg text-on-surface truncate">
-                            {lookupResult.metadata.artistName.join(", ")} — {lookupResult.metadata.trackName}
-                          </p>
-                          {lookupResult.metadata.albumName && (
-                            <p className="font-body-sm text-on-surface-variant truncate">
-                              {lookupResult.metadata.albumName}
-                            </p>
-                          )}
-                          {lookupResult.metadata.isrcs && (
-                            <p className="font-body-xs text-on-surface-variant/70 font-mono truncate mt-0.5">
-                              ISRC: {lookupResult.metadata.isrcs}
-                            </p>
-                          )}
-                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
-                            {lookupResult.rawLyrics && (
-                              <span className="font-body-xs text-on-surface-variant">
-                                📝 {t("setup.lookupLines").replace(
-                                  "{count}",
-                                  String(lookupResult.rawLyrics.split("\n").filter((l) => l.trim()).length),
-                                )}
-                                {" "}·{" "}
-                                {lookupResult.lrcResult?.syncedLyrics
-                                  ? t("setup.lookupSynced")
-                                  : t("setup.lookupPlainText")}
-                              </span>
-                            )}
-                            {/* Extra artists found */}
-                            {(() => {
-                              const typedCount = artists.filter((a) => a.trim()).length;
-                              const foundCount = lookupResult.metadata.artistName.length;
-                              if (foundCount > typedCount) {
-                                const extra = lookupResult.metadata.artistName.slice(typedCount);
-                                return (
-                                  <span className="font-body-xs text-on-surface-variant">
-                                    👥 +{extra.length} artist{extra.length > 1 ? "s" : ""}: {extra.join(", ")}
-                                  </span>
-                                );
-                              }
-                              return null;
-                            })()}
-                            {lookupResult.metadata.recommendedSocialLinks &&
-                              lookupResult.metadata.recommendedSocialLinks.length > 0 && (
-                                <span className="font-body-xs text-on-surface-variant">
-                                  🔗 {lookupResult.metadata.recommendedSocialLinks.map((l) => l.platform).filter((v, i, a) => a.indexOf(v) === i).join(", ")}
-                                </span>
-                              )}
-                            {lookupResult.metadata.streamingSites &&
-                              Object.keys(lookupResult.metadata.streamingSites).filter((k) => lookupResult.metadata.streamingSites![k]).length > 0 && (
-                                <span className="font-body-xs text-on-surface-variant">
-                                  🎵 {Object.keys(lookupResult.metadata.streamingSites).filter((k) => lookupResult.metadata.streamingSites![k]).join(", ")}
-                                </span>
-                              )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={applyLookup}
-                          className="bg-primary-container text-on-primary-container font-label-md px-4 py-2 rounded-full hover:bg-primary hover:text-on-primary transition-all h-auto flex-1"
-                        >
-                          {t("setup.lookupApply")}
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          onClick={() => setLookupResult(null)}
-                          className="bg-surface-container-highest text-on-surface-variant font-label-md px-4 py-2 rounded-full hover:bg-surface-container-high transition-all h-auto flex-1"
-                        >
-                          {t("setup.lookupDismiss")}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
+                    <X className="size-3.5" />
+                  </button>
+                </div>
               )}
             </SectionCard>
 
@@ -869,6 +793,21 @@ export function ProjectSetupPage() {
           </div>
         </div>
       </MasterCard>
+
+      {lookupResult && (
+        <ProjectDetailsModal
+          project={lookupResult.metadata}
+          title={t("setup.lookupFound")}
+          lookupExtras={{
+            rawLyrics: lookupResult.rawLyrics,
+            lrcResult: lookupResult.lrcResult,
+            typedArtistCount: artists.filter((a) => a.trim()).length,
+          }}
+          onApply={applyLookup}
+          onDismiss={() => setLookupResult(null)}
+          onClose={() => setLookupResult(null)}
+        />
+      )}
 
       <ConfirmDialog
         open={deleteOpen}

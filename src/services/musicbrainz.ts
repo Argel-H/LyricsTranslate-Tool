@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { MusicBrainzRecording, MusicBrainzArtistRelation } from "@/types/music";
+import type { MusicBrainzRecording, MusicBrainzArtistRelation, SocialLink, MusicBrainzBatchSocialResponse } from "@/types/music";
 import { API } from "@/lib/config/apiConfig";
 
 const MUSICBRAINZ_BASE = API.musicbrainz;
@@ -110,5 +110,37 @@ export async function fetchArtistSocialLinks(
     return links;
   } catch {
     return [];
+  }
+}
+
+/**
+ * Fetches social media links for multiple artists in a single request.
+ * Calls the Cloudflare Worker which batches MusicBrainz queries server-side.
+ *
+ * @param mbids - Array of MusicBrainz artist IDs (max 5)
+ * @returns Record mapping each MBID to its social links
+ */
+export async function fetchBatchArtistSocialLinks(
+  mbids: string[],
+): Promise<Record<string, { links: SocialLink[] }>> {
+  if (!mbids || mbids.length === 0) return {};
+
+  try {
+    const response = await fetch(API.musicbrainzBatch, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mbids }),
+    });
+
+    if (!response.ok) {
+      console.error("fetchBatchArtistSocialLinks failed with status:", response.status);
+      return {};
+    }
+
+    const data: MusicBrainzBatchSocialResponse = await response.json();
+    return data.artists ?? {};
+  } catch (err) {
+    console.error("fetchBatchArtistSocialLinks failed:", err);
+    return {};
   }
 }

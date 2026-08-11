@@ -11,4 +11,5 @@ export const API = {
   metadata: isDev ? undefined : `${WORKER_URL}/metadata`,
   share: `${WORKER_URL}/share`,
   proxy: WORKER_URL,
+  musicbrainzBatch: `${WORKER_URL}/musicbrainz/artists`,
 } as const;

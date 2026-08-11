@@ -126,6 +126,7 @@ export const en = {
   "setup.emptyLyricsNote": "Leave empty to start with a blank lyrics editor. Optionally, paste or upload an .lrc/.srt file above to pre-populate lyrics.",
   "setup.lookup": "Lookup",
   "setup.lookupSearching": "Searching...",
+  "setup.lookupFound": "Metadata Found",
   "setup.lookupApply": "Apply",
   "setup.lookupDismiss": "Dismiss",
   "setup.lookupLines": "{count} lines",

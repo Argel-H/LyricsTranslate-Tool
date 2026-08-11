@@ -8,9 +8,10 @@ interface RoundedInputProps {
   onClear?: () => void
   readOnly?: boolean
   className?: string
+  onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void
 }
 
-export function RoundedInput({ label, value, onChange, onClear, readOnly, className }: RoundedInputProps) {
+export function RoundedInput({ label, value, onChange, onClear, readOnly, className, onKeyDown }: RoundedInputProps) {
   return (
     <div
       className={cn(
@@ -27,6 +28,7 @@ export function RoundedInput({ label, value, onChange, onClear, readOnly, classN
           value={value}
           onChange={(e) => onChange?.(e.target.value)}
           readOnly={readOnly}
+          onKeyDown={onKeyDown}
           className="bg-transparent border-none focus:ring-0 text-on-surface w-full p-0 font-body-md text-body-md outline-none"
         />
         {!readOnly && value && onClear && (
