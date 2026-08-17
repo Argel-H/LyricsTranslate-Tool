@@ -49,6 +49,7 @@ lyrics:
     original: "Hello world"
     translated: "Hola mundo"
     locked: false
+    comment: "First line note"
   - time_start: "00:06.00"
     time_end: "00:10.00"
     original: "How are you"
@@ -100,12 +101,47 @@ describe("parseProjectYaml", () => {
     expect(lyrics.lrc_00?.time_start).toBe(1000);
     expect(lyrics.lrc_00?.time_end).toBe(5000);
     expect(lyrics.lrc_00?.locked).toBe(false);
+    expect(lyrics.lrc_00?.comment).toBe("First line note");
     expect(lyrics.lrc_01?.lyric).toBe("How are you");
     expect(lyrics.lrc_01?.translation).toBe("Cómo estás");
+    // Line without a comment field yields undefined.
+    expect(lyrics.lrc_01?.comment).toBeUndefined();
 
     const lockedResult = parseProjectYaml("version: 1\nproject:\n  title: \"T\"\n  track_name: \"T\"\n  artists:\n    - \"A\"\nmetadata:\n  created_at: 0\n  updated_at: 0\n  exported_at: 0\nlyrics:\n  - time_start: \"00:00.00\"\n    time_end: \"00:01.00\"\n    original: \"Locked\"\n    translated: \"Bloqueado\"\n    locked: true\n  - time_start: \"00:01.00\"\n    time_end: \"00:02.00\"\n    original: \"Unlocked\"\n    translated: \"Desbloqueado\"\n");
     expect(lockedResult.lyrics.lrc_00?.locked).toBe(true);
     expect(lockedResult.lyrics.lrc_01?.locked).toBe(false);
+  });
+
+  it("parses comments on lyric lines and leaves them undefined when absent or empty", () => {
+    const result = parseProjectYaml(`version: 1
+project:
+  title: "T"
+  track_name: "T"
+  artists:
+    - "A"
+metadata:
+  created_at: 0
+  updated_at: 0
+  exported_at: 0
+lyrics:
+  - time_start: "00:00.00"
+    time_end: "00:01.00"
+    original: "With comment"
+    translated: "Con comentario"
+    comment: "Raw markdown **note**"
+  - time_start: "00:01.00"
+    time_end: "00:02.00"
+    original: "Empty comment"
+    translated: "Comentario vacío"
+    comment: "   "
+  - time_start: "00:02.00"
+    time_end: "00:03.00"
+    original: "No comment"
+    translated: "Sin comentario"
+`);
+    expect(result.lyrics.lrc_00?.comment).toBe("Raw markdown **note**");
+    expect(result.lyrics.lrc_01?.comment).toBeUndefined();
+    expect(result.lyrics.lrc_02?.comment).toBeUndefined();
   });
 
   it("accepts minimal YAML with only required fields", () => {

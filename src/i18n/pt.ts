@@ -243,4 +243,15 @@ export const pt = {
   "share.noLinks": "Nenhum link ainda",
   "share.view": "Ver QR",
   "share.copy": "Copiar link",
+
+  "editor.comment": "Comentário",
+  "editor.commentPlaceholder": "Adicione um comentário…",
+  "editor.commentClear": "Limpar comentário",
+  "editor.commentBold": "Negrito",
+  "editor.commentItalic": "Itálico",
+  "editor.commentUnderline": "Sublinhado",
+  "editor.commentHighlight": "Destaque",
+  "editor.commentLink": "Link",
+  "editor.commentLinkUrl": "URL",
+  "editor.commentDone": "Concluído",
 } as const;

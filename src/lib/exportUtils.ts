@@ -1,6 +1,7 @@
 import type { LyricLine, Project } from "@/types/project";
 import { formatMillisecondsToTimestamp } from "./timeUtils";
 import { encodeAudioUrl } from "./audioUrlCodec";
+import { trimToUndefined } from "./stringUtils";
 
 /**
  * Supported text-case transformations for LRC/SRT export.
@@ -226,6 +227,10 @@ export function generateYamlContent(project: Project): string {
     // locked is optional - only include when explicitly set (omitted if undefined)
     if (line.locked !== undefined) {
       lines.push(`    locked: ${line.locked}`);
+    }
+    const comment = trimToUndefined(line.comment);
+    if (comment !== undefined) {
+      lines.push(`    comment: ${escapeYamlValue(comment)}`);
     }
   }
 

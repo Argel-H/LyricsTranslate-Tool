@@ -1,7 +1,7 @@
 {
   "name": "lyrics-translate-tool",
   "private": true,
-  "version": "0.0.5",
+  "version": "0.0.6",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -25,8 +25,11 @@
     "clsx": "^2.1.1",
     "country-flag-icons": "^1.6.20",
     "dexie": "^4.0.11",
+    "dompurify": "^3.4.13",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.23.0",
+    "markdown-it": "^15.0.0",
+    "markdown-it-mark": "^4.0.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
@@ -39,6 +42,7 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

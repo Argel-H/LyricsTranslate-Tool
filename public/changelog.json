@@ -1,5 +1,12 @@
 [
   {
+    "version": "0.0.6",
+    "date": "2026-08-17",
+    "changes": [
+      "Per-line comments with markdown editor: bold, italic, underline, highlight, and links"
+    ]
+  },
+  {
     "version": "0.0.5",
     "date": "2025-08-10",
     "changes": [
@@ -27,7 +34,7 @@
       "3D parallax tilt on cover art for a more expressive feel",
       "Project search now ignores accents, so \"Alone\" matches \"Alon\u00f8\"",
       "Wallpaper metadata fields (artist, source, and post URL) saved per project and included in YAML export/import",
-      "Editable source dropdown lets you pick from presets or type a custom value with visual feedback",
+      "Editable source dropdown lets you pick from presets or type a custom value with visual feedback"
     ]
   },
   {

@@ -1,6 +1,7 @@
 import type { ProjectCreateInput, LyricLine } from "@/types/project";
 import { parseTimestampToMilliseconds } from "./timeUtils";
 import { decodeAudioUrl } from "./audioUrlCodec";
+import { trimToUndefined } from "./stringUtils";
 
 // ---------------------------------------------------------------------------
 // Simple line-by-line YAML parser
@@ -350,6 +351,7 @@ export function parseProjectYaml(yamlString: string): ProjectCreateInput {
       lyric: String(line.original ?? ""),
       translation: String(line.translated ?? ""),
       locked: line.locked === true,
+      comment: trimToUndefined(line.comment),
     };
   }
 

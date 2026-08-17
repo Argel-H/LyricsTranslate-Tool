@@ -26,6 +26,7 @@ import {
 import type { AutoTranslateInput } from "@/services/simplyTranslate";
 import { processLyricsMap } from "@/lib/lyricsParser";
 import type { LyricLine } from "@/types/project";
+import { buildCommentIndex, getCommentForLine } from "@/lib/commentUtils";
 import { findAllTranslations } from "@/lib/suggestionUtils";
 import { AI_PROVIDERS } from "@/lib/config/aiConfig";
 import { downloadProjectAsYaml, generateLrcContent, generateSrtContent, type TextCase } from "@/lib/exportUtils";
@@ -487,6 +488,11 @@ export function EditorPage() {
     ? Object.entries(currentProject.lyrics)
     : [];
 
+  const commentIndex = useMemo(() => {
+    if (!currentProject) return new Map<string, string>();
+    return buildCommentIndex(currentProject.lyrics);
+  }, [currentProject]);
+
   const sortedLyricLines = useMemo<TimestampedLine[]>(() => {
     if (!currentProject) return [];
     return getSortedLyricLines(currentProject.lyrics);
@@ -742,6 +748,7 @@ export function EditorPage() {
                 const isActive = activeLineKey === key;
                 const state = isActive ? ("active" as const) : ("default" as const);
                 const suggestions = allSuggestions[index];
+                const comment = getCommentForLine(commentIndex, line.lyric);
 
                 return (
                   <TableRow
@@ -753,6 +760,11 @@ export function EditorPage() {
                     timeEnd={formatMillisecondsToTimestamp(line.time_end)}
                     lyric={line.lyric}
                     translation={line.translation}
+                    comment={comment}
+                    onCommentSave={(value) => {
+                      snapshotLyrics();
+                      useProjectStore.getState().updateComment(key, value);
+                    }}
                     translationPlaceholder={
                       !line.translation
                         ? t("editor.translatePlaceholder")

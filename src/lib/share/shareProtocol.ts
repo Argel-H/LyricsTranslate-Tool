@@ -1,10 +1,10 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// BINARY FORMAT v3 - LyricsTranslate Share Protocol  (SHARE_VERSION = 0x03)
+// BINARY FORMAT v4 - LyricsTranslate Share Protocol  (SHARE_VERSION = 0x04)
 // ═══════════════════════════════════════════════════════════════════════════════
 //
 // An entire Project is serialized into a compact binary buffer, Brotli-compressed
 // (quality 11), and Base64URL-encoded for embedding in a shareable URL. The
-// decoder also supports the legacy v2 format for backwards compatibility.
+// decoder also supports the legacy v2 and v3 formats for backwards compatibility.
 //
 // All integers are little-endian and unsigned unless explicitly noted otherwise.
 //
@@ -19,7 +19,7 @@
 // ╠══════════════════════════════════════════════════════════════════════════════
 // ║                                    │                   │
 // ║  ─── HEADER ───
-// ║  VERSION                           │  1 byte (u8)      │  0x03
+// ║  VERSION                           │  1 byte (u8)      │  0x04
 // ║  LANGUAGE PAIR                     │  1 byte (u8)      │  bits 7:4 = origin
 // ║                                    │                   │  bits 3:0 = trans
 // ║  track name                        │                   │
@@ -89,9 +89,10 @@
 // ║  LOCK FLAGS                        │  ceil(N/8) bytes  │  1 bit/row, LSB-1st
 // ║    · bit (i & 7) of byte (i >> 3) = row i locked
 // ║  TEXT BLOCK                        │  X bytes (UTF-8)  │
-// ║    · fields joined by real "\n", ordered: translation → lyric
+// ║    · fields joined by real "\n", ordered: translation → lyric → comment
 // ║    · escape: literal \ → \\ , literal newline in text → \\n
 // ║    · translation stored first for better Brotli compression
+// ║    · comment field added in v4 (v3 buffers carry only translation + lyric)
 // ║
 // ╚══════════════════════════════════════════════════════════════════════════════
 //
@@ -239,7 +240,6 @@ function writeLyrics(writer: BinaryWriter, project: Project): void {
 
 function readHeader(reader: BinaryReader): {
   version: number;
-  useNewFormat: boolean;
   originLanguage: string;
   translationLanguage: string;
   trackName: string;
@@ -251,9 +251,10 @@ function readHeader(reader: BinaryReader): {
   syncOffsetMs: number | undefined;
 } {
   const version = reader.readU8();
-  const useNewFormat = version === SHARE_VERSION;
-  if (version !== 0x02 && !useNewFormat) {
-    throw new Error(`Unsupported share version: ${version}. Expected 0x02 or ${SHARE_VERSION}.`);
+  if (version !== 0x02 && version !== 0x03 && version !== 0x04) {
+    throw new Error(
+      `Unsupported share version: ${version}. Expected 0x02, 0x03, or 0x04.`,
+    );
   }
 
   const langByte = reader.readU8();
@@ -270,7 +271,7 @@ function readHeader(reader: BinaryReader): {
   const syncOffsetMsRaw = reader.readI16LE();
   const syncOffsetMs = syncOffsetMsRaw !== 0 ? syncOffsetMsRaw : undefined;
 
-  return { version, useNewFormat, originLanguage, translationLanguage, trackName, albumName, isrcs, songLinkUrl, audioUrl, coverUrl, syncOffsetMs };
+  return { version, originLanguage, translationLanguage, trackName, albumName, isrcs, songLinkUrl, audioUrl, coverUrl, syncOffsetMs };
 }
 
 function readArtistSection(
@@ -343,19 +344,12 @@ function readStreamingSites(reader: BinaryReader): Record<string, string | null>
   return streamingSites;
 }
 
-function readLyrics(reader: BinaryReader, rowCount: number, useNewFormat: boolean): Record<string, LyricLine> {
+function readLyrics(reader: BinaryReader, rowCount: number, version: number): Record<string, LyricLine> {
   const lyrics: Record<string, LyricLine> = {};
   const decoder = new TextDecoder();
 
-  if (useNewFormat) {
-    if (rowCount > 0) {
-      const lyricsData = reader.readBytes(reader.remaining);
-      const parsed = parseLyricsBuffer(rowCount, lyricsData);
-      for (let i = 0; i < parsed.length; i++) {
-        lyrics[`lrc_${String(i).padStart(2, "0")}`] = parsed[i];
-      }
-    }
-  } else {
+  if (version === 0x02) {
+    // Legacy v2: length-prefixed strings, 7-bit locked flag in the lyric length byte.
     let prevTimeStart = 0;
     for (let i = 0; i < rowCount; i++) {
       let time_start: number;
@@ -373,6 +367,16 @@ function readLyrics(reader: BinaryReader, rowCount: number, useNewFormat: boolea
       const translation = decoder.decode(reader.readBytes(transLen));
 
       lyrics[`lrc_${String(i).padStart(2, "0")}`] = { time_start, time_end, lyric, translation, locked };
+    }
+  } else {
+    // v3 (2 fields per row) and v4 (3 fields per row: translation, lyric, comment).
+    if (rowCount > 0) {
+      const lyricsData = reader.readBytes(reader.remaining);
+      const fieldsPerRow = version === 0x03 ? 2 : 3;
+      const parsed = parseLyricsBuffer(rowCount, lyricsData, fieldsPerRow);
+      for (let i = 0; i < parsed.length; i++) {
+        lyrics[`lrc_${String(i).padStart(2, "0")}`] = parsed[i];
+      }
     }
   }
 
@@ -431,7 +435,7 @@ export async function decodeShareUrl(urlOrData: string): Promise<ProjectCreateIn
   reader.readStr1B();
 
   const rowCount = reader.readU16LE();
-  const lyrics = readLyrics(reader, rowCount, header.useNewFormat);
+  const lyrics = readLyrics(reader, rowCount, header.version);
 
   return {
     artistName: artistNameList,

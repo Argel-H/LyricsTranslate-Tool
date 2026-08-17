@@ -243,4 +243,15 @@ export const en = {
   "share.noLinks": "No share links yet",
   "share.view": "View QR",
   "share.copy": "Copy link",
+
+  "editor.comment": "Comment",
+  "editor.commentPlaceholder": "Add a comment…",
+  "editor.commentClear": "Clear comment",
+  "editor.commentBold": "Bold",
+  "editor.commentItalic": "Italic",
+  "editor.commentUnderline": "Underline",
+  "editor.commentHighlight": "Highlight",
+  "editor.commentLink": "Link",
+  "editor.commentLinkUrl": "URL",
+  "editor.commentDone": "Done",
 } as const;

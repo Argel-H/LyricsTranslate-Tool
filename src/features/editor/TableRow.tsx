@@ -1,17 +1,13 @@
 import { cn } from "@/lib/utils";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { TimeControl } from "./TimeControl";
 import { TranslationTextarea } from "./TranslationTextarea";
 import { TranslationSuggestions } from "./TranslationSuggestions";
 import { Trash2, Lock, LockOpen } from "lucide-react";
 import type { TranslationSuggestion } from "@/lib/suggestionUtils";
 import { useI18n } from "@/hooks/useI18n";
+import { useViewportShift } from "@/hooks/useViewportShift";
+import { CommentButton } from "./CommentButton";
 
 interface TableRowProps {
   timeStart: string;
@@ -40,9 +36,15 @@ interface TableRowProps {
   isLocked?: boolean;
   onToggleLock?: () => void;
   showLock?: boolean;
+  /** Raw markdown comment for this lyric line (undefined = no comment). */
+  comment?: string;
+  /** Persists the raw markdown comment once, when the editor is committed. */
+  onCommentSave?: (value: string) => void;
   isAudioActive?: boolean;
   className?: string;
 }
+
+const TOOLTIP_SHOW_DELAY_MS = 150;
 
 export function TableRow({
   timeStart,
@@ -71,6 +73,8 @@ export function TableRow({
   isLocked = false,
   onToggleLock,
   showLock = false,
+  comment,
+  onCommentSave,
   isAudioActive = false,
   className,
 }: TableRowProps) {
@@ -81,10 +85,13 @@ export function TableRow({
   const [tooltipVisible, setTooltipVisible] = useState(false);
   const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tooltipCardRef = useRef<HTMLDivElement>(null);
-  const [tooltipShift, setTooltipShift] = useState(0);
+  const tooltipShift = useViewportShift(tooltipVisible, tooltipCardRef);
 
   const showTooltip = () => {
-    tooltipTimerRef.current = setTimeout(() => setTooltipVisible(true), 150);
+    tooltipTimerRef.current = setTimeout(
+      () => setTooltipVisible(true),
+      TOOLTIP_SHOW_DELAY_MS,
+    );
   };
   const hideTooltip = () => {
     if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
@@ -102,32 +109,11 @@ export function TableRow({
     setCurrentIndex(0);
   }, [suggestionsCount]);
 
-  // Cleanup tooltip timer on unmount
   useEffect(() => {
     return () => {
       if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
     };
   }, []);
-
-  // Adjust tooltip position to stay within viewport
-  useLayoutEffect(() => {
-    if (tooltipVisible && tooltipCardRef.current) {
-      const card = tooltipCardRef.current.getBoundingClientRect();
-      const viewportW = window.innerWidth;
-      const margin = 8;
-      let shift = 0;
-
-      if (card.left < margin) {
-        // Overflowing left edge - shift right
-        shift = margin - card.left;
-      } else if (card.right > viewportW - margin) {
-        // Overflowing right edge - shift left
-        shift = viewportW - margin - card.right;
-      }
-
-      setTooltipShift(shift);
-    }
-  }, [tooltipVisible]);
 
   // When suggestions exist and field is empty, suppress native placeholder
   // (TranslationSuggestions renders the overlay instead)
@@ -394,6 +380,8 @@ export function TableRow({
             )}
           </div>
         )}
+
+        <CommentButton comment={comment} onCommentSave={onCommentSave} />
       </div>
 
       {/* Delete button */}

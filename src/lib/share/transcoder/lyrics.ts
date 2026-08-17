@@ -9,10 +9,14 @@
 // Lock flags are packed LSB-first, 1 bit per row.
 // Text fields are newline-separated, with \ and \n backslash-escaped.
 // Translation text is stored before the original lyric for better compression.
+// Since v4, each row stores THREE fields: translation → lyric → comment.
+// v3 buffers store two fields per row (no comment); parseLyricsBuffer accepts
+// fieldsPerRow=2 to decode them.
 // The row count (u16LE) is NOT included - the outer share protocol writes it.
 // ---------------------------------------------------------------------------
 
 import type { LyricLine } from "@/types/project";
+import { trimToUndefined } from "@/lib/stringUtils";
 
 export function buildLyricsBuffer(rows: LyricLine[]): Uint8Array {
   const N = rows.length;
@@ -43,7 +47,7 @@ export function buildLyricsBuffer(rows: LyricLine[]): Uint8Array {
 
   const textParts: string[] = [];
   for (const r of sorted) {
-    textParts.push(esc(r.translation), esc(r.lyric));
+    textParts.push(esc(r.translation), esc(r.lyric), esc(r.comment ?? ""));
   }
   const textBytes = textEncoder.encode(textParts.join("\n"));
 
@@ -73,7 +77,11 @@ function unescapeField(s: string): string {
   return chars.join("");
 }
 
-export function parseLyricsBuffer(count: number, buffer: Uint8Array): LyricLine[] {
+export function parseLyricsBuffer(
+  count: number,
+  buffer: Uint8Array,
+  fieldsPerRow: 2 | 3 = 3,
+): LyricLine[] {
   const N = count;
   if (N === 0) return [];
 
@@ -104,10 +112,18 @@ export function parseLyricsBuffer(count: number, buffer: Uint8Array): LyricLine[
     cumTime = i === 0 ? deltas[i] : cumTime + deltas[i];
     const time_start = cumTime;
     const time_end = time_start + durations[i];
-    const translation = unescapeField(parts[i * 2] || "");
-    const lyric = unescapeField(parts[i * 2 + 1] || "");
+    const translation = unescapeField(parts[i * fieldsPerRow] || "");
+    const lyric = unescapeField(parts[i * fieldsPerRow + 1] || "");
 
-    rows.push({ time_start, time_end, lyric, translation, locked: locked[i] });
+    let comment: string | undefined;
+    if (fieldsPerRow === 3) {
+      const unescaped = unescapeField(parts[i * fieldsPerRow + 2] || "");
+      comment = trimToUndefined(unescaped);
+    }
+
+    const row: LyricLine = { time_start, time_end, lyric, translation, locked: locked[i] };
+    if (comment !== undefined) row.comment = comment;
+    rows.push(row);
   }
 
   return rows;

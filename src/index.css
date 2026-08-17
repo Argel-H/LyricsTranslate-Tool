@@ -114,3 +114,31 @@
 .animate-m3-loading-bar {
   animation: m3-loading-bar 2s ease-in-out infinite;
 }
+
+/* Line-comment markdown styles (scoped to .comment-markdown) */
+.comment-markdown strong {
+  font-weight: 600;
+}
+
+.comment-markdown em {
+  font-style: italic;
+}
+
+.comment-markdown u {
+  text-decoration: underline;
+}
+
+.comment-markdown mark {
+  background: rgba(208, 188, 255, 0.22);
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+.comment-markdown a {
+  color: rgb(var(--primary));
+  text-decoration: underline;
+}
+
+.comment-markdown p {
+  margin: 0.25rem 0;
+}

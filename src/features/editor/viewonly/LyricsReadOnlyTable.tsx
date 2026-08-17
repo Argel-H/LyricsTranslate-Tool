@@ -1,14 +1,22 @@
 import type { LyricLine } from "@/types/project";
 import { formatMillisecondsToTimestamp } from "@/lib/timeUtils";
-import { Lock } from "lucide-react";
+import { getCommentForLine } from "@/lib/commentUtils";
+import { Lock, MessageSquare } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
+import { CommentMarkdown } from "@/features/editor/CommentMarkdown";
 
 interface LyricsReadOnlyTableProps {
   lyricsEntries: [string, LyricLine][];
   activeLineKey: string | null;
+  /** Precomputed lyric-text → comment map (see buildCommentIndex). */
+  commentIndex: Map<string, string>;
 }
 
-export function LyricsReadOnlyTable({ lyricsEntries, activeLineKey }: LyricsReadOnlyTableProps) {
+export function LyricsReadOnlyTable({
+  lyricsEntries,
+  activeLineKey,
+  commentIndex,
+}: LyricsReadOnlyTableProps) {
   const { t } = useI18n();
 
   return (
@@ -25,6 +33,7 @@ export function LyricsReadOnlyTable({ lyricsEntries, activeLineKey }: LyricsRead
         )}
         {lyricsEntries.map(([key, line]) => {
           const isAudioActive = activeLineKey === key;
+          const comment = getCommentForLine(commentIndex, line.lyric);
           return (
             <div key={key} data-row-key={key} className={`grid grid-cols-[120px_120px_1fr_1fr] gap-4 p-md rounded-[24px] transition-all duration-200 relative ${
               isAudioActive
@@ -39,9 +48,20 @@ export function LyricsReadOnlyTable({ lyricsEntries, activeLineKey }: LyricsRead
               <div className="font-mono text-body-md text-on-surface flex items-center px-2">{formatMillisecondsToTimestamp(line.time_start)}</div>
               <div className="font-mono text-body-md text-on-surface flex items-center px-2">{formatMillisecondsToTimestamp(line.time_end)}</div>
               <div className="flex items-center">
-                <div className="w-full text-body-lg text-on-surface leading-relaxed flex items-start gap-2">
-                  <span className="whitespace-pre-wrap">{line.lyric}</span>
-                  {line.locked && <Lock className="size-3.5 text-tertiary shrink-0 mt-0.5" />}
+                <div className="w-full text-body-lg text-on-surface leading-relaxed flex flex-col items-start gap-2">
+                  <div className="flex items-start gap-2">
+                    <span className="whitespace-pre-wrap">{line.lyric}</span>
+                    {line.locked && <Lock className="size-3.5 text-tertiary shrink-0 mt-0.5" />}
+                  </div>
+                  {comment?.trim() && (
+                    <div className="flex items-start gap-1.5 text-on-surface-variant">
+                      <MessageSquare className="size-3.5 shrink-0 mt-0.5 opacity-70" />
+                      <CommentMarkdown
+                        className="text-body-md leading-relaxed"
+                        markdown={comment ?? ""}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex items-center">

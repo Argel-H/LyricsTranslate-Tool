@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { calculateLyricsProgress } from "@/lib/progressUtils";
+import { applyCommentToMatchingLines } from "@/lib/commentUtils";
 import type { Project, LyricLine } from "@/types/project";
 import { PROJECT_STATUS } from "@/lib/config/constants";
 import {
@@ -25,6 +26,7 @@ interface ProjectState {
   loadProject: (id: number) => Promise<void>;
   updateLine: (key: string, field: keyof LyricLine, value: string | number) => Promise<void>;
   updateAllLines: (lyrics: Record<string, LyricLine>) => Promise<void>;
+  updateComment: (key: string, comment: string) => Promise<void>;
   toggleLineLock: (key: string) => Promise<void>;
   toggleCompleted: () => void;
   toggleArchived: () => void;
@@ -97,6 +99,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     });
     await dbUpdateAllLyrics(project.id, lyrics);
     await updateProjectProgress(project.id, progress, status);
+  },
+  updateComment: async (key, comment) => {
+    const project = get().currentProject;
+    if (!project) return;
+    const line = project.lyrics[key];
+    if (!line) return;
+
+    const updatedLyrics = applyCommentToMatchingLines(project.lyrics, line.lyric, comment);
+
+    set({ currentProject: { ...project, lyrics: updatedLyrics, updatedAt: Date.now() } });
+    await dbUpdateAllLyrics(project.id, updatedLyrics);
   },
   toggleLineLock: async (key) => {
     const project = get().currentProject;

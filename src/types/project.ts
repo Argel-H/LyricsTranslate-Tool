@@ -6,6 +6,7 @@ export interface LyricLine {
   lyric: string;
   translation: string;
   locked?: boolean; // if true, auto-translate skips this line
+  comment?: string; // optional raw markdown comment attached to this line
 }
 
 export interface Project {

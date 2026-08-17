@@ -22,7 +22,6 @@ export async function migrateLyricTimestamps(): Promise<number> {
         newLine.time_end = parseTimestampToMilliseconds(newLine.time_end as string);
         touched = true;
       }
-      delete newLine.comment;
 
       migrated[key] = newLine;
     }

@@ -50,6 +50,28 @@ describe("generateYamlContent", () => {
     expect(lockedLines[0]).toContain("locked: true");
   });
 
+  it("emits comment for commented lines and omits it for uncommented lines", () => {
+    const project = makeProject({
+      lyrics: {
+        l1: makeLyricLine({
+          time_start: 10000, time_end: 15000,
+          lyric: "First line",
+          translation: "Primera línea",
+          comment: "A markdown **note**",
+        }),
+        l2: makeLyricLine({
+          time_start: 20000, time_end: 25000,
+          lyric: "Second line",
+          translation: "Segunda línea",
+        }),
+      },
+    });
+    const result = generateYamlContent(project);
+    const commentLines = result.split("\n").filter((l) => l.trim().startsWith("comment:"));
+    expect(commentLines).toHaveLength(1);
+    expect(commentLines[0]).toBe("    comment: A markdown **note**");
+  });
+
   it("escapes YAML special characters in strings", () => {
     const project = makeProject({
       lyrics: {

@@ -38,4 +38,5 @@ export interface ProjectYamlLyricLine {
   original: string;
   translated: string;
   locked?: boolean;
+  comment?: string;
 }

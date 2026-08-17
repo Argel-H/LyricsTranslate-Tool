@@ -6,16 +6,16 @@ import { makeProject } from '@/test/factories/project';
 
 function makeRichProject(overrides: Partial<Project> = {}): Project {
   const lyrics: Record<string, LyricLine> = {};
-  const lines: Array<[number, number, string, string, boolean?]> = [
-    [0, 16300, 'Hello world', 'Hola mundo', true],
+  const lines: Array<[number, number, string, string, boolean?, string?]> = [
+    [0, 16300, 'Hello world', 'Hola mundo', true, 'Opening note in markdown'],
     [16300, 19790, 'This is a test', 'Esto es una prueba'],
     [20000, 25000, 'Another line', 'Otra línea', true],
     [25000, 30000, 'More lyrics here', 'Más letras aquí'],
     [30000, 35000, 'Final line', 'Línea final'],
   ];
-  lines.forEach(([start, end, lyric, trans, locked], i) => {
+  lines.forEach(([start, end, lyric, trans, locked, comment], i) => {
     const key = `lrc_${String(i).padStart(2, '0')}`;
-    lyrics[key] = { time_start: start, time_end: end, lyric, translation: trans, locked };
+    lyrics[key] = { time_start: start, time_end: end, lyric, translation: trans, locked, comment };
   });
 
   return makeProject({
@@ -83,9 +83,23 @@ describe('shareProtocol', () => {
       expect(decodedLyrics[i].lyric).toBe(originalLyrics[i].lyric);
       expect(decodedLyrics[i].translation).toBe(originalLyrics[i].translation);
       expect(decodedLyrics[i].locked).toBe(originalLyrics[i].locked ?? false);
+      expect(decodedLyrics[i].comment).toBe(originalLyrics[i].comment);
     }
     expect(decoded.artistLinks?.length).toBeGreaterThanOrEqual(1);
     expect(decoded.recommendedSocialLinks?.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('round-trips line comments (including newlines and backslashes) through the share protocol', async () => {
+    const project = makeRichProject({
+      lyrics: {
+        lrc_00: { time_start: 0, time_end: 1000, lyric: 'Hello', translation: 'Hola', comment: 'Note with\nnewline and \\backslash' },
+        lrc_01: { time_start: 1000, time_end: 2000, lyric: 'World', translation: 'Mundo' },
+      },
+    });
+    const url = await encodeShareUrl(project);
+    const decoded = await decodeShareUrl(url);
+    expect(decoded.lyrics.lrc_00?.comment).toBe('Note with\nnewline and \\backslash');
+    expect(decoded.lyrics.lrc_01?.comment).toBeUndefined();
   });
 
   it('handles null/optional fields gracefully', async () => {

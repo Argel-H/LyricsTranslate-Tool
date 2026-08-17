@@ -14,6 +14,7 @@ import { Music, RefreshCw } from "lucide-react";
 import { LyricsReadOnlyTable } from "@/features/editor/viewonly/LyricsReadOnlyTable";
 import { ProjectDetailsModal } from "@/components/shared/ProjectDetailsModal";
 import { LanguageLabel } from "@/components/shared/LanguageLabel";
+import { buildCommentIndex } from "@/lib/commentUtils";
 
 export function ViewOnlyPage() {
   const { data } = useParams<{ data: string }>();
@@ -48,6 +49,11 @@ export function ViewOnlyPage() {
     if (!project?.lyrics) return [];
     return getSortedLyricLines(project.lyrics);
   }, [project?.lyrics]);
+
+  const commentIndex = useMemo(() => {
+    if (!project) return new Map<string, string>();
+    return buildCommentIndex(project.lyrics);
+  }, [project]);
 
   const handlePlayPause = useCallback(() => {
     if (!audioRef.current) return;
@@ -231,6 +237,7 @@ export function ViewOnlyPage() {
           <LyricsReadOnlyTable
             lyricsEntries={lyricsEntries}
             activeLineKey={activeLineKey}
+            commentIndex={commentIndex}
           />
         </MasterCard>
       </AppShell>
