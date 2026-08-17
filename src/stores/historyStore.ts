@@ -1,21 +1,30 @@
 import { create } from "zustand";
-import type { LyricLine } from "@/types/project";
+import type { LyricLine, Note } from "@/types/project";
 
 /** Maximum number of undo steps retained in history */
 export const MAX_UNDO_STEPS = 10;
 
-interface LyricsSnapshot {
+/**
+ * A point-in-time copy of the editor state. Includes both the lyrics map and
+ * the free-floating notes so undo/redo restores the entire project state.
+ *
+ * Key order ({ lyrics, notes }) is significant: pushSnapshot dedup compares
+ * whole snapshots via JSON.stringify, so every construction site must build
+ * the object with the same key order.
+ */
+interface ProjectSnapshot {
   lyrics: Record<string, LyricLine>;
+  notes: Note[];
 }
 
 interface HistoryState {
-  undoStack: LyricsSnapshot[];
-  redoStack: LyricsSnapshot[];
+  undoStack: ProjectSnapshot[];
+  redoStack: ProjectSnapshot[];
   projectId: number | null;
 
-  pushSnapshot: (lyrics: Record<string, LyricLine>, projectId: number) => void;
-  undo: (currentLyrics: Record<string, LyricLine>) => LyricsSnapshot | null;
-  redo: (currentLyrics: Record<string, LyricLine>) => LyricsSnapshot | null;
+  pushSnapshot: (snapshot: ProjectSnapshot, projectId: number) => void;
+  undo: (current: ProjectSnapshot) => ProjectSnapshot | null;
+  redo: (current: ProjectSnapshot) => ProjectSnapshot | null;
   canUndo: () => boolean;
   canRedo: () => boolean;
   clear: () => void;
@@ -26,29 +35,24 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
   redoStack: [],
   projectId: null,
 
-  pushSnapshot: (lyrics, projectId) => {
+  pushSnapshot: (snapshot, projectId) => {
     const state = get();
 
+    // Switching projects resets history so snapshots never leak across projects.
     if (state.projectId !== null && state.projectId !== projectId) {
-      const snapshot: LyricsSnapshot = {
-        lyrics: structuredClone(lyrics) as Record<string, LyricLine>,
-      };
-      set({ undoStack: [snapshot], redoStack: [], projectId });
+      set({
+        undoStack: [structuredClone(snapshot)],
+        redoStack: [],
+        projectId,
+      });
       return;
     }
 
+    // Dedup: skip pushes that are byte-identical to the most recent snapshot.
     const last = state.undoStack[state.undoStack.length - 1];
-    if (last) {
-      const lastStr = JSON.stringify(last.lyrics);
-      const currStr = JSON.stringify(lyrics);
-      if (lastStr === currStr) return;
-    }
+    if (last && JSON.stringify(last) === JSON.stringify(snapshot)) return;
 
-    const snapshot: LyricsSnapshot = {
-      lyrics: structuredClone(lyrics) as Record<string, LyricLine>,
-    };
-
-    const newUndo = [...state.undoStack, snapshot];
+    const newUndo = [...state.undoStack, structuredClone(snapshot)];
     while (newUndo.length > MAX_UNDO_STEPS) newUndo.shift();
 
     set({
@@ -58,14 +62,15 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
     });
   },
 
-  undo: (currentLyrics) => {
+  undo: (current) => {
     const state = get();
     if (state.undoStack.length === 0) return null;
 
     const snapshot = state.undoStack[state.undoStack.length - 1];
 
-    const currentSnapshot: LyricsSnapshot = {
-      lyrics: structuredClone(currentLyrics) as Record<string, LyricLine>,
+    const currentSnapshot: ProjectSnapshot = {
+      lyrics: structuredClone(current.lyrics),
+      notes: structuredClone(current.notes),
     };
 
     set({
@@ -76,14 +81,15 @@ export const useHistoryStore = create<HistoryState>((set, get) => ({
     return snapshot;
   },
 
-  redo: (currentLyrics) => {
+  redo: (current) => {
     const state = get();
     if (state.redoStack.length === 0) return null;
 
     const snapshot = state.redoStack[state.redoStack.length - 1];
 
-    const currentSnapshot: LyricsSnapshot = {
-      lyrics: structuredClone(currentLyrics) as Record<string, LyricLine>,
+    const currentSnapshot: ProjectSnapshot = {
+      lyrics: structuredClone(current.lyrics),
+      notes: structuredClone(current.notes),
     };
 
     set({

@@ -13,8 +13,7 @@ interface ChangelogModalProps {
   onClose: () => void;
 }
 
-const CHANGELOG_URL =
-  "https://raw.githubusercontent.com/Argel-H/LyricsTranslate-Tool/refs/heads/main/public/changelog.json";
+const CHANGELOG_URL = "/changelog.json";
 
 export function ChangelogModal({ open, onClose }: ChangelogModalProps) {
   const [entries, setEntries] = useState<ChangelogEntry[]>([]);

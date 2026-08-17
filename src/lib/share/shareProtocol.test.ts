@@ -43,6 +43,10 @@ function makeRichProject(overrides: Partial<Project> = {}): Project {
     syncOffsetMs: -500,
     createdAt: 1783661274730,
     updatedAt: 1783698293603,
+    notes: [
+      { id: 0, text: 'First note with **markdown** and #hash' },
+      { id: 1, text: 'Second note: with colon and "quotes"' },
+    ],
     ...overrides,
   });
 }
@@ -73,6 +77,12 @@ describe('shareProtocol', () => {
     expect(decoded.syncOffsetMs).toBe(project.syncOffsetMs);
     expect(decoded.streamingSites?.deezer).toBe('https://www.deezer.com/track/3410672871');
     expect(decoded.streamingSites?.spotify).toBe('https://open.spotify.com/track/4cOdK2wGLETKBW3PvgPWqT');
+
+    // v5 notes round-trip: ordered string[] with markdown/escape chars intact.
+    expect(decoded.notes).toEqual([
+      'First note with **markdown** and #hash',
+      'Second note: with colon and "quotes"',
+    ]);
 
     const decodedLyrics = Object.values(decoded.lyrics).sort((a, b) => a.time_start - b.time_start);
     const originalLyrics = Object.values(project.lyrics).sort((a, b) => a.time_start - b.time_start);
@@ -124,6 +134,14 @@ describe('shareProtocol', () => {
     const url = await encodeShareUrl(project);
     const decoded = await decodeShareUrl(url);
     expect(Object.keys(decoded.lyrics).length).toBe(0);
+  });
+
+  it('decodes a project without notes as undefined', async () => {
+    const project = makeRichProject({ notes: undefined });
+    const url = await encodeShareUrl(project);
+    const decoded = await decodeShareUrl(url);
+    expect(decoded.notes).toBeUndefined();
+    expect(decoded.lyrics).toBeDefined();
   });
 
   it('handles multiple artists with links', async () => {

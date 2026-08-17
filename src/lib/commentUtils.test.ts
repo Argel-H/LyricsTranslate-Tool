@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   applyCommentToMatchingLines,
   buildCommentIndex,
+  buildCommentList,
   getCommentForLine,
 } from "./commentUtils";
 import type { LyricLine } from "@/types/project";
@@ -140,5 +141,68 @@ describe("applyCommentToMatchingLines", () => {
     const updated = applyCommentToMatchingLines(lyrics, " Chorus ", "Note");
     expect(updated.lrc_00!.comment).toBe("Note");
     expect(updated.lrc_01!.comment).toBe("Note");
+  });
+});
+
+describe("buildCommentList", () => {
+  it("returns an empty list for an empty lyrics record", () => {
+    expect(buildCommentList({})).toEqual([]);
+  });
+
+  it("returns one entry per distinct commented line with correct line numbers", () => {
+    const lyrics: Record<string, LyricLine> = {
+      lrc_00: makeLine({ lyric: "Hello", comment: "First line note" }),
+      lrc_01: makeLine({ time_start: 1500, lyric: "World", comment: "Second line note" }),
+    };
+    const list = buildCommentList(lyrics);
+    expect(list).toEqual([
+      { key: "lrc_00", lyric: "Hello", comment: "First line note", lineNumbers: [1] },
+      { key: "lrc_01", lyric: "World", comment: "Second line note", lineNumbers: [2] },
+    ]);
+  });
+
+  it("collapses repeated original text into a single entry collecting all line numbers", () => {
+    const lyrics: Record<string, LyricLine> = {
+      lrc_00: makeLine({ lyric: "Chorus", comment: "First" }),
+      lrc_01: makeLine({ time_start: 1500, lyric: "Chorus", comment: "Second" }),
+      lrc_02: makeLine({ time_start: 3000, lyric: "Bridge", comment: "Bridge note" }),
+    };
+    const list = buildCommentList(lyrics);
+    expect(list).toHaveLength(2);
+    expect(list[0]).toEqual({
+      key: "lrc_00",
+      lyric: "Chorus",
+      comment: "First",
+      lineNumbers: [1, 2],
+    });
+  });
+
+  it("excludes blank and whitespace-only lyric lines entirely", () => {
+    const lyrics: Record<string, LyricLine> = {
+      lrc_00: makeLine({ lyric: "", comment: "Ignored empty" }),
+      lrc_01: makeLine({ time_start: 1500, lyric: "   ", comment: "Ignored blank" }),
+      lrc_02: makeLine({ time_start: 3000, lyric: "Real line", comment: "Kept" }),
+    };
+    const list = buildCommentList(lyrics);
+    expect(list).toEqual([
+      { key: "lrc_02", lyric: "Real line", comment: "Kept", lineNumbers: [3] },
+    ]);
+  });
+
+  it("does not create a spurious entry for uncommented lines and first non-empty comment wins", () => {
+    const lyrics: Record<string, LyricLine> = {
+      lrc_00: makeLine({ lyric: "Chorus" }),
+      lrc_01: makeLine({ time_start: 1500, lyric: "Chorus", comment: "First real note" }),
+      lrc_02: makeLine({ time_start: 3000, lyric: "Chorus", comment: "Second note" }),
+      lrc_03: makeLine({ time_start: 4500, lyric: "Chorus" }),
+    };
+    const list = buildCommentList(lyrics);
+    expect(list).toHaveLength(1);
+    expect(list[0]).toEqual({
+      key: "lrc_00",
+      lyric: "Chorus",
+      comment: "First real note",
+      lineNumbers: [1, 2, 3, 4],
+    });
   });
 });

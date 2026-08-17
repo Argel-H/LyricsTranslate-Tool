@@ -81,9 +81,9 @@ export function CommentButton({ comment, onCommentSave }: CommentButtonProps) {
         {open && (
           <motion.div
             key="comment-popover"
-            initial={{ opacity: 0, scale: 0.95, y: -6 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -6 }}
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
             transition={{ duration: 0.18, ease: "easeOut" }}
             onClick={(e) => e.stopPropagation()}
             className="absolute right-0 top-full z-50 mt-3 w-[min(340px,calc(100vw-2rem))] origin-top-right rounded-2xl bg-surface-container-high p-3 shadow-xl border border-outline-variant/20"

@@ -25,8 +25,8 @@ import {
 } from "@/services/simplyTranslate";
 import type { AutoTranslateInput } from "@/services/simplyTranslate";
 import { processLyricsMap } from "@/lib/lyricsParser";
-import type { LyricLine } from "@/types/project";
-import { buildCommentIndex, getCommentForLine } from "@/lib/commentUtils";
+import type { LyricLine, Note } from "@/types/project";
+import { buildCommentIndex, buildCommentList, getCommentForLine } from "@/lib/commentUtils";
 import { findAllTranslations } from "@/lib/suggestionUtils";
 import { AI_PROVIDERS } from "@/lib/config/aiConfig";
 import { downloadProjectAsYaml, generateLrcContent, generateSrtContent, type TextCase } from "@/lib/exportUtils";
@@ -41,6 +41,7 @@ import {
   CheckCircle,
   Share2,
   Download,
+  MessageSquare,
 } from "lucide-react";
 import { getShareBaseUrl } from "@/types/share";
 import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
@@ -51,6 +52,7 @@ import { LoadingOverlay } from "@/components/shared/LoadingOverlay";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { usePageShell } from "@/hooks/usePageShell";
 import { ShareDialog } from "./ShareDialog";
+import { CommentsDrawer } from "./CommentsDrawer";
 import { useEditorShortcuts } from "@/hooks/useEditorShortcuts";
 import { useShellStore } from "@/stores/shellStore";
 
@@ -79,6 +81,7 @@ export function EditorPage() {
   const [focusedColumn, setFocusedColumn] = useState<string | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [commentsDrawerOpen, setCommentsDrawerOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
 
@@ -88,28 +91,40 @@ export function EditorPage() {
 
   const handleUndo = useCallback(() => {
     if (!currentProject || !canUndo) return;
-    const snapshot = useHistoryStore.getState().undo(currentProject.lyrics);
+    const snapshot = useHistoryStore.getState().undo({
+      lyrics: currentProject.lyrics,
+      notes: currentProject.notes ?? [],
+    });
     if (snapshot) {
       // Apply restored state WITHOUT snapshotting
       updateAllLines(snapshot.lyrics);
+      useProjectStore.getState().setNotes(snapshot.notes);
     }
   }, [currentProject, canUndo, updateAllLines]);
 
   const handleRedo = useCallback(() => {
     if (!currentProject || !canRedo) return;
-    const snapshot = useHistoryStore.getState().redo(currentProject.lyrics);
+    const snapshot = useHistoryStore.getState().redo({
+      lyrics: currentProject.lyrics,
+      notes: currentProject.notes ?? [],
+    });
     if (snapshot) {
+      // Apply restored state WITHOUT snapshotting
       updateAllLines(snapshot.lyrics);
+      useProjectStore.getState().setNotes(snapshot.notes);
     }
   }, [currentProject, canRedo, updateAllLines]);
 
   // ── Snapshot helpers ────────────────────────────────────────────────
 
-  /** Snapshots current lyrics for simple mutations (add, delete, lock, time adjust). */
-  const snapshotLyrics = useCallback(() => {
+  /** Snapshots the current project state (lyrics + notes) for simple mutations (add, delete, lock, time adjust). */
+  const snapshotProject = useCallback(() => {
     const project = useProjectStore.getState().currentProject;
     if (project) {
-      useHistoryStore.getState().pushSnapshot(project.lyrics, project.id);
+      useHistoryStore.getState().pushSnapshot(
+        { lyrics: project.lyrics, notes: project.notes ?? [] },
+        project.id,
+      );
     }
   }, []);
 
@@ -128,10 +143,20 @@ export function EditorPage() {
       if (activeLineKey === newRowKey) {
         // Same row re-clicked: only push if state actually changed (bug fix #1)
         if (JSON.stringify(project.lyrics) !== JSON.stringify(leaving)) {
-          useHistoryStore.getState().pushSnapshot(leaving, project.id);
+          useHistoryStore
+            .getState()
+            .pushSnapshot(
+              { lyrics: leaving, notes: project.notes ?? [] },
+              project.id,
+            );
         }
       } else {
-        useHistoryStore.getState().pushSnapshot(leaving, project.id);
+        useHistoryStore
+          .getState()
+          .pushSnapshot(
+            { lyrics: leaving, notes: project.notes ?? [] },
+            project.id,
+          );
       }
     },
     [activeLineKey],
@@ -258,7 +283,10 @@ export function EditorPage() {
       }
 
       await updateAllLines(updatedLyrics);
-      useHistoryStore.getState().pushSnapshot(updatedLyrics, currentProject.id);
+      useHistoryStore.getState().pushSnapshot(
+        { lyrics: updatedLyrics, notes: currentProject.notes ?? [] },
+        currentProject.id,
+      );
       setToastMessage(t("editor.translateSuccess"));
     } catch {
       // silent
@@ -269,7 +297,7 @@ export function EditorPage() {
 
   const handleAddLine = async () => {
     if (!currentProject) return;
-    snapshotLyrics();
+    snapshotProject();
     const lyrics = { ...currentProject.lyrics };
     const keys = Object.keys(lyrics);
     const newKey = `lrc_${String(keys.length).padStart(2, "0")}`;
@@ -291,7 +319,7 @@ export function EditorPage() {
 
   const handleDeleteLine = async (key: string) => {
     if (!currentProject) return;
-    snapshotLyrics();
+    snapshotProject();
     const lyrics = { ...currentProject.lyrics };
     delete lyrics[key];
     if (activeLineKey === key) setActiveLineKey(null);
@@ -300,7 +328,7 @@ export function EditorPage() {
 
   const handleToggleLock = async (key: string) => {
     if (!currentProject) return;
-    snapshotLyrics();
+    snapshotProject();
     const { toggleLineLock } = useProjectStore.getState();
     await toggleLineLock(key);
   };
@@ -313,7 +341,7 @@ export function EditorPage() {
     direction: 1 | -1,
   ) => {
     if (!currentProject) return;
-    snapshotLyrics();
+    snapshotProject();
     const lyrics = currentProject.lyrics;
     const keys = Object.keys(lyrics);
     const idx = keys.indexOf(key);
@@ -493,6 +521,11 @@ export function EditorPage() {
     return buildCommentIndex(currentProject.lyrics);
   }, [currentProject]);
 
+  const commentEntries = useMemo(() => {
+    if (!currentProject) return [];
+    return buildCommentList(currentProject.lyrics);
+  }, [currentProject?.lyrics]);
+
   const sortedLyricLines = useMemo<TimestampedLine[]>(() => {
     if (!currentProject) return [];
     return getSortedLyricLines(currentProject.lyrics);
@@ -619,13 +652,20 @@ export function EditorPage() {
             onUndo={handleUndo}
             onRedo={handleRedo}
           />
-          <button
-            onClick={() => navigate(`/edit-project/${id}`)}
-            className="h-12 px-4 rounded-[1.3rem] border border-outline text-on-surface-variant hover:bg-secondary-container/30 transition-all flex items-center gap-2 font-label-lg"
-          >
-            <Edit className="size-4" />
-            {t("editor.segmented.edit")}
-          </button>
+          <SegmentedButton
+            segments={[
+              { label: t("editor.segmented.edit"), icon: Edit, active: true },
+              { icon: MessageSquare },
+            ]}
+            onSelect={(index) => {
+              if (index === 0) {
+                navigate(`/edit-project/${id}`);
+              } else {
+                setCommentsDrawerOpen(true);
+              }
+            }}
+            className="rounded-l-lg rounded-r-md"
+          />
           <SegmentedButton
             segments={[
               { icon: Share2 },
@@ -762,7 +802,7 @@ export function EditorPage() {
                     translation={line.translation}
                     comment={comment}
                     onCommentSave={(value) => {
-                      snapshotLyrics();
+                      snapshotProject();
                       useProjectStore.getState().updateComment(key, value);
                     }}
                     translationPlaceholder={
@@ -898,6 +938,32 @@ export function EditorPage() {
         open={shareOpen}
         project={currentProject}
         onClose={() => setShareOpen(false)}
+      />
+
+      <CommentsDrawer
+        open={commentsDrawerOpen}
+        entries={commentEntries}
+        notes={currentProject?.notes ?? []}
+        onClose={() => setCommentsDrawerOpen(false)}
+        onUpdateComment={(entry, value) => {
+          snapshotProject();
+          useProjectStore.getState().updateComment(entry.key, value);
+        }}
+        onAddNote={() => {
+          snapshotProject();
+          return useProjectStore.getState().addNote();
+        }}
+        onUpdateNote={(id, value) => {
+          snapshotProject();
+          useProjectStore.getState().updateNote(id, value);
+        }}
+        onDeleteNote={(id) => {
+          snapshotProject();
+          useProjectStore.getState().deleteNote(id);
+        }}
+        onReorderNotes={(ordered: Note[]) => {
+          useProjectStore.getState().reorderNotes(ordered);
+        }}
       />
 
       <MessageModal

@@ -65,6 +65,9 @@ export function CommentEditor({
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
 
+  // Whether the user has modified the comment text from its initial value.
+  const hasChanges = draft !== initialValue;
+
   const captureSelection = () => {
     const el = textareaRef.current;
     if (!el) return;
@@ -219,7 +222,7 @@ export function CommentEditor({
           <button
             type="button"
             onClick={() => onSave("")}
-            className="rounded-full px-3 py-1.5 text-label-md text-on-surface-variant transition-colors hover:bg-surface-container-highest hover:text-on-surface"
+            className="flex h-12 items-center rounded-full px-4 font-label-lg text-on-surface-variant transition-colors hover:bg-surface-container-highest hover:text-on-surface"
           >
             {t("editor.commentClear")}
           </button>
@@ -227,9 +230,9 @@ export function CommentEditor({
         <button
           type="button"
           onClick={() => onSave(draft)}
-          className="ml-auto rounded-full bg-primary-container px-4 py-1.5 text-label-md font-medium text-on-primary-container transition-[filter] hover:brightness-110"
+          className="ml-auto flex h-12 items-center rounded-full bg-primary-container px-5 font-label-lg text-on-primary-container transition-[filter] hover:brightness-110"
         >
-          {t("editor.commentDone")}
+          {hasChanges ? t("editor.commentDone") : t("editor.commentClose")}
         </button>
       </div>
     </div>

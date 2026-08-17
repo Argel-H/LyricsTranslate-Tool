@@ -449,5 +449,11 @@ export function parseProjectYaml(yamlString: string): ProjectCreateInput {
     input.streamingSites = projectRaw.streaming_sites as Record<string, string | null>;
   }
 
+  // Free-floating notes: an ordered list of raw markdown strings.
+  // The generic block parser already handles `notes:\n  - "..."` as an array.
+  if (Array.isArray(raw.notes)) {
+    input.notes = raw.notes.map((n) => String(n));
+  }
+
   return input;
 }

@@ -3,6 +3,8 @@ export interface ProjectYaml {
   project: ProjectYamlMeta;
   metadata: ProjectYamlMetadata;
   lyrics: ProjectYamlLyricLine[];
+  /** Ordered raw markdown strings (free-floating notes). */
+  notes?: string[];
 }
 
 export interface ProjectYamlMeta {

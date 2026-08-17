@@ -1,10 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// BINARY FORMAT v4 - LyricsTranslate Share Protocol  (SHARE_VERSION = 0x04)
+// BINARY FORMAT v5 - LyricsTranslate Share Protocol  (SHARE_VERSION = 0x05)
 // ═══════════════════════════════════════════════════════════════════════════════
 //
 // An entire Project is serialized into a compact binary buffer, Brotli-compressed
 // (quality 11), and Base64URL-encoded for embedding in a shareable URL. The
-// decoder also supports the legacy v2 and v3 formats for backwards compatibility.
+// decoder also supports the legacy v2, v3, and v4 formats for backwards
+// compatibility.
 //
 // All integers are little-endian and unsigned unless explicitly noted otherwise.
 //
@@ -19,7 +20,7 @@
 // ╠══════════════════════════════════════════════════════════════════════════════
 // ║                                    │                   │
 // ║  ─── HEADER ───
-// ║  VERSION                           │  1 byte (u8)      │  0x04
+// ║  VERSION                           │  1 byte (u8)      │  0x05
 // ║  LANGUAGE PAIR                     │  1 byte (u8)      │  bits 7:4 = origin
 // ║                                    │                   │  bits 3:0 = trans
 // ║  track name                        │                   │
@@ -77,6 +78,13 @@
 // ║  encoded_at                        │                   │  Date.now() at write
 // ║    ├─ length (u8)                  │  1 byte           │
 // ║    └─ payload (UTF-8)              │  N bytes          │  max 255
+// ║                                    │                   │
+// ║  ─── NOTES (v5) ───
+// ║  note count N                      │  1 byte (u8)      │  max 255 notes
+// ║  FOR EACH NOTE:
+// ║    raw markdown text               │                   │
+// ║      ├─ length (u16 LE)            │  2 bytes          │  max 65535 B payload
+// ║      └─ payload (UTF-8)            │  N bytes          │
 // ║                                    │                   │
 // ║  ─── LYRICS (compact buffer) ───
 // ║  row count N                       │  2 bytes (u16 LE) │  max 65535 rows
@@ -226,6 +234,14 @@ function writeTimestamps(writer: BinaryWriter, project: Project): void {
   writer.writeStr1B(Date.now().toString());
 }
 
+function writeNotes(writer: BinaryWriter, project: Project): void {
+  const notes = project.notes ?? [];
+  writer.writeU8(notes.length);
+  for (const note of notes) {
+    writer.writeStr2B(note.text);
+  }
+}
+
 function writeLyrics(writer: BinaryWriter, project: Project): void {
   const sortedLyrics = Object.values(project.lyrics).sort((a, b) => a.time_start - b.time_start);
   writer.writeU16LE(sortedLyrics.length);
@@ -251,9 +267,9 @@ function readHeader(reader: BinaryReader): {
   syncOffsetMs: number | undefined;
 } {
   const version = reader.readU8();
-  if (version !== 0x02 && version !== 0x03 && version !== 0x04) {
+  if (version !== 0x02 && version !== 0x03 && version !== 0x04 && version !== 0x05) {
     throw new Error(
-      `Unsupported share version: ${version}. Expected 0x02, 0x03, or 0x04.`,
+      `Unsupported share version: ${version}. Expected 0x02, 0x03, 0x04, or 0x05.`,
     );
   }
 
@@ -344,6 +360,15 @@ function readStreamingSites(reader: BinaryReader): Record<string, string | null>
   return streamingSites;
 }
 
+function readNotes(reader: BinaryReader): string[] {
+  const count = reader.readU8();
+  const notes: string[] = [];
+  for (let i = 0; i < count; i++) {
+    notes.push(reader.readStr2B());
+  }
+  return notes;
+}
+
 function readLyrics(reader: BinaryReader, rowCount: number, version: number): Record<string, LyricLine> {
   const lyrics: Record<string, LyricLine> = {};
   const decoder = new TextDecoder();
@@ -401,6 +426,7 @@ export async function encodeShareUrl(project: Project): Promise<string> {
 
   writeStreamingSites(writer, project);
   writeTimestamps(writer, project);
+  writeNotes(writer, project);
   writeLyrics(writer, project);
 
   const finalBuffer = writer.toArrayBuffer();
@@ -434,6 +460,7 @@ export async function decodeShareUrl(urlOrData: string): Promise<ProjectCreateIn
   reader.readStr1B();
   reader.readStr1B();
 
+  const notes = header.version >= 0x05 ? readNotes(reader) : [];
   const rowCount = reader.readU16LE();
   const lyrics = readLyrics(reader, rowCount, header.version);
 
@@ -441,6 +468,7 @@ export async function decodeShareUrl(urlOrData: string): Promise<ProjectCreateIn
     artistName: artistNameList,
     trackName: header.trackName,
     lyrics,
+    notes: notes.length > 0 ? notes : undefined,
     coverUrl: header.coverUrl,
     isrcs: header.isrcs,
     streamingSites,

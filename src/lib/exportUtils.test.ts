@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { generateLrcContent, generateSrtContent, generateYamlContent } from "./exportUtils";
+import { parseProjectYaml } from "./yamlParser";
 import { decodeAudioUrl } from "./audioUrlCodec";
 import { makeProject, makeLyricLine } from "@/test/factories/project";
 
@@ -105,6 +106,44 @@ describe("generateYamlContent", () => {
     expect(result).toContain("streaming_sites:");
     expect(result).toContain("spotify: ");
     expect(result).toContain("appleMusic: null");
+  });
+
+  it("emits a notes section with escaped markdown strings when notes exist", () => {
+    const project = makeProject({
+      notes: [
+        { id: 0, text: "First free-floating **note**" },
+        { id: 1, text: 'Second note: with colon and "quotes"' },
+      ],
+      lyrics: { l1: makeLyricLine() },
+    });
+    const result = generateYamlContent(project);
+    const lines = result.split("\n");
+    const notesIdx = lines.findIndex((l) => l.trim() === "notes:");
+    expect(notesIdx).toBeGreaterThan(-1);
+    expect(lines[notesIdx + 1]).toBe("  - First free-floating **note**");
+    expect(lines[notesIdx + 2]).toBe('  - "Second note: with colon and \\"quotes\\""');
+    // The notes section must come after the lyrics section.
+    const lyricsIdx = lines.findIndex((l) => l.trim() === "lyrics:");
+    expect(notesIdx).toBeGreaterThan(lyricsIdx);
+  });
+
+  it("omits the notes section when the project has no notes", () => {
+    const project = makeProject({ lyrics: { l1: makeLyricLine() } });
+    const result = generateYamlContent(project);
+    expect(result).not.toContain("notes:");
+    // Empty array also emits no section.
+    const emptyNotesProject = makeProject({ notes: [], lyrics: { l1: makeLyricLine() } });
+    expect(generateYamlContent(emptyNotesProject)).not.toContain("notes:");
+  });
+
+  it("emits notes that round-trip through parseProjectYaml", () => {
+    const project = makeProject({
+      notes: [{ id: 0, text: "Reminder: check **sources**" }],
+      lyrics: { l1: makeLyricLine() },
+    });
+    const yaml = generateYamlContent(project);
+    const parsed = parseProjectYaml(yaml);
+    expect(parsed.notes).toEqual(["Reminder: check **sources**"]);
   });
 
   it("encodes audio_url as b64-prefixed base64 and hides the plain link", () => {

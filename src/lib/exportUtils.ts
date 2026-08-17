@@ -234,6 +234,15 @@ export function generateYamlContent(project: Project): string {
     }
   }
 
+  // --- notes section (free-floating markdown notes, optional) ---
+  if (project.notes != null && project.notes.length > 0) {
+    lines.push("");
+    lines.push("notes:");
+    for (const note of project.notes) {
+      lines.push(`  - ${escapeYamlValue(note.text)}`);
+    }
+  }
+
   return lines.join("\n");
 }
 

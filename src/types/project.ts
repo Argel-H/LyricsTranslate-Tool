@@ -9,6 +9,14 @@ export interface LyricLine {
   comment?: string; // optional raw markdown comment attached to this line
 }
 
+/** A free-floating markdown note attached to a project. */
+export interface Note {
+  /** Runtime-only id; NOT serialized to YAML/share. */
+  id: number;
+  /** Raw markdown text. */
+  text: string;
+}
+
 export interface Project {
   id: number;
   /** Deprecated: derived on-the-fly as `${artistName[0]} - ${trackName}`. Not indexed/stored anymore. */
@@ -16,6 +24,7 @@ export interface Project {
   artistName: string[];
   trackName: string;
   lyrics: Record<string, LyricLine>;
+  notes?: Note[];
   status: ProjectStatus;
   progress: number;
   archived?: boolean;
@@ -41,6 +50,8 @@ export interface ProjectCreateInput {
   artistName: string[];
   trackName: string;
   lyrics: Record<string, LyricLine>;
+  /** Ordered raw markdown strings used when importing a project. */
+  notes?: string[];
   coverUrl?: string;
   isrcs?: string;
   streamingSites?: Record<string, string | null>;

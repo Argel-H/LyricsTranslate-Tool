@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 import type { ComponentType, SVGProps } from "react";
 
 interface Segment {
@@ -19,16 +18,6 @@ export function SegmentedButton({
   onSelect,
   className,
 }: SegmentedButtonProps) {
-  const defaultActive = segments.findIndex((s) => s.active);
-  const [activeIndex, setActiveIndex] = useState(
-    defaultActive >= 0 ? defaultActive : 1,
-  );
-
-  const handleClick = (index: number) => {
-    setActiveIndex(index);
-    onSelect?.(index);
-  };
-
   return (
     <div
       className={cn(
@@ -38,13 +27,13 @@ export function SegmentedButton({
     >
       {segments.map((segment, i) => {
         const Icon = segment.icon;
-        const isActive = i === activeIndex;
+        const isActive = segment.active;
         const isLast = i === segments.length - 1;
 
         return (
           <button
             key={i}
-            onClick={() => handleClick(i)}
+            onClick={() => onSelect?.(i)}
             className={cn(
               "flex items-center justify-center gap-2 px-4 font-label-lg whitespace-nowrap transition-all duration-300 pressable",
               isActive

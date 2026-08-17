@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 
 /** Protocol version byte. Must be the first byte of every encoded buffer. */
-export const SHARE_VERSION = 0x04;
+export const SHARE_VERSION = 0x05;
 
 // ---------------------------------------------------------------------------
 // Language Dictionary (4-bit, max 15)

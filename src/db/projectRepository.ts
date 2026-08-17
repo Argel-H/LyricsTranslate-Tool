@@ -1,5 +1,5 @@
 import { db } from "./database";
-import type { Project, ProjectCreateInput, LyricLine } from "@/types/project";
+import type { Project, ProjectCreateInput, LyricLine, Note } from "@/types/project";
 import type { ProjectStatus } from "@/lib/config/constants";
 import { calculateLyricsProgress } from "@/lib/progressUtils";
 import { deleteShareRecordsByProject } from "./shareRepository";
@@ -13,6 +13,7 @@ export async function createProject(input: ProjectCreateInput): Promise<number> 
     artistName: input.artistName,
     trackName: input.trackName,
     lyrics: input.lyrics,
+    notes: input.notes?.map((text, id) => ({ id, text })),
     status,
     progress,
     coverUrl: input.coverUrl,
@@ -38,6 +39,10 @@ export async function createProject(input: ProjectCreateInput): Promise<number> 
 
 export async function getProject(id: number): Promise<Project | undefined> {
   return db.projects.get(id);
+}
+
+export async function updateNotes(projectId: number, notes: Note[]): Promise<void> {
+  await db.projects.update(projectId, { notes });
 }
 
 export async function getAllProjects(includeArchived = false): Promise<Project[]> {

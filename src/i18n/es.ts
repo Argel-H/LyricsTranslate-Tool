@@ -254,4 +254,13 @@ export const es = {
   "editor.commentLink": "Enlace",
   "editor.commentLinkUrl": "URL",
   "editor.commentDone": "Hecho",
+  "editor.commentClose": "Cerrar",
+  "editor.comments": "Comentarios",
+  "editor.commentsEmpty": "Aún no hay comentarios.",
+  "editor.commentsLine": "Línea %d",
+  "editor.commentsLines": "Líneas %s",
+  "editor.notes": "Notas",
+  "editor.addNote": "Añadir nota",
+  "editor.notesEmpty": "Aún no hay notas.",
+  "editor.dragNote": "Arrastra para reordenar",
 } as const;

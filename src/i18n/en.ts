@@ -254,4 +254,13 @@ export const en = {
   "editor.commentLink": "Link",
   "editor.commentLinkUrl": "URL",
   "editor.commentDone": "Done",
+  "editor.commentClose": "Close",
+  "editor.comments": "Comments",
+  "editor.commentsEmpty": "No comments yet.",
+  "editor.commentsLine": "Line %d",
+  "editor.commentsLines": "Lines %s",
+  "editor.notes": "Notes",
+  "editor.addNote": "Add note",
+  "editor.notesEmpty": "No notes yet.",
+  "editor.dragNote": "Drag to reorder",
 } as const;

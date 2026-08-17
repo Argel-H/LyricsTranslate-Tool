@@ -54,6 +54,10 @@ lyrics:
     time_end: "00:10.00"
     original: "How are you"
     translated: "Cómo estás"
+
+notes:
+  - "First free-floating **note**"
+  - "Second note: with colon and \\"quotes\\""
 `;
 
 const MINIMAL_YAML = `version: 1
@@ -90,6 +94,19 @@ describe("parseProjectYaml", () => {
     expect(result.wallpaperUrl).toBe("https://www.artstation.com/artwork/abc123");
     expect(result.streamingSites?.spotify).toBe("https://open.spotify.com/track/abc123");
     expect(result.streamingSites?.deezer).toBeNull();
+  });
+
+  it("parses the notes array into ordered markdown strings", () => {
+    const result = parseProjectYaml(VALID_YAML);
+    expect(result.notes).toEqual([
+      "First free-floating **note**",
+      'Second note: with colon and "quotes"',
+    ]);
+  });
+
+  it("yields undefined notes when the YAML has no notes section", () => {
+    const result = parseProjectYaml(MINIMAL_YAML);
+    expect(result.notes).toBeUndefined();
   });
 
   it("parses lyrics with keys, locked states (true/false/default), and correct fields", () => {

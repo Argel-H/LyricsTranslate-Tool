@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { calculateLyricsProgress } from "@/lib/progressUtils";
 import { applyCommentToMatchingLines } from "@/lib/commentUtils";
-import type { Project, LyricLine } from "@/types/project";
+import type { Project, LyricLine, Note } from "@/types/project";
 import { PROJECT_STATUS } from "@/lib/config/constants";
 import {
   getProject,
@@ -11,6 +11,7 @@ import {
   updateLyricLineLock,
   updateProjectAudio,
   updateProjectArchived,
+  updateNotes,
 } from "@/db/projectRepository";
 
 export interface AudioPlaybackPosition {
@@ -27,6 +28,11 @@ interface ProjectState {
   updateLine: (key: string, field: keyof LyricLine, value: string | number) => Promise<void>;
   updateAllLines: (lyrics: Record<string, LyricLine>) => Promise<void>;
   updateComment: (key: string, comment: string) => Promise<void>;
+  addNote: () => Promise<number>;
+  updateNote: (id: number, text: string) => Promise<void>;
+  deleteNote: (id: number) => Promise<void>;
+  reorderNotes: (ordered: Note[]) => Promise<void>;
+  setNotes: (notes: Note[]) => Promise<void>;
   toggleLineLock: (key: string) => Promise<void>;
   toggleCompleted: () => void;
   toggleArchived: () => void;
@@ -110,6 +116,42 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     set({ currentProject: { ...project, lyrics: updatedLyrics, updatedAt: Date.now() } });
     await dbUpdateAllLyrics(project.id, updatedLyrics);
+  },
+  addNote: async () => {
+    const project = get().currentProject;
+    if (!project) return -1;
+    const notes = project.notes ?? [];
+    const id = notes.reduce((max, n) => Math.max(max, n.id), -1) + 1;
+    const updated = [...notes, { id, text: "" }];
+    set({ currentProject: { ...project, notes: updated, updatedAt: Date.now() } });
+    await updateNotes(project.id, updated);
+    return id;
+  },
+  updateNote: async (id, text) => {
+    const project = get().currentProject;
+    if (!project) return;
+    const notes = (project.notes ?? []).map((n) => (n.id === id ? { ...n, text } : n));
+    set({ currentProject: { ...project, notes, updatedAt: Date.now() } });
+    await updateNotes(project.id, notes);
+  },
+  deleteNote: async (id) => {
+    const project = get().currentProject;
+    if (!project) return;
+    const notes = (project.notes ?? []).filter((n) => n.id !== id);
+    set({ currentProject: { ...project, notes, updatedAt: Date.now() } });
+    await updateNotes(project.id, notes);
+  },
+  reorderNotes: async (ordered) => {
+    const project = get().currentProject;
+    if (!project) return;
+    set({ currentProject: { ...project, notes: ordered, updatedAt: Date.now() } });
+    await updateNotes(project.id, ordered);
+  },
+  setNotes: async (notes) => {
+    const project = get().currentProject;
+    if (!project) return;
+    set({ currentProject: { ...project, notes, updatedAt: Date.now() } });
+    await updateNotes(project.id, notes);
   },
   toggleLineLock: async (key) => {
     const project = get().currentProject;
