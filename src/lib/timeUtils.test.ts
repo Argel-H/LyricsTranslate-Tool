@@ -47,10 +47,10 @@ describe('findActiveLine', () => {
     expect(findActiveLine([], 5000)).toBeNull();
   });
 
-  it('returns null when audio time is before the first line', () => {
-    expect(findActiveLine(lines, 0)).toBeNull();
-    expect(findActiveLine(lines, 500)).toBeNull();
-    expect(findActiveLine(lines, 999)).toBeNull();
+  it('returns the first line when audio time is before the first line', () => {
+    expect(findActiveLine(lines, 0)).toBe('a');
+    expect(findActiveLine(lines, 500)).toBe('a');
+    expect(findActiveLine(lines, 999)).toBe('a');
   });
 
   it('returns the correct key when inside [start, end) of a line', () => {
@@ -97,8 +97,8 @@ describe('findActiveLine', () => {
     const single: TimestampedLine[] = [
       { key: 'only', timeMs: 2000, timeEndMs: 6000 },
     ];
-    expect(findActiveLine(single, 0)).toBeNull();
-    expect(findActiveLine(single, 1999)).toBeNull();
+    expect(findActiveLine(single, 0)).toBe('only');
+    expect(findActiveLine(single, 1999)).toBe('only');
     expect(findActiveLine(single, 2000)).toBe('only');
     expect(findActiveLine(single, 4000)).toBe('only');
     expect(findActiveLine(single, 5999)).toBe('only');

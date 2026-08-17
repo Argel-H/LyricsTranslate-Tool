@@ -77,7 +77,7 @@ export function findActiveLine(
     }
   }
 
-  if (high < 0) return null;
+  if (high < 0) return sortedLines[0].key;
 
   const candidate = sortedLines[high]!;
   if (audioTimeMs < candidate.timeEndMs) {
