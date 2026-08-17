@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { generateLrcContent, generateSrtContent, generateYamlContent } from "./exportUtils";
+import { decodeAudioUrl } from "./audioUrlCodec";
 import { makeProject, makeLyricLine } from "@/test/factories/project";
 
 describe("generateYamlContent", () => {
@@ -82,6 +83,24 @@ describe("generateYamlContent", () => {
     expect(result).toContain("streaming_sites:");
     expect(result).toContain("spotify: ");
     expect(result).toContain("appleMusic: null");
+  });
+
+  it("encodes audio_url as b64-prefixed base64 and hides the plain link", () => {
+    const plainUrl = "https://example.com/audio.mp3";
+    const project = makeProject({
+      audioUrl: plainUrl,
+      lyrics: { l1: makeLyricLine() },
+    });
+    const result = generateYamlContent(project);
+    expect(result).toContain('audio_url: "b64:');
+    expect(result).not.toContain(plainUrl);
+
+    // Extract the emitted value and verify it round-trips to the plain link.
+    const line = result.split("\n").find((l) => l.startsWith("  audio_url:"));
+    expect(line).toBeDefined();
+    const emitted = line!.split(": ")[1].replace(/^"|"$/g, "");
+    expect(emitted.startsWith("b64:")).toBe(true);
+    expect(decodeAudioUrl(emitted)).toBe(plainUrl);
   });
 
 });

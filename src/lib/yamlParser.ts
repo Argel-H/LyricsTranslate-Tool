@@ -1,5 +1,6 @@
 import type { ProjectCreateInput, LyricLine } from "@/types/project";
 import { parseTimestampToMilliseconds } from "./timeUtils";
+import { decodeAudioUrl } from "./audioUrlCodec";
 
 // ---------------------------------------------------------------------------
 // Simple line-by-line YAML parser
@@ -378,7 +379,7 @@ export function parseProjectYaml(yamlString: string): ProjectCreateInput {
     input.songLinkUrl = String(projectRaw.song_link);
   }
   if (projectRaw.audio_url != null) {
-    input.audioUrl = String(projectRaw.audio_url);
+    input.audioUrl = decodeAudioUrl(String(projectRaw.audio_url));
   }
   if (projectRaw.sync_offset_ms != null) {
     input.syncOffsetMs = Number(projectRaw.sync_offset_ms);

@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { parseProjectYaml } from "./yamlParser";
+import { encodeAudioUrl } from "./audioUrlCodec";
 
 const VALID_YAML = `version: 1
 
@@ -137,6 +138,29 @@ describe("parseProjectYaml", () => {
   it("throws when project section or lyrics is missing", () => {
     expect(() => parseProjectYaml("version: 1\nmetadata:\n  created_at: 0\n  updated_at: 0\n  exported_at: 0\nlyrics: []\n")).toThrow("project");
     expect(() => parseProjectYaml("version: 1\nproject:\n  title: \"T\"\n  track_name: \"T\"\n  artists:\n    - \"A\"\nmetadata:\n  created_at: 0\n  updated_at: 0\n  exported_at: 0\n")).toThrow("lyrics must be an array");
+  });
+
+  it("decodes b64-encoded audio_url back to the plain link", () => {
+    const plainUrl = "https://example.com/audio.mp3";
+    const encodedAudioUrl = encodeAudioUrl(plainUrl);
+    const yamlWithEncodedAudioUrl = `version: 1
+
+project:
+  title: "Minimal"
+  track_name: "Minimal Track"
+  artists:
+    - "Only Artist"
+  audio_url: "${encodedAudioUrl}"
+
+metadata:
+  created_at: 0
+  updated_at: 0
+  exported_at: 0
+
+lyrics: []
+`;
+    const result = parseProjectYaml(yamlWithEncodedAudioUrl);
+    expect(result.audioUrl).toBe(plainUrl);
   });
 
 

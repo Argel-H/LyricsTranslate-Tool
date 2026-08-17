@@ -1,5 +1,6 @@
 import type { LyricLine, Project } from "@/types/project";
 import { formatMillisecondsToTimestamp } from "./timeUtils";
+import { encodeAudioUrl } from "./audioUrlCodec";
 
 /**
  * Supported text-case transformations for LRC/SRT export.
@@ -144,7 +145,7 @@ export function generateYamlContent(project: Project): string {
     lines.push(`  song_link: ${escapeYamlValue(project.songLinkUrl)}`);
   }
   if (project.audioUrl != null) {
-    lines.push(`  audio_url: ${escapeYamlValue(project.audioUrl)}`);
+    lines.push(`  audio_url: ${escapeYamlValue(encodeAudioUrl(project.audioUrl))}`);
   }
   if (project.wallpaperArtistName != null) {
     lines.push(`  wallpaper_artist_name: ${escapeYamlValue(project.wallpaperArtistName)}`);
