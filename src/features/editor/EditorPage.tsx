@@ -949,9 +949,9 @@ export function EditorPage() {
           snapshotProject();
           useProjectStore.getState().updateComment(entry.key, value);
         }}
-        onAddNote={() => {
+        onAddNote={(text) => {
           snapshotProject();
-          return useProjectStore.getState().addNote();
+          return useProjectStore.getState().addNote(text);
         }}
         onUpdateNote={(id, value) => {
           snapshotProject();

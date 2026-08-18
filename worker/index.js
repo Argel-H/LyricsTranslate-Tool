@@ -9,12 +9,24 @@ const CORS_HEADERS = {
   "Access-Control-Max-Age": "86400",
 };
 
-const MAX_MBIDS_PER_REQUEST = 5;
-const FETCH_DELAY_MS = 400;
+const MAX_MBIDS_PER_REQUEST = 2;
+const FETCH_DELAY_MS = 1100;
 const MB_CACHE_TTL_SECONDS = 86400;
 const MB_CACHE_KEY_PREFIX = "https://mb-social/";
 const MUSICBRAINZ_ARTIST_URL = "https://musicbrainz.org/ws/2/artist";
-const MUSICBRAINZ_USER_AGENT = "LyricsTranslate-Tool/0.0.5 (lyricstranslate@tool.com)";
+const MUSICBRAINZ_USER_AGENT_BASE = "LyricsTranslate-Tool/0.0.6 (lyricstranslate@tool.com)";
+
+// MusicBrainz serves requests from shared Cloudflare IPs, so we append a short
+// per-request suffix to avoid being grouped into a single rate-limit bucket.
+function musicBrainzUserAgent() {
+  return `${MUSICBRAINZ_USER_AGENT_BASE} CFWorker/${crypto.randomUUID().substring(0, 8)}`;
+}
+
+// MusicBrainz signals throttling with 503 (occasionally 429). A throttled
+// request yields partial/empty data, so callers must not cache its result.
+function isMusicBrainzRateLimited(status) {
+  return status === 429 || status === 503;
+}
 
 const RELATION_TYPE_MAP = {
   instagram: "Instagram",
@@ -37,6 +49,7 @@ const FULL_METADATA_CACHE_KEY_PREFIX = "https://full-metadata/";
 const MUSICBRAINZ_RECORDING_URL = "https://musicbrainz.org/ws/2/recording/";
 const DEEZER_TRACK_URL = "https://api.deezer.com/2.0/track/isrc:";
 const DEEZER_SEARCH_URL = "https://api.deezer.com/search/track";
+const DEEZER_TRACK_BY_ID_URL = "https://api.deezer.com/track/";
 const ODESLI_LINKS_URL = "https://api.song.link/v1-alpha.1/links";
 
 const DEEZER_CDN_RE = /^https:\/\/cdn-images\.dzcdn\.net\/images\/cover\/([a-f0-9]+)\//;
@@ -183,18 +196,18 @@ async function handleFullMetadata(request) {
       return cached;
     }
 
-    const { isrc, artistMbids, artistNames, trackTitle } = await fetchMusicBrainzRecording(
-      artistName,
-      trackName,
-    );
+    const { isrc, artistMbids, artistNames, trackTitle, rateLimited: recordingRateLimited } =
+      await fetchMusicBrainzRecording(artistName, trackName);
 
     // NOTE: MusicBrainz politely asks for ~1 request per second. This endpoint
-    // issues 1 recording search + up to 5 artist fetches (~3s worst case).
+    // issues 1 recording search + up to 2 artist fetches (~2.2s worst case).
     // Acceptable for single-user usage; for production scale, move MB fetches
     // behind a proper rate limiter/queue before adding this endpoint to
     // high-traffic paths.
-    const [socialByMbid, isrcResult] = await Promise.all([
-      artistMbids.length > 0 ? resolveSocialLinksBatch(artistMbids) : Promise.resolve({}),
+    const [socialResult, isrcResult] = await Promise.all([
+      artistMbids.length > 0
+        ? resolveSocialLinksBatch(artistMbids)
+        : Promise.resolve({ results: {}, rateLimited: false }),
       isrc
         ? (async () => {
             const deezer = await fetchDeezerByISRC(isrc);
@@ -204,11 +217,15 @@ async function handleFullMetadata(request) {
           })()
         : Promise.resolve({ deezer: null, odesli: null }),
     ]);
+    const socialByMbid = socialResult.results;
+    const socialRateLimited = socialResult.rateLimited;
 
     // ISRC path produced no cover - fall back to search by name.
     let coverUrl = isrcResult.deezer?.cover ?? "";
     let nameDeezer = null;
     let nameOdesli = null;
+    let finalIsrc = isrc; // Start with MusicBrainz's ISRC; Deezer fills gaps.
+
     if (!coverUrl) {
       const searchArtist = artistNames[0] ?? artistName;
       const searchTrack = trackTitle ?? trackName;
@@ -216,7 +233,13 @@ async function handleFullMetadata(request) {
       if (nameDeezer?.link) {
         nameOdesli = await fetchOdesliUrls(nameDeezer.link);
       }
-      if (nameDeezer) coverUrl = nameDeezer.cover ?? "";
+      if (nameDeezer) {
+        coverUrl = nameDeezer.cover ?? "";
+        // If MusicBrainz had no ISRC but Deezer's track does, adopt Deezer's.
+        if (!finalIsrc && nameDeezer.isrc) {
+          finalIsrc = nameDeezer.isrc;
+        }
+      }
     }
 
     if (coverUrl) {
@@ -227,7 +250,7 @@ async function handleFullMetadata(request) {
       inputArtistName: artistName,
       inputTrackName: trackName,
       inputAlbumName: albumName,
-      isrc,
+      isrc: finalIsrc,
       artistMbids,
       artistNames,
       trackTitle,
@@ -238,6 +261,10 @@ async function handleFullMetadata(request) {
       nameOdesli,
       coverUrl,
     });
+
+    // If MusicBrainz rate-limited any request, the assembled result may be
+    // missing data. Do not cache it so a retry in a few minutes re-fetches.
+    const rateLimited = recordingRateLimited || socialRateLimited;
 
     // Store the assembled response for 24 hours. A separate Response is used
     // (instead of sharing `json(result)`'s body) so the cached copy never
@@ -250,7 +277,9 @@ async function handleFullMetadata(request) {
         "Cache-Control": `public, max-age=${MB_CACHE_TTL_SECONDS}`,
       },
     });
-    await caches.default.put(cacheKey, cacheResponse);
+    if (!rateLimited) {
+      await caches.default.put(cacheKey, cacheResponse);
+    }
 
     return json(result);
   } catch (err) {
@@ -267,12 +296,20 @@ async function fetchMusicBrainzRecording(artistName, trackName) {
     url.searchParams.set("limit", "1");
     const response = await fetch(url, {
       headers: {
-        "User-Agent": MUSICBRAINZ_USER_AGENT,
+        "User-Agent": musicBrainzUserAgent(),
         Accept: "application/json",
       },
     });
     if (!response.ok) {
-      throw new Error(`MusicBrainz recording search responded with ${response.status}`);
+      // Preserve the rate-limit signal so the orchestrator can avoid caching
+      // incomplete data instead of discarding it.
+      return {
+        isrc: null,
+        artistMbids: [],
+        artistNames: [],
+        trackTitle: null,
+        rateLimited: isMusicBrainzRateLimited(response.status),
+      };
     }
     const data = await response.json();
     const recording = data?.recordings?.[0];
@@ -291,16 +328,24 @@ async function fetchMusicBrainzRecording(artistName, trackName) {
       artistMbids,
       artistNames,
       trackTitle: recording?.title ?? null,
+      rateLimited: false,
     };
   } catch (err) {
     console.error("fetchMusicBrainzRecording failed:", err);
-    return { isrc: null, artistMbids: [], artistNames: [], trackTitle: null };
+    return {
+      isrc: null,
+      artistMbids: [],
+      artistNames: [],
+      trackTitle: null,
+      rateLimited: false,
+    };
   }
 }
 
 async function resolveSocialLinksBatch(mbids) {
   const limited = mbids.slice(0, MAX_MBIDS_PER_REQUEST);
   const results = {};
+  let rateLimited = false;
   let hasPendingFetch = false;
 
   for (const mbid of limited) {
@@ -313,7 +358,7 @@ async function resolveSocialLinksBatch(mbids) {
         continue;
       }
 
-      // Pace non-cached MusicBrainz fetches ~400ms apart (politeness).
+      // Pace non-cached MusicBrainz fetches ~1100ms apart (respect MB's 1 req/sec limit).
       if (hasPendingFetch) {
         await sleep(FETCH_DELAY_MS);
       }
@@ -323,12 +368,13 @@ async function resolveSocialLinksBatch(mbids) {
         `${MUSICBRAINZ_ARTIST_URL}/${encodeURIComponent(mbid)}?inc=url-rels&fmt=json`,
         {
           headers: {
-            "User-Agent": MUSICBRAINZ_USER_AGENT,
+            "User-Agent": musicBrainzUserAgent(),
             Accept: "application/json",
           },
         },
       );
       if (!response.ok) {
+        if (isMusicBrainzRateLimited(response.status)) rateLimited = true;
         throw new Error(`MusicBrainz responded with ${response.status} for ${mbid}`);
       }
       const data = await response.json();
@@ -348,7 +394,7 @@ async function resolveSocialLinksBatch(mbids) {
     }
   }
 
-  return results;
+  return { results, rateLimited };
 }
 
 async function fetchDeezerByISRC(isrc) {
@@ -379,11 +425,20 @@ async function fetchDeezerByName(artistName, trackName) {
     url.searchParams.set("limit", "1");
     const response = await fetch(url);
     if (!response.ok) return null;
+
     const data = await response.json();
-    const track = data?.data?.[0];
-    if (!track) return null;
+    const searchTrack = data?.data?.[0];
+    if (!searchTrack) return null;
+
+    // The search payload omits the ISRC; the direct track endpoint returns it.
+    const trackResponse = await fetch(DEEZER_TRACK_BY_ID_URL + searchTrack.id);
+    if (!trackResponse.ok) return null;
+    const track = await trackResponse.json();
+    if (!track || track.error) return null;
+
     const { artists, artistLinks } = extractDeezerArtists(track);
     return {
+      isrc: track.isrc ?? null,
       link: track.link ?? null,
       cover: track.album?.cover_xl ?? "",
       albumName: track.album?.title ?? null,

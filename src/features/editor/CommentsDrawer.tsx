@@ -15,19 +15,25 @@ interface CommentsDrawerProps {
   notes: Note[];
   onClose: () => void;
   onUpdateComment: (entry: CommentEntry, value: string) => void;
-  onAddNote: () => Promise<number>;
+  onAddNote: (text: string) => Promise<number>;
   onUpdateNote: (id: number, value: string) => void;
   onDeleteNote: (id: number) => void;
   onReorderNotes: (ordered: Note[]) => void;
 }
 
-/**
- * Which item is currently being edited. Only one editor is open at a time
- * across both the line-comments list and the notes list.
- */
-type EditingTarget = { type: "line"; key: string } | { type: "note"; id: number };
+type EditingTarget =
+  | { type: "line"; key: string }
+  | { type: "note"; id: number }
+  | { type: "new-note" };
 
 const drawerTransition = { duration: 0.25, ease: [0.4, 0, 0.2, 1] as const };
+
+function formatLineLabel(lineNumbers: number[], t: (key: I18nKey) => string): string {
+  if (lineNumbers.length === 1) {
+    return t("editor.commentsLine").replace("%d", String(lineNumbers[0]));
+  }
+  return t("editor.commentsLines").replace("%s", lineNumbers.join(", "));
+}
 
 interface NoteRowProps {
   note: Note;
@@ -43,12 +49,7 @@ interface NoteRowProps {
   t: (key: I18nKey) => string;
 }
 
-/**
- * A single reorderable note card. Dragging is delegated to the grip handle via
- * the native HTML5 `draggable` attribute, so the browser draws its own drag
- * ghost and the card's text is never CSS-transformed (no distortion when
- * dragging or when the card resizes between editor and preview).
- */
+// Native HTML5 drag: the card's text is never CSS-transformed, so it stays crisp.
 function NoteRow({ note, isEditing, isDragging, onEdit, onSave, onDelete, onDragStart, onDragOver, onDrop, onDragEnd, t }: NoteRowProps) {
   return (
     <li
@@ -105,12 +106,6 @@ function NoteRow({ note, isEditing, isDragging, onEdit, onSave, onDelete, onDrag
   );
 }
 
-/**
- * Right-side Material 3 drawer listing every comment in the project plus the
- * project's free-floating notes. Follows the Modal.tsx conventions:
- * AnimatePresence, backdrop click-to-close, Escape-to-close, and body scroll
- * lock while open. Only one item (line comment OR note) is editable at a time.
- */
 export function CommentsDrawer({
   open,
   entries,
@@ -127,7 +122,6 @@ export function CommentsDrawer({
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [orderedNotes, setOrderedNotes] = useState<Note[]>(notes);
 
-  // Keep the local drag-order copy in sync whenever the persisted notes change.
   useEffect(() => {
     setOrderedNotes(notes);
   }, [notes]);
@@ -163,7 +157,6 @@ export function CommentsDrawer({
     setOrderedNotes(notes);
   };
 
-  // Lock body scroll while the drawer is open (same convention as Modal).
   useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden";
@@ -173,7 +166,6 @@ export function CommentsDrawer({
     };
   }, [open]);
 
-  // Escape closes the drawer (same convention as Modal).
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -182,15 +174,9 @@ export function CommentsDrawer({
     return () => window.removeEventListener("keydown", handleEsc);
   }, [open, onClose]);
 
-  // Reset editing state each time the drawer opens.
   useEffect(() => {
     if (open) setEditingTarget(null);
   }, [open]);
-
-  const handleAddNote = async () => {
-    const id = await onAddNote();
-    if (id >= 0) setEditingTarget({ type: "note", id });
-  };
 
   return (
     <AnimatePresence>
@@ -233,16 +219,7 @@ export function CommentsDrawer({
                     const isEditing =
                       editingTarget?.type === "line" &&
                       editingTarget.key === entry.key;
-                    const lineLabel =
-                      entry.lineNumbers.length === 1
-                        ? t("editor.commentsLine").replace(
-                            "%d",
-                            String(entry.lineNumbers[0]),
-                          )
-                        : t("editor.commentsLines").replace(
-                            "%s",
-                            entry.lineNumbers.join(", "),
-                          );
+                    const lineLabel = formatLineLabel(entry.lineNumbers, t);
 
                     return (
                       <li
@@ -292,20 +269,34 @@ export function CommentsDrawer({
                 </ul>
               )}
 
-              {/* Free-floating notes section */}
               <div className="mt-6 border-t border-outline-variant/10 pt-4 flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-label-lg text-label-lg text-on-surface">
                     {t("editor.notes")}
                   </h3>
                   <button
-                    onClick={handleAddNote}
+                    onClick={() => setEditingTarget({ type: "new-note" })}
                     className="inline-flex h-12 items-center gap-1.5 rounded-sm border border-outline px-4 font-label-lg text-on-surface-variant transition-colors hover:bg-secondary-container/30"
                   >
                     <Plus className="size-4" />
                     {t("editor.addNote")}
                   </button>
                 </div>
+
+                {editingTarget?.type === "new-note" && (
+                  <div className="rounded-2xl bg-surface-container-high border border-outline-variant/10 p-3">
+                    <CommentEditor
+                      initialValue=""
+                      onSave={async (v) => {
+                        if (v.trim() !== "") {
+                          await onAddNote(v.trim());
+                        }
+                        setEditingTarget(null);
+                      }}
+                      placeholder={t("editor.commentPlaceholder")}
+                    />
+                  </div>
+                )}
 
                 {notes.length === 0 ? (
                   <p className="font-body-md text-body-md text-on-surface-variant">
@@ -326,10 +317,11 @@ export function CommentsDrawer({
                           setEditingTarget({ type: "note", id: note.id })
                         }
                         onSave={(v) => {
-                          if (v.trim() === "") {
+                          const trimmed = v.trim();
+                          if (trimmed === "") {
                             onDeleteNote(note.id);
-                          } else if (v !== note.text) {
-                            onUpdateNote(note.id, v);
+                          } else if (trimmed !== note.text) {
+                            onUpdateNote(note.id, trimmed);
                           }
                           setEditingTarget(null);
                         }}

@@ -28,7 +28,7 @@ interface ProjectState {
   updateLine: (key: string, field: keyof LyricLine, value: string | number) => Promise<void>;
   updateAllLines: (lyrics: Record<string, LyricLine>) => Promise<void>;
   updateComment: (key: string, comment: string) => Promise<void>;
-  addNote: () => Promise<number>;
+  addNote: (text: string) => Promise<number>;
   updateNote: (id: number, text: string) => Promise<void>;
   deleteNote: (id: number) => Promise<void>;
   reorderNotes: (ordered: Note[]) => Promise<void>;
@@ -117,12 +117,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({ currentProject: { ...project, lyrics: updatedLyrics, updatedAt: Date.now() } });
     await dbUpdateAllLyrics(project.id, updatedLyrics);
   },
-  addNote: async () => {
+  addNote: async (text: string) => {
     const project = get().currentProject;
     if (!project) return -1;
     const notes = project.notes ?? [];
     const id = notes.reduce((max, n) => Math.max(max, n.id), -1) + 1;
-    const updated = [...notes, { id, text: "" }];
+    const updated = [...notes, { id, text }];
     set({ currentProject: { ...project, notes: updated, updatedAt: Date.now() } });
     await updateNotes(project.id, updated);
     return id;
