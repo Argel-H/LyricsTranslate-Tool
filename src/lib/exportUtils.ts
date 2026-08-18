@@ -119,8 +119,6 @@ export function generateYamlContent(project: Project): string {
 
   // --- project section ---
   lines.push("project:");
-  // Title is derived on-the-fly: `${artistName[0]} - ${trackName}`.
-  lines.push(`  title: ${escapeYamlValue(`${project.artistName[0] ?? ""} - ${project.trackName}`)}`);
   lines.push(`  track_name: ${escapeYamlValue(project.trackName)}`);
 
   lines.push("  artists:");

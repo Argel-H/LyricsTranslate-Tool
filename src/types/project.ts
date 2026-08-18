@@ -19,8 +19,6 @@ export interface Note {
 
 export interface Project {
   id: number;
-  /** Deprecated: derived on-the-fly as `${artistName[0]} - ${trackName}`. Not indexed/stored anymore. */
-  title?: string;
   artistName: string[];
   trackName: string;
   lyrics: Record<string, LyricLine>;

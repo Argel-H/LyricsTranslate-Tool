@@ -8,8 +8,6 @@ export interface ProjectYaml {
 }
 
 export interface ProjectYamlMeta {
-  /** Optional: derived on-the-fly from artists + track_name; ignored by the parser. */
-  title?: string;
   track_name: string;
   artists: string[];
   album_name?: string;
