@@ -67,7 +67,7 @@ function NoteRow({ note, isEditing, isDragging, onEdit, onSave, onDelete, onDrag
           onDragEnd={onDragEnd}
           aria-label={t("editor.dragNote")}
           title={t("editor.dragNote")}
-          className="cursor-grab touch-none shrink-0 rounded-lg p-1 text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface transition-colors"
+          className="cursor-grab touch-none shrink-0 rounded-lg p-1 mt-1 text-on-surface-variant hover:bg-surface-container-highest hover:text-on-surface transition-colors"
         >
           <GripVertical className="size-4" />
         </button>

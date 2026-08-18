@@ -64,6 +64,22 @@ export const es = {
   "export.caseLowercase": "minúsculas",
   "export.download": "Descargar",
   "export.description": "Elige formato y contenido para descargar.",
+  "export.formatLrcDesc":
+    "Archivo de letras para apps de música que muestran la letra sincronizada. El nombre del archivo debe coincidir con el de la canción.",
+  "export.formatSrtDesc":
+    "Archivo de subtítulos para reproductores y editores de video. Sirve como subtítulos externos o para crear videos con letra.",
+  "export.formatYamlDesc":
+    "Respaldo completo del proyecto: letras, traducciones y metadatos; que se puede compartir o reimportar.",
+  "export.originalLyricsDesc": "Solo la letra original.",
+  "export.translatedLyricsDesc": "Solo la letra traducida.",
+  "export.proyectoDesc":
+    "El proyecto completo, con letras, traducciones y metadatos.",
+  "export.caseOriginalDesc":
+    "El texto se mantiene tal como está escrito, sin cambios de mayúsculas.",
+  "export.caseUppercaseDesc":
+    "Texto convertido a MAYÚSCULAS. Útil cuando las apps o editores de video fallan al convertir caracteres especiales.",
+  "export.caseLowercaseDesc":
+    "Texto convertido a minúsculas. Útil cuando las apps o editores de video fallan al convertir caracteres especiales.",
   "editor.loading": "Cargando...",
   "editor.notFound": "Proyecto No Encontrado",
   "editor.notFoundDesc": "Este proyecto no existe o fue eliminado.",

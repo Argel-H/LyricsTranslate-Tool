@@ -64,6 +64,22 @@ export const pt = {
   "export.caseLowercase": "minúsculas",
   "export.download": "Baixar",
   "export.description": "Escolha o formato e conteúdo para baixar.",
+  "export.formatLrcDesc":
+    "Arquivo de letras para apps de música que mostram a letra sincronizada. O nome do arquivo deve ser igual ao da música.",
+  "export.formatSrtDesc":
+    "Arquivo de legendas para reprodutores e editores de vídeo. Funciona como legenda externa ou para criar vídeos com letra.",
+  "export.formatYamlDesc":
+    "Backup completo do projeto: letras, traduções e metadados; que pode ser compartilhado ou importado novamente.",
+  "export.originalLyricsDesc": "Apenas a letra original.",
+  "export.translatedLyricsDesc": "Apenas a letra traduzida.",
+  "export.proyectoDesc":
+    "O projeto completo, com letras, traduções e metadados.",
+  "export.caseOriginalDesc":
+    "O texto é mantido como está escrito, sem alterações de maiúsculas.",
+  "export.caseUppercaseDesc":
+    "Texto convertido para MAIÚSCULAS. Útil quando apps ou editores de vídeo falham ao converter caracteres especiais.",
+  "export.caseLowercaseDesc":
+    "Texto convertido para minúsculas. Útil quando apps ou editores de vídeo falham ao converter caracteres especiais.",
   "editor.loading": "Carregando...",
   "editor.notFound": "Projeto Não Encontrado",
   "editor.notFoundDesc":

@@ -63,6 +63,22 @@ export const en = {
   "export.caseLowercase": "lowercase",
   "export.download": "Download",
   "export.description": "Choose format and content to download.",
+  "export.formatLrcDesc":
+    "Lyrics file for music player apps that show synced lyrics. The file name must match the song file name.",
+  "export.formatSrtDesc":
+    "Subtitle file for video players and editors. Works as external subtitles or for building lyric videos.",
+  "export.formatYamlDesc":
+    "Full project backup: lyrics, translations and metadata; that can be shared or re-imported later.",
+  "export.originalLyricsDesc": "Original lyrics only.",
+  "export.translatedLyricsDesc": "Translated lyrics only.",
+  "export.proyectoDesc":
+    "The complete project, with lyrics, translations and metadata.",
+  "export.caseOriginalDesc":
+    "Text is kept as written, with no case changes.",
+  "export.caseUppercaseDesc":
+    "Text converted to UPPERCASE. Helps when apps or video editors fail to convert special characters.",
+  "export.caseLowercaseDesc":
+    "Text converted to lowercase. Helps when apps or video editors fail to convert special characters.",
   "editor.loading": "Loading...",
   "editor.notFound": "Project Not Found",
   "editor.notFoundDesc": "This project doesn't exist or was deleted.",
