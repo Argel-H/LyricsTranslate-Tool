@@ -1,4 +1,4 @@
-import type { LyricLine } from "@/types/project";
+import type { LyricLine, Note } from "@/types/project";
 import { trimToUndefined } from "./stringUtils";
 
 /** Maps trimmed original lyric text → comment (first non-empty in time order wins). */
@@ -93,4 +93,13 @@ export function buildCommentList(lyrics: Record<string, LyricLine>): CommentEntr
     comment,
     lineNumbers: lineNumbersByText.get(text)!,
   }));
+}
+
+export function countCommentsAndNotes(
+  lyrics: Record<string, LyricLine>,
+  notes?: Note[],
+): number {
+  const commentCount = buildCommentList(lyrics).length;
+  const noteCount = (notes ?? []).filter((note) => note.text.trim() !== "").length;
+  return commentCount + noteCount;
 }

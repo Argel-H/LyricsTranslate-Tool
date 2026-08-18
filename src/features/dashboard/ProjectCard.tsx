@@ -1,4 +1,4 @@
-import { MoreVertical, Music, Edit3, Trash2, ExternalLink, Download, CheckCircle, Archive } from "lucide-react"
+import { MoreVertical, Music, Edit3, Trash2, ExternalLink, Download, CheckCircle, Archive, ArrowRight, MessageSquare } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
 import { useState, useRef, useEffect } from "react"
@@ -6,6 +6,7 @@ import { useI18n } from "@/hooks/useI18n"
 import { StatusBadge } from "./StatusBadge"
 import { ProjectProgressBar } from "./ProjectProgressBar"
 import type { ProjectStatus } from "@/lib/config/constants"
+import { RotatingFlag } from "@/components/shared/RotatingFlag"
 
 interface ProjectCardProps {
   title: string
@@ -23,6 +24,9 @@ interface ProjectCardProps {
   onToggleComplete?: () => void
   onToggleArchive?: () => void
   isArchived?: boolean
+  originLanguage?: string
+  translationLanguage?: string
+  annotationCount?: number
   className?: string
 }
 
@@ -42,6 +46,9 @@ export function ProjectCard({
   onToggleComplete,
   onToggleArchive,
   isArchived,
+  originLanguage,
+  translationLanguage,
+  annotationCount,
   className,
 }: ProjectCardProps) {
   const { t } = useI18n();
@@ -84,6 +91,9 @@ export function ProjectCard({
     document.addEventListener("mousedown", handleClickOutside)
     return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [menuOpen])
+
+  const hasFlags = !!(originLanguage && translationLanguage)
+  const hasAnnotations = (annotationCount ?? 0) > 0
 
   return (
     <div
@@ -130,6 +140,24 @@ export function ProjectCard({
             <MoreVertical className="size-5" />
           </button>
         </div>
+
+        {(hasFlags || hasAnnotations) && (
+          <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
+            {originLanguage && translationLanguage && (
+              <span className="flex items-center gap-1 rounded-full bg-surface-container/80 backdrop-blur-md px-2 py-1">
+                <RotatingFlag language={originLanguage} />
+                <ArrowRight className="size-3 text-on-surface-variant" />
+                <RotatingFlag language={translationLanguage} />
+              </span>
+            )}
+            {hasAnnotations && (
+              <span className="flex items-center gap-1 rounded-full bg-surface-container/80 backdrop-blur-md px-2 py-1">
+                <MessageSquare className="size-3 text-on-surface-variant" />
+                <span className="font-label-md text-label-md text-on-surface-variant">{annotationCount}</span>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* Dropdown menu */}
         <AnimatePresence>

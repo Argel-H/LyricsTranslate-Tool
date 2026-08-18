@@ -11,6 +11,7 @@ import {
   updateProjectArchived,
 } from "@/db/projectRepository";
 import { downloadProjectAsYaml } from "@/lib/exportUtils";
+import { countCommentsAndNotes } from "@/lib/commentUtils";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useModalStore } from "@/stores/modalStore";
 import { useProjectStore } from "@/stores/projectStore";
@@ -378,6 +379,9 @@ export function AllProjectsPage() {
                         onToggleComplete={() => handleToggleComplete(project)}
                         onToggleArchive={() => handleToggleArchive(project)}
                         isArchived={!!project.archived}
+                        originLanguage={project.originLanguage}
+                        translationLanguage={project.translationLanguage}
+                        annotationCount={countCommentsAndNotes(project.lyrics, project.notes)}
                       />
                     </motion.div>
                   );

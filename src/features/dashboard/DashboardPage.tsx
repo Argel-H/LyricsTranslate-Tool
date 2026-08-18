@@ -7,6 +7,7 @@ import { ProjectCard } from "./ProjectCard";
 import { APP_NAME } from "@/lib/config/appConfig";
 import { ArrowRight, Upload } from "lucide-react";
 import { downloadProjectAsYaml } from "@/lib/exportUtils";
+import { countCommentsAndNotes } from "@/lib/commentUtils";
 import { parseProjectYaml } from "@/lib/yamlParser";
 import { searchLrcLib } from "@/services/lrclib";
 import { getFullMetadata } from "@/services/metadataAggregator";
@@ -273,6 +274,9 @@ export function DashboardPage() {
                         onToggleComplete={() => handleToggleComplete(project)}
                         onToggleArchive={() => handleToggleArchive(project)}
                         isArchived={!!project.archived}
+                        originLanguage={project.originLanguage}
+                        translationLanguage={project.translationLanguage}
+                        annotationCount={countCommentsAndNotes(project.lyrics, project.notes)}
                       />
                     );
                   })}

@@ -3,7 +3,9 @@
     "version": "0.0.6",
     "date": "2026-08-17",
     "changes": [
-      "Per-line comments with markdown editor: bold, italic, underline, highlight, and links"
+      "Per-line comments with markdown editor: bold, italic, underline, highlight, and links",
+      "Export dialog redesign",
+      "Addded language flags and annotation count to project cards"
     ]
   },
   {
