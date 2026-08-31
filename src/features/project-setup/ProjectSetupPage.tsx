@@ -32,7 +32,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { validateAndParseLyrics, type ValidationResult } from "@/lib/lyricsUploadValidator";
 import { toLyricLineMap } from "@/lib/lyricsParser";
-import { searchLrcLib } from "@/services/lrclib";
+import { searchLrcLib, pickBestLrcResult } from "@/services/lrclib";
 import { getFullMetadata } from "@/services/metadataAggregator";
 import type { LRCLibResult } from "@/types/music";
 import type { ProjectCreateInput } from "@/types/project";
@@ -219,7 +219,7 @@ export function ProjectSetupPage() {
       // Query: combine artist + song if available, otherwise just song name
       const query = mainArtist ? `${mainArtist} ${songName.trim()}` : songName.trim();
       const lrcResults = await searchLrcLib(query);
-      const lrcResult = lrcResults.find((r) => r.syncedLyrics) ?? lrcResults[0];
+      const lrcResult = pickBestLrcResult(lrcResults, songName);
       const rawLyrics = lrcResult?.syncedLyrics || lrcResult?.plainLyrics || "";
 
       // Use LRCLIB track name for correct casing; fall back to user input

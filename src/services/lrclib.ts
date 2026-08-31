@@ -34,3 +34,36 @@ export async function searchLrcLib(
     return [];
   }
 }
+
+/**
+ * Picks the LRCLib result whose track name is closest to the song name.
+ *
+ * Ranking (primary key): exact title match > partial (one contains the
+ * other) > no match. Synced lyrics are used only as the tie-breaker among
+ * equally-close titles, so a synced but unrelated result never beats a
+ * closer title match. Returns `undefined` when given no results.
+ */
+export function pickBestLrcResult(
+  results: LRCLibResult[],
+  songName: string,
+): LRCLibResult | undefined {
+  if (results.length === 0) return undefined;
+
+  const target = songName.trim().toLowerCase();
+
+  const score = (result: LRCLibResult): number => {
+    const track = result.trackName.trim().toLowerCase();
+    if (track === target) return 2;
+    if (track.includes(target) || target.includes(track)) return 1;
+    return 0;
+  };
+
+  return [...results].sort((a, b) => {
+    const byScore = score(b) - score(a);
+    if (byScore !== 0) return byScore;
+    const aSynced = a.syncedLyrics !== null;
+    const bSynced = b.syncedLyrics !== null;
+    if (aSynced !== bSynced) return aSynced ? -1 : 1;
+    return 0;
+  })[0];
+}

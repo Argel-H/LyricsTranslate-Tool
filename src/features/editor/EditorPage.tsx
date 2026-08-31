@@ -195,8 +195,9 @@ export function EditorPage() {
       locked?: boolean;
     }> = [];
     const targetLines: Array<{ timestamp: number; original: string }> = [];
+    const targetKeys: string[] = [];
 
-    for (const [, line] of sorted) {
+    for (const [key, line] of sorted) {
       if (line.locked) {
         // Locked lines are ALWAYS context-only
         contextLines.push({
@@ -219,6 +220,7 @@ export function EditorPage() {
           timestamp: line.time_start,
           original: line.lyric,
         });
+        targetKeys.push(key);
       }
     }
 
@@ -262,23 +264,18 @@ export function EditorPage() {
         return;
       }
 
-      // Only update UNLOCKED lines that were in the target set
+      // Match translated lines to target lines BY INDEX (the model returns
+      // them in the same order they were sent). This is safe for non-synced
+      // lyrics, where every line has time_start = 0 and timestamp matching
+      // would otherwise apply the first translation to every line.
       const updatedLyrics = { ...lyrics };
       const parsedEntries = Array.from(parsedMap.values());
-      const targetTimestamps = new Set(targetLines.map((l) => l.timestamp));
 
-      for (const [originalKey, originalLine] of Object.entries(lyrics)) {
-        if (originalLine.locked) continue;
-        if (!targetTimestamps.has(originalLine.time_start)) continue;
-
-        const translation = parsedEntries.find(
-          (p) => p.time_start === originalLine.time_start,
-        );
-        if (translation?.lyric.trim()) {
-          updatedLyrics[originalKey] = {
-            ...originalLine,
-            translation: translation.lyric,
-          };
+      for (let i = 0; i < targetKeys.length && i < parsedEntries.length; i++) {
+        const translation = parsedEntries[i]?.lyric?.trim();
+        if (translation) {
+          const key = targetKeys[i]!;
+          updatedLyrics[key] = { ...lyrics[key]!, translation };
         }
       }
 
