@@ -178,8 +178,8 @@ async function handleFullMetadata(request) {
 
     const artistName = typeof body?.artistName === "string" ? body.artistName.trim() : "";
     const trackName = typeof body?.trackName === "string" ? body.trackName.trim() : "";
-    if (!artistName || !trackName) {
-      return json({ error: "Missing artistName or trackName" }, 400);
+    if (!trackName) {
+      return json({ error: "Missing trackName" }, 400);
     }
     const albumName =
       typeof body?.albumName === "string" && body.albumName.trim() !== ""
@@ -291,7 +291,10 @@ async function handleFullMetadata(request) {
 async function fetchMusicBrainzRecording(artistName, trackName) {
   try {
     const url = new URL(MUSICBRAINZ_RECORDING_URL);
-    url.searchParams.set("query", `artist:'${artistName}' AND recording:'${trackName}'`);
+    const query = artistName
+      ? `artist:'${artistName}' AND recording:'${trackName}'`
+      : `recording:'${trackName}'`;
+    url.searchParams.set("query", query);
     url.searchParams.set("fmt", "json");
     url.searchParams.set("limit", "1");
     const response = await fetch(url, {
@@ -421,7 +424,8 @@ async function fetchDeezerByISRC(isrc) {
 async function fetchDeezerByName(artistName, trackName) {
   try {
     const url = new URL(DEEZER_SEARCH_URL);
-    url.searchParams.set("q", `artist:"${artistName}" track:"${trackName}"`);
+    const q = artistName ? `artist:"${artistName}" track:"${trackName}"` : trackName;
+    url.searchParams.set("q", q);
     url.searchParams.set("limit", "1");
     const response = await fetch(url);
     if (!response.ok) return null;
@@ -547,6 +551,11 @@ function assembleFullMetadata({
   // The by-name Deezer result only exists when the ISRC path produced no
   // cover, so `??` is safe - the ISRC result wins when both exist.
   const deezerTrack = isrcDeezer ?? nameDeezer;
+  // If MusicBrainz found no artist names (e.g. title-only search), adopt the
+  // Deezer track's artist list so the response still carries an artist.
+  if (result.artistNames.length === 0 && deezerTrack?.artists?.length) {
+    result.artistNames = deezerTrack.artists;
+  }
   const odesli = isrcOdesli ?? nameOdesli;
 
   // albumName: prefer Deezer's authoritative album title, fall back to the

@@ -32,6 +32,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { validateAndParseLyrics, type ValidationResult } from "@/lib/lyricsUploadValidator";
 import { toLyricLineMap } from "@/lib/lyricsParser";
+import { parseArtistTitle } from "@/lib/artistTitleParser";
 import { searchLrcLib, pickBestLrcResult } from "@/services/lrclib";
 import { getFullMetadata } from "@/services/metadataAggregator";
 import type { LRCLibResult } from "@/types/music";
@@ -208,8 +209,20 @@ export function ProjectSetupPage() {
   };
 
   const handleLookup = async () => {
-    if (!songName.trim()) return;
-    const mainArtist = artists[0]?.trim();
+    const rawSong = songName.trim();
+    if (!rawSong) return;
+
+    let mainArtist = artists[0]?.trim();
+    let trackName = rawSong;
+
+    // If no artist was typed, derive it from an "Artist - Title" string.
+    if (!mainArtist) {
+      const parsed = parseArtistTitle(rawSong);
+      if (parsed.artistName) {
+        mainArtist = parsed.artistName;
+        trackName = parsed.trackName;
+      }
+    }
 
     setLookupLoading(true);
     setLookupError(null);
@@ -217,13 +230,13 @@ export function ProjectSetupPage() {
 
     try {
       // Query: combine artist + song if available, otherwise just song name
-      const query = mainArtist ? `${mainArtist} ${songName.trim()}` : songName.trim();
+      const query = mainArtist ? `${mainArtist} ${trackName}` : trackName;
       const lrcResults = await searchLrcLib(query);
-      const lrcResult = pickBestLrcResult(lrcResults, songName);
+      const lrcResult = pickBestLrcResult(lrcResults, trackName);
       const rawLyrics = lrcResult?.syncedLyrics || lrcResult?.plainLyrics || "";
 
       // Use LRCLIB track name for correct casing; fall back to user input
-      const resolvedTrackName = lrcResult?.trackName || songName.trim();
+      const resolvedTrackName = lrcResult?.trackName || trackName;
       // Use LRCLIB artist name for pipeline; fall back to user input or empty
       const artistForPipeline = lrcResult?.artistName || mainArtist || "";
       const metadata = await getFullMetadata(artistForPipeline, resolvedTrackName, lrcResult);
