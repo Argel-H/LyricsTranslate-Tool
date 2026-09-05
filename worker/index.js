@@ -12,6 +12,7 @@ const CORS_HEADERS = {
 const MAX_MBIDS_PER_REQUEST = 2;
 const FETCH_DELAY_MS = 1100;
 const MB_CACHE_TTL_SECONDS = 86400;
+const INCOMPLETE_CACHE_TTL_SECONDS = 3600;
 const MB_CACHE_KEY_PREFIX = "https://mb-social/";
 const MUSICBRAINZ_ARTIST_URL = "https://musicbrainz.org/ws/2/artist";
 const MUSICBRAINZ_USER_AGENT_BASE = "LyricsTranslate-Tool/0.0.6 (lyricstranslate@tool.com)";
@@ -266,15 +267,22 @@ async function handleFullMetadata(request) {
     // missing data. Do not cache it so a retry in a few minutes re-fetches.
     const rateLimited = recordingRateLimited || socialRateLimited;
 
-    // Store the assembled response for 24 hours. A separate Response is used
-    // (instead of sharing `json(result)`'s body) so the cached copy never
-    // shares a consumed stream with the one we return.
+    // A result with neither an ISRC nor a cover is likely a brand-new release
+    // that MusicBrainz/Deezer haven't fully indexed yet. Caching it for the
+    // full 24h would lock in stale empty data, so give incomplete results a
+    // short TTL so a retry can pick up the ISRC/cover once they appear.
+    const incomplete = !finalIsrc && !coverUrl;
+    const cacheTtl = incomplete ? INCOMPLETE_CACHE_TTL_SECONDS : MB_CACHE_TTL_SECONDS;
+
+    // Store the assembled response. A separate Response is used (instead of
+    // sharing `json(result)`'s body) so the cached copy never shares a
+    // consumed stream with the one we return.
     const cacheResponse = new Response(JSON.stringify(result), {
       status: 200,
       headers: {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*",
-        "Cache-Control": `public, max-age=${MB_CACHE_TTL_SECONDS}`,
+        "Cache-Control": `public, max-age=${cacheTtl}`,
       },
     });
     if (!rateLimited) {
