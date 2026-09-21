@@ -1,3 +1,5 @@
+import { useEscapeKey } from "@/hooks/useEscapeKey";
+
 interface ConfirmDialogProps {
   open: boolean;
   title: string;
@@ -19,6 +21,9 @@ export function ConfirmDialog({
   onCancel,
   destructive = true,
 }: ConfirmDialogProps) {
+  // Hook must run before the early return.
+  useEscapeKey(open, onCancel);
+
   if (!open) return null;
 
   return (

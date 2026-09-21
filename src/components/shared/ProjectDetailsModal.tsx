@@ -1,9 +1,11 @@
 import type { ProjectCreateInput } from "@/types/project";
-import { useRef, useEffect } from "react";
+import { useRef } from "react";
 import { SectionCard } from "@/features/project-setup/SectionCard";
 import { Button } from "@/components/ui/button";
 import { useCoverTilt } from "@/hooks/useCoverTilt";
 import { useI18n } from "@/hooks/useI18n";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 import type { IconType } from "react-icons";
 import { getPlatformIcon } from "@/lib/platformIcons";
 import { SiDeezer } from "react-icons/si";
@@ -12,15 +14,12 @@ import { FileText, Users, Link, Headphones } from "lucide-react";
 interface ProjectDetailsModalProps {
   project: ProjectCreateInput;
   onClose: () => void;
-  /** Override the default modal title */
   title?: string;
-  /** Extra data shown only in lookup mode (lyrics count, sync status, extra artists) */
   lookupExtras?: {
     rawLyrics: string;
     lrcResult?: { syncedLyrics?: string | null };
     typedArtistCount: number;
   };
-  /** If provided, shows Apply/Dismiss buttons at the bottom */
   onApply?: () => void;
   onDismiss?: () => void;
 }
@@ -88,13 +87,10 @@ export function ProjectDetailsModal({ project, onClose, title, lookupExtras, onA
   const hasLookupExtras = lookupExtras && onApply;
   const modalTitle = title ?? t("share.infoTitle");
 
-  // Lock body scroll while modal is open
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
+  // This component is only mounted while open, so the lock/Escape are always on.
+  useBodyScrollLock(true);
+  useEscapeKey(true, onClose);
 
-  // Artist color palette: first 5 are hand-picked distinct colors, rest are randomized
   const artistColorCache = useRef<string[]>([]);
   const getArtistColor = (index: number): string => {
     if (artistColorCache.current[index]) return artistColorCache.current[index]!;
@@ -109,7 +105,6 @@ export function ProjectDetailsModal({ project, onClose, title, lookupExtras, onA
       artistColorCache.current[index] = presets[index]!;
       return presets[index]!;
     }
-    // Generate a random pastel color for extra artists
     const hue = (index * 137 + 42) % 360;
     const color = `bg-[hsl(${hue},40%,88%)] text-[hsl(${hue},30%,30%)]`;
     artistColorCache.current[index] = color;
@@ -246,7 +241,7 @@ export function ProjectDetailsModal({ project, onClose, title, lookupExtras, onA
               </div>
             </div>
           ) : (
-            /* View mode: original two-column layout */
+            /* View mode: two-column layout */
             <div className="grid grid-cols-2 gap-4">
               <div className="flex flex-col gap-4">
                 {project.coverUrl && (

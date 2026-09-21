@@ -1,16 +1,10 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef } from "react";
 import { useI18n } from "@/hooks/useI18n";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { LANGUAGE_LABELS, type LanguageCode } from "@/lib/config/constants";
-import { exportDatabase, importDatabase } from "@/lib/dbBackup";
+import { exportDatabase } from "@/lib/dbBackup";
+import { useDatabaseImport } from "@/hooks/useDatabaseImport";
 import { Globe, Trash2, Download, Upload, RefreshCw } from "lucide-react";
-
-type ImportState =
-  | "idle"
-  | "confirming"
-  | "importing"
-  | "success"
-  | "error";
 
 interface GeneralTabProps {
   onResetRequest: () => void;
@@ -21,28 +15,21 @@ export function GeneralTab({ onResetRequest }: GeneralTabProps) {
   const language = useSettingsStore((s) => s.language);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [importState, setImportState] = useState<ImportState>("idle");
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [importedCount, setImportedCount] = useState(0);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [countdown, setCountdown] = useState(5);
 
-  // Countdown timer for auto-redirect after successful import
-  useEffect(() => {
-    if (importState !== "success") return;
-    if (countdown <= 0) {
+  const {
+    importState,
+    pendingCount,
+    importedCount,
+    errorMessage,
+    countdown,
+    selectFile,
+    confirmImport,
+    reset,
+  } = useDatabaseImport({
+    onComplete: () => {
       window.location.href = "/";
-      return;
-    }
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        const next = Math.max(0, prev - 0.1);
-        return Math.round(next * 10) / 10;
-      });
-    }, 100);
-    return () => clearInterval(timer);
-  }, [importState, countdown]);
+    },
+  });
 
   const handleExport = async () => {
     try {
@@ -53,86 +40,12 @@ export function GeneralTab({ onResetRequest }: GeneralTabProps) {
   };
 
   const handleImportClick = () => {
-    setImportState("idle");
-    setErrorMessage("");
+    reset();
     fileInputRef.current?.click();
-  };
-
-  const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Reset the input so the same file can be re-selected
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-
-    try {
-      // Quick validation: parse and count projects
-      const text = await file.text();
-      let data: unknown;
-      try {
-        data = JSON.parse(text);
-      } catch {
-        setImportState("error");
-        setErrorMessage(t("settings.importInvalidFile"));
-        return;
-      }
-
-      const parsed = data as Record<string, unknown>;
-
-      if (
-        !parsed ||
-        typeof parsed !== "object" ||
-        !Array.isArray(parsed.projects)
-      ) {
-        setImportState("error");
-        setErrorMessage(t("settings.importInvalidFile"));
-        return;
-      }
-
-      const count = parsed.projects.length;
-      setPendingFile(file);
-      setPendingCount(count);
-      setImportState("confirming");
-    } catch {
-      setImportState("error");
-      setErrorMessage(t("settings.importInvalidFile"));
-    }
-  };
-
-  const handleConfirmImport = async () => {
-    if (!pendingFile) return;
-
-    setImportState("importing");
-    try {
-      const result = await importDatabase(pendingFile);
-      setImportedCount(result.projectCount);
-      setCountdown(5);
-      setImportState("success");
-      setPendingFile(null);
-    } catch (err) {
-      console.error("Import failed:", err);
-      setImportState("error");
-      setErrorMessage(t("settings.importInvalidFile"));
-      setPendingFile(null);
-    }
-  };
-
-  const handleCancelImport = () => {
-    setImportState("idle");
-    setPendingFile(null);
-    setErrorMessage("");
-  };
-
-  const handleDismiss = () => {
-    setImportState("idle");
-    setErrorMessage("");
   };
 
   return (
     <div className="space-y-6">
-      {/* Language */}
       <div>
         <div className="flex items-center gap-3 mb-4">
           <Globe className="size-5 text-primary" />
@@ -158,7 +71,6 @@ export function GeneralTab({ onResetRequest }: GeneralTabProps) {
         </div>
       </div>
 
-      {/* Data Management */}
       <div className="border-t border-outline-variant/20 pt-6">
         <div className="flex items-center gap-3 mb-4">
           <Download className="size-5 text-primary" />
@@ -189,12 +101,11 @@ export function GeneralTab({ onResetRequest }: GeneralTabProps) {
           ref={fileInputRef}
           type="file"
           accept=".json"
-          onChange={handleFileSelected}
+          onChange={selectFile}
           className="hidden"
           aria-hidden
         />
 
-        {/* Import confirmation */}
         {importState === "confirming" && (
           <div className="bg-surface-container-low rounded-2xl p-4 border border-outline-variant/30">
             <p className="font-body-md text-on-surface mb-4">
@@ -202,13 +113,13 @@ export function GeneralTab({ onResetRequest }: GeneralTabProps) {
             </p>
             <div className="flex gap-3">
               <button
-                onClick={handleConfirmImport}
+                onClick={confirmImport}
                 className="px-5 py-2.5 rounded-full font-label-lg bg-primary-container text-on-primary-container hover:bg-primary hover:text-on-primary transition-all"
               >
                 {t("settings.importReplace")}
               </button>
               <button
-                onClick={handleCancelImport}
+                onClick={reset}
                 className="px-5 py-2.5 rounded-full font-label-lg text-on-surface-variant hover:bg-surface-container-highest transition-colors"
               >
                 {t("common.cancel")}
@@ -217,12 +128,10 @@ export function GeneralTab({ onResetRequest }: GeneralTabProps) {
           </div>
         )}
 
-        {/* Importing spinner */}
         {importState === "importing" && (
           <p className="font-body-md text-on-surface-variant">{t("settings.importing")}</p>
         )}
 
-        {/* Success */}
         {importState === "success" && (
           <div className="bg-primary-container/20 rounded-2xl p-4 border border-primary/20">
             <p className="font-body-md text-on-surface mb-3">
@@ -241,12 +150,11 @@ export function GeneralTab({ onResetRequest }: GeneralTabProps) {
           </div>
         )}
 
-        {/* Error */}
         {importState === "error" && (
           <div className="bg-error-container/20 rounded-2xl p-4 border border-error/20">
             <p className="font-body-md text-error">{errorMessage}</p>
             <button
-              onClick={handleDismiss}
+              onClick={reset}
               className="mt-2 px-4 py-1.5 rounded-full font-label-md text-error hover:bg-error-container/40 transition-all"
             >
               {t("common.ok")}
@@ -255,7 +163,6 @@ export function GeneralTab({ onResetRequest }: GeneralTabProps) {
         )}
       </div>
 
-      {/* Reset */}
       <div className="border-t border-outline-variant/20 pt-6">
         <div className="flex items-center gap-3 mb-3">
           <Trash2 className="size-5 text-error" />

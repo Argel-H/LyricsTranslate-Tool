@@ -13,6 +13,7 @@ import {
   Music,
 } from "lucide-react";
 import { useI18n } from "@/hooks/useI18n";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useHoverTooltip } from "@/hooks/useHoverTooltip";
 import { useViewportShift } from "@/hooks/useViewportShift";
 import type { I18nKey } from "@/i18n";
@@ -173,6 +174,9 @@ export function ExportDialog({ open, onClose, onDownload }: ExportDialogProps) {
   const [format, setFormat] = useState<FormatKey>("lrc");
   const [language, setLanguage] = useState<LyricLanguage>("original");
   const [textCase, setTextCase] = useState<TextCase>("original");
+
+  // Hook must run before the early return.
+  useEscapeKey(open, onClose);
 
   if (!open) return null;
 

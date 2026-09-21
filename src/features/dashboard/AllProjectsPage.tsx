@@ -1,22 +1,13 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import { MasterCard } from "@/features/shell/MasterCard";
 import { ProjectCard } from "./ProjectCard";
 import { SearchInput } from "./SearchInput";
-import {
-  getAllProjects,
-  deleteProject,
-  updateProjectProgress,
-  updateProjectArchived,
-} from "@/db/projectRepository";
-import { downloadProjectAsYaml } from "@/lib/exportUtils";
 import { countCommentsAndNotes } from "@/lib/commentUtils";
-import { useDebounce } from "@/hooks/useDebounce";
 import { useModalStore } from "@/stores/modalStore";
 import { useProjectStore } from "@/stores/projectStore";
 import { useI18n } from "@/hooks/useI18n";
-import anyAscii from "any-ascii";
 import type { I18nKey } from "@/i18n";
 import { Filter, Check, Archive, Circle, Play, ClipboardCheck, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -24,50 +15,56 @@ import { getProjectStatusLabel } from "@/lib/statusUtils";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { usePageShell } from "@/hooks/usePageShell";
+import { useProjectList } from "@/hooks/useProjectList";
+import { useProjectFilters } from "@/hooks/useProjectFilters";
 
-import type { Project } from "@/types/project";
 import { PROJECT_STATUS, type ProjectStatus } from "@/lib/config/constants";
 
-function normalizeForSearch(str: string): string {
-  return anyAscii(str).toLowerCase();
-}
-
-/**
- * AllProjectsPage - shows ALL projects with a client-side search bar
- * filtering by album, artist, or song name.
- *
- * Follows the same DashboardPage architecture (AppShell + MasterCard +
- * ProjectCard grid), but without the API-based HeroSection search.
- */
 export function AllProjectsPage() {
   const navigate = useNavigate();
   const smartBack = useSmartBack();
   const [searchParams, setSearchParams] = useSearchParams();
   const { t } = useI18n();
 
-  // Initialize state from URL params
   const urlStatuses = (searchParams.get("status") ?? "")
     .split(",")
     .filter((s): s is ProjectStatus =>
       Object.values(PROJECT_STATUS).includes(s as ProjectStatus),
     );
 
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [search, setSearch] = useState(searchParams.get("q") ?? "");
-  const debouncedSearch = useDebounce(search, 300);
-  const [deleteTarget, setDeleteTarget] = useState<Project | null>(null);
-  const [statusFilters, setStatusFilters] = useState<Set<ProjectStatus>>(
-    new Set(urlStatuses),
-  );
-  const [showArchived, setShowArchived] = useState(
-    searchParams.get("archived") === "1",
-  );
-  const [filterOpen, setFilterOpen] = useState(false);
+  const {
+    projects,
+    deleteTarget,
+    setDeleteTarget,
+    confirmDelete,
+    toggleComplete,
+    toggleArchive,
+    exportProject,
+  } = useProjectList({ includeArchived: true });
+
+  const {
+    search,
+    setSearch,
+    debouncedSearch,
+    statusFilters,
+    toggleFilter,
+    clearFilters,
+    showArchived,
+    setShowArchived,
+    filterOpen,
+    setFilterOpen,
+    hasActiveFilters,
+    filteredProjects,
+  } = useProjectFilters(projects, {
+    initialSearch: searchParams.get("q") ?? "",
+    initialStatuses: urlStatuses,
+    initialShowArchived: searchParams.get("archived") === "1",
+  });
+
   const filterRef = useRef<HTMLDivElement>(null);
 
   useClickOutside(filterRef, () => setFilterOpen(false), filterOpen);
 
-  // Sync search + filters to URL
   useEffect(() => {
     setSearchParams(
       (prev) => {
@@ -97,52 +94,10 @@ export function AllProjectsPage() {
     );
   }, [debouncedSearch, statusFilters, showArchived, setSearchParams]);
 
-  // Clear project state on mount (same as DashboardPage)
   useEffect(() => {
     useProjectStore.getState().clearProject();
-    getAllProjects(true).then(setProjects);
   }, []);
 
-  // Client-side filter by status, archived, AND text search
-  const filteredProjects = useMemo(() => {
-    let result = projects;
-
-    // Status filter (multi-select - empty set = show all)
-    if (statusFilters.size > 0) {
-      result = result.filter((p) => statusFilters.has(p.status));
-    }
-
-    // Archived filter
-    if (showArchived && statusFilters.size === 0) {
-      // Only archived - no status filter active
-      result = result.filter((p) => p.archived);
-    } else if (!showArchived) {
-      // Hide archived
-      result = result.filter((p) => !p.archived);
-    }
-    // else: showArchived && statusFilters.size > 0 → show matching status incl. archived
-
-    // Text search
-    if (!debouncedSearch.trim()) return result;
-    const tokens = debouncedSearch
-      .trim()
-      .split(/\s+/)
-      .map((t) => normalizeForSearch(t));
-    return result.filter((p) => {
-      const haystack = [
-        normalizeForSearch(p.trackName),
-        ...p.artistName.map((a) => normalizeForSearch(a)),
-      ];
-      if (p.albumName != null) {
-        haystack.push(normalizeForSearch(p.albumName));
-      }
-      return tokens.every((token) =>
-        haystack.some((field) => field.includes(token)),
-      );
-    });
-  }, [projects, debouncedSearch, statusFilters, showArchived]);
-
-  // Status filter options with icons
   const FILTER_OPTIONS: Array<{
     key: ProjectStatus;
     labelKey: I18nKey;
@@ -170,66 +125,12 @@ export function AllProjectsPage() {
     },
   ];
 
-  const toggleFilter = (key: ProjectStatus) => {
-    setStatusFilters((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
-  const clearFilters = () => {
-    setStatusFilters(new Set());
-    setShowArchived(false);
-  };
-
-  const hasActiveFilters = statusFilters.size > 0 || showArchived;
-
-  // ── Handlers (same pattern as DashboardPage) ──
-
-  const refreshProjects = () => {
-    getAllProjects(true).then(setProjects);
-  };
-
   const handleEditProject = (projectId: number) => {
     navigate(`/edit-project/${projectId}`);
   };
 
   const handleOpenProject = (projectId: number) => {
     navigate(`/editor/${projectId}`);
-  };
-
-  const handleDeleteProject = (project: Project) => {
-    setDeleteTarget(project);
-  };
-
-  const handleExportProject = (project: Project) => {
-    downloadProjectAsYaml(project);
-  };
-
-  const confirmDeleteProject = async () => {
-    if (!deleteTarget) return;
-    await deleteProject(deleteTarget.id);
-    setDeleteTarget(null);
-    refreshProjects();
-  };
-
-  const handleToggleComplete = async (project: Project) => {
-    const newStatus =
-      project.status === PROJECT_STATUS.COMPLETED
-        ? PROJECT_STATUS.IN_REVIEW
-        : project.status === PROJECT_STATUS.IN_REVIEW
-          ? PROJECT_STATUS.COMPLETED
-          : project.status;
-    if (newStatus === project.status) return;
-    await updateProjectProgress(project.id, project.progress, newStatus);
-    refreshProjects();
-  };
-
-  const handleToggleArchive = async (project: Project) => {
-    await updateProjectArchived(project.id, !project.archived);
-    refreshProjects();
   };
 
   const shellConfig = useMemo(() => ({
@@ -244,13 +145,10 @@ export function AllProjectsPage() {
   }), [t]);
   usePageShell(shellConfig);
 
-  // ── Render ──
-
   return (
     <>
       <MasterCard bgColor="bg-surface-container-lowest">
         <div className="max-w-7xl mx-auto">
-          {/* Search bar + filter */}
           <div className="px-8 pt-1 flex justify-center">
             <div className="w-full max-w-3xl flex items-center gap-2">
               <div className="flex-1">
@@ -261,7 +159,6 @@ export function AllProjectsPage() {
                 />
               </div>
 
-              {/* Filter button + popup */}
               <div className="relative self-stretch" ref={filterRef}>
                 <button
                 onClick={() => setFilterOpen((prev) => !prev)}
@@ -287,7 +184,6 @@ export function AllProjectsPage() {
                       transition={{ duration: 0.15, ease: "easeOut" }}
                       className="absolute right-0 top-[calc(100%+8px)] bg-surface-container-high/95 backdrop-blur-xl border border-outline-variant/20 rounded-3xl shadow-2xl z-50 p-4 w-[280px]"
                     >
-                      {/* Arrow pointing up to the filter button */}
                       <div className="absolute -top-1.5 right-4 w-3 h-3 bg-surface-container-high border-l border-t border-outline-variant/20 rotate-45" />
 
                       <div className="flex items-center justify-between mb-3">
@@ -304,7 +200,6 @@ export function AllProjectsPage() {
                         )}
                       </div>
 
-                      {/* Status filter grid */}
                       <div className="grid grid-cols-2 gap-2 mb-3">
                         {FILTER_OPTIONS.map((opt) => {
                           const active = statusFilters.has(opt.key);
@@ -330,7 +225,6 @@ export function AllProjectsPage() {
 
                       <div className="h-px bg-outline-variant/20 my-2" />
 
-                      {/* Archive toggle */}
                       <button
                         onClick={() => setShowArchived((prev) => !prev)}
                         className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-150 ${
@@ -374,10 +268,10 @@ export function AllProjectsPage() {
                         onClick={() => navigate(`/editor/${project.id}`)}
                         onEdit={() => handleEditProject(project.id)}
                         onOpen={() => handleOpenProject(project.id)}
-                        onDelete={() => handleDeleteProject(project)}
-                        onExport={() => handleExportProject(project)}
-                        onToggleComplete={() => handleToggleComplete(project)}
-                        onToggleArchive={() => handleToggleArchive(project)}
+                        onDelete={() => setDeleteTarget(project)}
+                        onExport={() => exportProject(project)}
+                        onToggleComplete={() => toggleComplete(project)}
+                        onToggleArchive={() => toggleArchive(project)}
                         isArchived={!!project.archived}
                         originLanguage={project.originLanguage}
                         translationLanguage={project.translationLanguage}
@@ -406,7 +300,7 @@ export function AllProjectsPage() {
         description={t("dashboard.deleteConfirm").replace("%s", deleteTarget?.trackName ?? "")}
         confirmLabel={t("common.delete")}
         cancelLabel={t("common.cancel")}
-        onConfirm={confirmDeleteProject}
+        onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)}
         destructive
       />

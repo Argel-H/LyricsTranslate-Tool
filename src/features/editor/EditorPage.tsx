@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { MasterCard } from "@/features/shell/MasterCard";
 import { TableRow } from "./TableRow";
 import { AudioPlayerBar } from "./AudioPlayerBar";
+import { useAudioPlayer } from "./useAudioPlayer";
 import { SegmentedButton } from "./SegmentedButton";
 import { FloatingActionButton } from "./FloatingActionButton";
 import { useHistoryStore } from "@/stores/historyStore";
@@ -18,17 +19,13 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { useI18n } from "@/hooks/useI18n";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import { PROJECT_STATUS } from "@/lib/config/constants";
-import {
-  buildAutoTranslatePrompt,
-  callGoogleGemini,
-  callDeepSeek,
-} from "@/services/simplyTranslate";
-import type { AutoTranslateInput } from "@/services/simplyTranslate";
-import { processLyricsMap } from "@/lib/lyricsParser";
 import type { LyricLine, Note } from "@/types/project";
 import { buildCommentIndex, buildCommentList, getCommentForLine } from "@/lib/commentUtils";
 import { findAllTranslations } from "@/lib/suggestionUtils";
 import { AI_PROVIDERS } from "@/lib/config/aiConfig";
+import { useScrollToActiveLine } from "@/hooks/useScrollToActiveLine";
+import { useEditorHistory } from "@/hooks/useEditorHistory";
+import { useAutoTranslate } from "@/hooks/useAutoTranslate";
 import { downloadProjectAsYaml, generateLrcContent, generateSrtContent, type TextCase } from "@/lib/exportUtils";
 import { ExportDialog } from "./ExportDialog";
 import {
@@ -50,6 +47,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { MessageModal } from "@/components/shared/MessageModal";
 import { LoadingOverlay } from "@/components/shared/LoadingOverlay";
 import { useClickOutside } from "@/hooks/useClickOutside";
+import { useCopyToClipboard } from "@/hooks/useCopyToClipboard";
 import { usePageShell } from "@/hooks/usePageShell";
 import { ShareDialog } from "./ShareDialog";
 import { CommentsDrawer } from "./CommentsDrawer";
@@ -61,6 +59,7 @@ export function EditorPage() {
   const navigate = useNavigate();
   const { t } = useI18n();
   const smartBack = useSmartBack();
+  const { copy } = useCopyToClipboard();
   const {
     currentProject,
     isLoading,
@@ -72,11 +71,6 @@ export function EditorPage() {
   const aiProvider = useSettingsStore((s) => s.aiProvider);
   const apiKeys = useSettingsStore((s) => s.apiKeys);
   const aiApiKey = aiProvider ? apiKeys[aiProvider] : undefined;
-  const overwriteTranslations = useSettingsStore(
-    (s) => s.overwriteTranslations,
-  );
-  const [translating, setTranslating] = useState(false);
-  const [translateError, setTranslateError] = useState<string | null>(null);
   const [activeLineKey, setActiveLineKey] = useState<string | null>(null);
   const [focusedColumn, setFocusedColumn] = useState<string | null>(null);
   const [saveOpen, setSaveOpen] = useState(false);
@@ -85,212 +79,39 @@ export function EditorPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
 
-  // ── Undo/Redo state ────────────────────────────────────────────────
-  const canUndo = useHistoryStore((s) => s.undoStack.length > 0);
-  const canRedo = useHistoryStore((s) => s.redoStack.length > 0);
-
-  const handleUndo = useCallback(() => {
-    if (!currentProject || !canUndo) return;
-    const snapshot = useHistoryStore.getState().undo({
-      lyrics: currentProject.lyrics,
-      notes: currentProject.notes ?? [],
-    });
-    if (snapshot) {
-      // Apply restored state WITHOUT snapshotting
-      updateAllLines(snapshot.lyrics);
-      useProjectStore.getState().setNotes(snapshot.notes);
-    }
-  }, [currentProject, canUndo, updateAllLines]);
-
-  const handleRedo = useCallback(() => {
-    if (!currentProject || !canRedo) return;
-    const snapshot = useHistoryStore.getState().redo({
-      lyrics: currentProject.lyrics,
-      notes: currentProject.notes ?? [],
-    });
-    if (snapshot) {
-      // Apply restored state WITHOUT snapshotting
-      updateAllLines(snapshot.lyrics);
-      useProjectStore.getState().setNotes(snapshot.notes);
-    }
-  }, [currentProject, canRedo, updateAllLines]);
-
-  // ── Snapshot helpers ────────────────────────────────────────────────
-
-  /** Snapshots the current project state (lyrics + notes) for simple mutations (add, delete, lock, time adjust). */
-  const snapshotProject = useCallback(() => {
-    const project = useProjectStore.getState().currentProject;
-    if (project) {
-      useHistoryStore.getState().pushSnapshot(
-        { lyrics: project.lyrics, notes: project.notes ?? [] },
-        project.id,
-      );
-    }
-  }, []);
-
-  /**
-   * Pushes a snapshot of the previously-active row's pre-edit state.
-   * Handles both same-row re-clicks (bug fix #1) and different-row transitions.
-   * @param newRowKey - the key of the row being activated, or null if deactivating
-   */
-  const pushLeavingSnapshot = useCallback(
-    (newRowKey: string | null) => {
-      const leaving = activeLyricsRef.current;
-      if (!leaving || activeLineKey === null) return;
-      const project = useProjectStore.getState().currentProject;
-      if (!project) return;
-
-      if (activeLineKey === newRowKey) {
-        // Same row re-clicked: only push if state actually changed (bug fix #1)
-        if (JSON.stringify(project.lyrics) !== JSON.stringify(leaving)) {
-          useHistoryStore
-            .getState()
-            .pushSnapshot(
-              { lyrics: leaving, notes: project.notes ?? [] },
-              project.id,
-            );
-        }
-      } else {
-        useHistoryStore
-          .getState()
-          .pushSnapshot(
-            { lyrics: leaving, notes: project.notes ?? [] },
-            project.id,
-          );
-      }
-    },
-    [activeLineKey],
-  );
-
   const tableRef = useRef<HTMLDivElement>(null);
   const activeLyricsRef = useRef<Record<string, LyricLine> | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Audio player state ─────────────────────────────────────────────
+  const {
+    canUndo,
+    canRedo,
+    snapshot: snapshotProject,
+    pushLeaving: pushLeavingSnapshot,
+    undo: handleUndo,
+    redo: handleRedo,
+  } = useEditorHistory({ activeLineKey, activeLyricsRef });
+
+  const {
+    translating,
+    translateError,
+    clearError: clearTranslateError,
+    run: handleAutoTranslate,
+  } = useAutoTranslate({
+    onSuccess: () => setToastMessage(t("editor.translateSuccess")),
+  });
+
   const [audioActiveLineKey, setAudioActiveLineKey] = useState<string | null>(
     null,
   );
+
+  const { scrollNow: scrollToAudioActiveLine } =
+    useScrollToActiveLine(audioActiveLineKey);
 
   useEffect(() => {
     if (id) {
       loadProject(Number(id));
     }
   }, [id, loadProject]);
-
-  const handleAutoTranslate = async () => {
-    if (!currentProject) return;
-    const lyrics = currentProject.lyrics;
-    const entries = Object.entries(lyrics);
-    if (entries.length === 0) return;
-
-    const sorted = entries
-      .slice()
-      .sort(([, a], [, b]) => a.time_start - b.time_start);
-
-    const contextLines: Array<{
-      timestamp: number;
-      original: string;
-      translated?: string;
-      locked?: boolean;
-    }> = [];
-    const targetLines: Array<{ timestamp: number; original: string }> = [];
-    const targetKeys: string[] = [];
-
-    for (const [key, line] of sorted) {
-      if (line.locked) {
-        // Locked lines are ALWAYS context-only
-        contextLines.push({
-          timestamp: line.time_start,
-          original: line.lyric,
-          translated: line.translation || undefined,
-          locked: true,
-        });
-      } else if (!overwriteTranslations && line.translation?.trim()) {
-        // Overwrite OFF + has translation → context only (for consistency)
-        contextLines.push({
-          timestamp: line.time_start,
-          original: line.lyric,
-          translated: line.translation,
-          locked: false,
-        });
-      } else {
-        // Needs translation: blank line OR overwrite ON with unlocked line
-        targetLines.push({
-          timestamp: line.time_start,
-          original: line.lyric,
-        });
-        targetKeys.push(key);
-      }
-    }
-
-    // If nothing to translate, don't call the API
-    if (targetLines.length === 0) {
-      return; // Silently skip - all lines are either locked or already translated
-    }
-
-    const targetLanguage = currentProject.translationLanguage || "Spanish";
-    const artistName = currentProject.artistName.join(", ");
-
-    setTranslating(true);
-    setTranslateError(null);
-
-    try {
-      const promptInput: AutoTranslateInput = {
-        songTitle: currentProject.trackName,
-        artistName,
-        targetLanguage,
-        contextLines,
-        targetLines,
-      };
-
-      const prompt = buildAutoTranslatePrompt(promptInput, aiProvider!);
-
-      let result: string | null = null;
-      if (aiProvider === "google") {
-        result = await callGoogleGemini(prompt, aiApiKey!);
-      } else if (aiProvider === "deepseek") {
-        result = await callDeepSeek(prompt, aiApiKey!);
-      }
-
-      if (!result) {
-        setTranslateError(t("editor.translateError"));
-        return;
-      }
-
-      const parsedMap = processLyricsMap(result);
-      if (!parsedMap) {
-        setTranslateError(t("editor.translateError"));
-        return;
-      }
-
-      // Match translated lines to target lines BY INDEX (the model returns
-      // them in the same order they were sent). This is safe for non-synced
-      // lyrics, where every line has time_start = 0 and timestamp matching
-      // would otherwise apply the first translation to every line.
-      const updatedLyrics = { ...lyrics };
-      const parsedEntries = Array.from(parsedMap.values());
-
-      for (let i = 0; i < targetKeys.length && i < parsedEntries.length; i++) {
-        const translation = parsedEntries[i]?.lyric?.trim();
-        if (translation) {
-          const key = targetKeys[i]!;
-          updatedLyrics[key] = { ...lyrics[key]!, translation };
-        }
-      }
-
-      await updateAllLines(updatedLyrics);
-      useHistoryStore.getState().pushSnapshot(
-        { lyrics: updatedLyrics, notes: currentProject.notes ?? [] },
-        currentProject.id,
-      );
-      setToastMessage(t("editor.translateSuccess"));
-    } catch {
-      // silent
-    } finally {
-      setTranslating(false);
-    }
-  };
 
   const handleAddLine = async () => {
     if (!currentProject) return;
@@ -444,27 +265,9 @@ export function EditorPage() {
     "[data-keep-active]",
   );
 
-  // ── Audio handlers ─────────────────────────────────────────────────
-
   const handleAudioActiveLineChange = useCallback((key: string | null) => {
     setAudioActiveLineKey(key);
   }, []);
-
-  // Scroll to audio-active row when it changes (debounced to avoid oscillation)
-  useEffect(() => {
-    if (!audioActiveLineKey) return;
-    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    scrollTimeoutRef.current = setTimeout(() => {
-      const el = document.querySelector(`[data-row-key="${audioActiveLineKey}"]`);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-      scrollTimeoutRef.current = null;
-    }, 50);
-    return () => {
-      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    };
-  }, [audioActiveLineKey]);
 
   const handleAudioUrlChange = useCallback((url: string) => {
     useProjectStore.getState().updateAudioUrl(url);
@@ -492,22 +295,19 @@ export function EditorPage() {
     try {
       const { createShortShareUrl } = await import("@/lib/share/shareProtocol");
       const shortId = await createShortShareUrl(currentProject);
-      await navigator.clipboard.writeText(getShareBaseUrl() + shortId);
-      setToastMessage(t("share.copied"));
+      const didCopy = await copy(getShareBaseUrl() + shortId);
+      setToastMessage(didCopy ? t("share.copied") : t("share.error"));
     } catch {
       setToastMessage(t("share.error"));
     } finally {
       setShareLoading(false);
     }
-  }, [currentProject, t]);
+  }, [currentProject, t, copy]);
 
   const handleSync = useCallback(() => {
     setActiveLineKey(null);
-    if (audioActiveLineKey) {
-      const el = document.querySelector(`[data-row-key="${audioActiveLineKey}"]`);
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
-  }, [audioActiveLineKey]);
+    scrollToAudioActiveLine();
+  }, [scrollToAudioActiveLine]);
 
   const lyricsEntries = currentProject
     ? Object.entries(currentProject.lyrics)
@@ -528,23 +328,39 @@ export function EditorPage() {
     return getSortedLyricLines(currentProject.lyrics);
   }, [currentProject?.lyrics]);
 
-  // ── Keyboard shortcuts ────────────────────────────────────────────
-  const handlePlayPause = useCallback(() => {
-    if (!audioRef.current) return;
-    if (audioRef.current.paused) {
-      audioRef.current.play().catch(() => {});
-    } else {
-      audioRef.current.pause();
-    }
-  }, []);
+  const effectiveAudioSrc = localAudioSrc ?? currentProject?.audioUrl;
 
-  const handleSeekRelative = useCallback((deltaMs: number) => {
-    if (!audioRef.current) return;
-    audioRef.current.currentTime = Math.max(
-      0,
-      audioRef.current.currentTime + deltaMs / 1000,
-    );
-  }, []);
+  const {
+    audioRef,
+    playing,
+    currentTimeMs,
+    durationMs,
+    error,
+    buffering,
+    volume,
+    togglePlay,
+    seekTo,
+    seekRelative,
+    setVolume,
+    dismissError,
+  } = useAudioPlayer({
+    projectId: currentProject?.id ?? null,
+    src: effectiveAudioSrc,
+    syncOffsetMs: currentProject?.syncOffsetMs ?? 0,
+    sortedLines: sortedLyricLines,
+    onActiveLineChange: handleAudioActiveLineChange,
+  });
+
+  const handlePlayPause = useCallback(() => {
+    togglePlay();
+  }, [togglePlay]);
+
+  const handleSeekRelative = useCallback(
+    (deltaMs: number) => {
+      seekRelative(deltaMs);
+    },
+    [seekRelative],
+  );
 
   const handleNavigateToLine = useCallback(
     (key: string) => {
@@ -552,11 +368,11 @@ export function EditorPage() {
       const line = currentProject.lyrics[key];
       if (line) {
         const syncOffset = currentProject.syncOffsetMs ?? 0;
-        audioRef.current.currentTime = (line.time_start + syncOffset) / 1000;
+        seekTo(line.time_start + syncOffset);
         setAudioActiveLineKey(key);
       }
     },
-    [currentProject],
+    [audioRef, currentProject, seekTo],
   );
 
   const handleOpenRowForEdit = useCallback(
@@ -593,8 +409,6 @@ export function EditorPage() {
     sortedLyricLines,
     true,
   );
-
-  const effectiveAudioSrc = localAudioSrc ?? currentProject?.audioUrl;
 
   // Memoize all suggestions for all lines to avoid calling hooks inside .map()
   const allSuggestions = useMemo(() => {
@@ -681,14 +495,21 @@ export function EditorPage() {
       ),
       bottomBar: (
         <AudioPlayerBar
-          audioSrc={effectiveAudioSrc}
-          syncOffsetMs={currentProject.syncOffsetMs ?? 0}
-          sortedLines={sortedLyricLines}
-          onActiveLineChange={handleAudioActiveLineChange}
+          src={effectiveAudioSrc}
+          playing={playing}
+          currentTimeMs={currentTimeMs}
+          durationMs={durationMs}
+          error={error}
+          buffering={buffering}
+          volume={volume}
+          onTogglePlay={togglePlay}
+          onSeek={seekTo}
+          onVolumeChange={setVolume}
+          readOnly={false}
           onAudioUrlChange={handleAudioUrlChange}
           onLocalFileSelect={handleLocalFileSelect}
           onClearAudio={handleClearAudio}
-          audioRef={audioRef}
+          onDismissError={dismissError}
         />
       ),
     });
@@ -697,6 +518,8 @@ export function EditorPage() {
     handleUndo, handleRedo, id, effectiveAudioSrc, sortedLyricLines,
     handleAudioActiveLineChange, handleAudioUrlChange, handleLocalFileSelect,
     handleClearAudio, shareLoading, handleShare,
+    playing, currentTimeMs, durationMs, error, buffering, volume,
+    togglePlay, seekTo, setVolume, dismissError,
   ]);
 
   if (isLoading) {
@@ -735,7 +558,6 @@ export function EditorPage() {
 
   return (
     <>
-      {/* Translation progress bar - top of viewport, above shell */}
       <div className="fixed top-0 left-0 right-0 z-[60] h-1 bg-surface-container-highest">
         <div
           className="h-full bg-primary rounded-r-full transition-all duration-500 ease-out"
@@ -869,7 +691,6 @@ export function EditorPage() {
           </div>
         </div>
 
-        {/* Floating action area - bottom right */}
         <div className="fixed right-8 z-50 flex flex-col items-end gap-3 bottom-32">
           <AnimatePresence>
             <div className="flex items-center gap-3">
@@ -968,7 +789,7 @@ export function EditorPage() {
         title={t("editor.translateErrorTitle")}
         message={translateError ?? ""}
         confirmLabel={t("common.ok")}
-        onClose={() => setTranslateError(null)}
+        onClose={clearTranslateError}
       />
 
       <Toast

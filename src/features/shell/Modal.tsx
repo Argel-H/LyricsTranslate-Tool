@@ -1,8 +1,9 @@
 import type { ReactNode } from "react"
-import { useEffect } from "react"
 import { X } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { AnimatePresence, motion } from "framer-motion"
+import { useEscapeKey } from "@/hooks/useEscapeKey"
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock"
 
 interface ModalProps {
   open: boolean
@@ -16,20 +17,9 @@ const backdropTransition = { duration: 0.2, ease: [0.4, 0, 0.2, 1] as const }
 const cardTransition = { duration: 0.25, ease: [0.4, 0, 0.2, 1] as const }
 
 export function Modal({ open, onClose, title, children, className }: ModalProps) {
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden"
-    }
-    return () => { document.body.style.overflow = "" }
-  }, [open])
-
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose()
-    }
-    if (open) window.addEventListener("keydown", handleEsc)
-    return () => window.removeEventListener("keydown", handleEsc)
-  }, [open, onClose])
+  // Ref-counted lock so nested modals don't re-enable scroll on partial close.
+  useBodyScrollLock(open)
+  useEscapeKey(open, onClose)
 
   return (
     <AnimatePresence>

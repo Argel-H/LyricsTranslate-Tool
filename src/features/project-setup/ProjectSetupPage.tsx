@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useMemo } from "react";
-import { useDebounce } from "@/hooks/useDebounce";
 import { useNavigate, useParams } from "react-router-dom";
 import { useSmartBack } from "@/hooks/useSmartBack";
 import { MasterCard } from "@/features/shell/MasterCard";
@@ -7,13 +6,7 @@ import { SectionCard } from "./SectionCard";
 import { RoundedInput } from "./RoundedInput";
 import { DropdownSelect } from "./DropdownSelect";
 import { Button } from "@/components/ui/button";
-import {
-  createProject,
-  getProject,
-  updateProject,
-  deleteProject,
-} from "@/db/projectRepository";
-import { useSettingsStore } from "@/stores/settingsStore";
+import { deleteProject } from "@/db/projectRepository";
 import { useModalStore } from "@/stores/modalStore";
 import { useI18n } from "@/hooks/useI18n";
 import {
@@ -30,13 +23,6 @@ import {
   Search,
 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { validateAndParseLyrics, type ValidationResult } from "@/lib/lyricsUploadValidator";
-import { toLyricLineMap } from "@/lib/lyricsParser";
-import { parseArtistTitle } from "@/lib/artistTitleParser";
-import { searchLrcLib, pickBestLrcResult } from "@/services/lrclib";
-import { getFullMetadata } from "@/services/metadataAggregator";
-import type { LRCLibResult } from "@/types/music";
-import type { ProjectCreateInput } from "@/types/project";
 import { getPlatformIcon, PLATFORMS, WALLPAPER_SOURCES } from "@/lib/platformIcons";
 import { LANGUAGE_LABELS } from "@/lib/languageFlags";
 import {
@@ -49,12 +35,7 @@ import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 import { useCoverTilt } from "@/hooks/useCoverTilt";
 import { usePageShell } from "@/hooks/usePageShell";
 import { useShellStore } from "@/stores/shellStore";
-
-interface SocialEntry {
-  artistIndex: number;
-  platform: string;
-  url: string;
-}
+import { useProjectSetupForm } from "@/hooks/useProjectSetupForm";
 
 const ROTATING_LANGUAGE_OPTIONS = makeRotatingLanguageOptions(LANGUAGE_LABELS);
 
@@ -65,289 +46,56 @@ export function ProjectSetupPage() {
   const isEditing = !!editId;
   const { t } = useI18n();
 
-  const settingsLanguage = useSettingsStore((s) => s.language);
+  const {
+    songName,
+    setSongName,
+    albumName,
+    setAlbumName,
+    artists,
+    updateArtist,
+    removeArtist,
+    addArtist,
+    coverUrl,
+    setCoverUrl,
+    songLinkUrl,
+    setSongLinkUrl,
+    originLanguage,
+    setOriginLanguage,
+    translationLanguage,
+    setTranslationLanguage,
+    socialEntries,
+    updateSocialEntry,
+    removeSocialEntry,
+    addSocialEntry,
+    wallpaperArtistName,
+    setWallpaperArtistName,
+    wallpaperSource,
+    setWallpaperSource,
+    wallpaperUrl,
+    setWallpaperUrl,
+    activeArtistTab,
+    setActiveArtistTab,
+    lyricsText,
+    setLyricsText,
+    lyricsValidation,
+    setLyricsValidation,
+    lyricsFileName,
+    setLyricsFileName,
+    debouncedCoverUrl,
+    handleFileUpload,
+    lookupLoading,
+    lookupResult,
+    lookupError,
+    setLookupError,
+    setLookupResult,
+    handleLookup,
+    applyLookup,
+    submit,
+  } = useProjectSetupForm({ editId });
 
-  const defaultTranslationLang =
-    settingsLanguage === "es"
-      ? "Spanish"
-      : settingsLanguage === "pt"
-        ? "Portuguese"
-        : "Spanish";
-
-  const [songName, setSongName] = useState("");
-  const [albumName, setAlbumName] = useState("");
-  const [artists, setArtists] = useState<string[]>([""]);
-  const [coverUrl, setCoverUrl] = useState("");
-  const [songLinkUrl, setSongLinkUrl] = useState("");
-  const [originLanguage, setOriginLanguage] = useState("English");
-  const [translationLanguage, setTranslationLanguage] = useState(
-    defaultTranslationLang,
-  );
-  const [socialEntries, setSocialEntries] = useState<SocialEntry[]>([]);
-  const [wallpaperArtistName, setWallpaperArtistName] = useState("");
-  const [wallpaperSource, setWallpaperSource] = useState("");
-  const [wallpaperUrl, setWallpaperUrl] = useState("");
-  const [activeArtistTab, setActiveArtistTab] = useState(0);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const debouncedCoverUrl = useDebounce(coverUrl, 500);
-  const [lyricsText, setLyricsText] = useState("");
-  const [lyricsValidation, setLyricsValidation] = useState<ValidationResult | null>(null);
-  const [lyricsFileName, setLyricsFileName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupResult, setLookupResult] = useState<{
-    metadata: ProjectCreateInput;
-    rawLyrics: string;
-    lrcResult: LRCLibResult | undefined;
-  } | null>(null);
-  const [lookupError, setLookupError] = useState<string | null>(null);
-  const discoveredMetaRef = useRef<{
-    isrcs?: string;
-    streamingSites?: Record<string, string | null>;
-    artistLinks?: Array<{ name: string; url: string }>;
-  }>({});
   const { tilt: coverTilt, handlers: { onMouseMove: handleCoverMouseMove, onMouseLeave: handleCoverMouseLeave } } = useCoverTilt();
-
-  useEffect(() => {
-    if (editId) {
-      getProject(Number(editId)).then((project) => {
-        if (project) {
-          setSongName(project.trackName);
-          setArtists(project.artistName.length > 0 ? project.artistName : [""]);
-          setCoverUrl(project.coverUrl ?? "");
-          setAlbumName(project.albumName ?? "");
-          setSongLinkUrl(project.songLinkUrl ?? "");
-          const recommended = (project.recommendedSocialLinks ?? []).map(
-            (link) => {
-              const artistIndex = link.artistName
-                ? Math.max(0, project.artistName.indexOf(link.artistName))
-                : 0;
-              return {
-                artistIndex,
-                platform: link.platform,
-                url: link.url,
-              };
-            },
-          );
-          setSocialEntries(recommended);
-          setOriginLanguage(project.originLanguage ?? "English");
-          setTranslationLanguage(
-            project.translationLanguage ?? defaultTranslationLang,
-          );
-          setWallpaperArtistName(project.wallpaperArtistName ?? "");
-          setWallpaperSource(project.wallpaperSource ?? "");
-          setWallpaperUrl(project.wallpaperUrl ?? "");
-        }
-      });
-    }
-  }, [editId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (lyricsText.trim()) {
-      setLyricsValidation(validateAndParseLyrics(lyricsText));
-    } else {
-      setLyricsValidation(null);
-    }
-  }, [lyricsText]);
-
-  const addArtist = () => setArtists([...artists, ""]);
-
-  const updateArtist = (index: number, value: string) => {
-    const next = [...artists];
-    next[index] = value;
-    setArtists(next);
-  };
-
-  const removeArtist = (index: number) => {
-    if (artists.length <= 1) return;
-    setArtists(artists.filter((_, i) => i !== index));
-    setSocialEntries(
-      socialEntries
-        .filter((e) => e.artistIndex !== index)
-        .map((e) => ({
-          ...e,
-          artistIndex:
-            e.artistIndex > index ? e.artistIndex - 1 : e.artistIndex,
-        })),
-    );
-  };
-
-  const addSocialEntry = () => {
-    setSocialEntries([
-      ...socialEntries,
-      { artistIndex: activeArtistTab, platform: "Spotify", url: "" },
-    ]);
-  };
-
-  const updateSocialEntry = (
-    index: number,
-    field: keyof SocialEntry,
-    value: string | number,
-  ) => {
-    const next = [...socialEntries];
-    next[index] = { ...next[index]!, [field]: value };
-    setSocialEntries(next);
-  };
-
-  const removeSocialEntry = (index: number) => {
-    setSocialEntries(socialEntries.filter((_, i) => i !== index));
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setLyricsFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const content = event.target?.result;
-      if (typeof content === "string") {
-        setLyricsText(content);
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = "";
-  };
-
-  const handleLookup = async () => {
-    const rawSong = songName.trim();
-    if (!rawSong) return;
-
-    let mainArtist = artists[0]?.trim();
-    let trackName = rawSong;
-
-    // If no artist was typed, derive it from an "Artist - Title" string.
-    if (!mainArtist) {
-      const parsed = parseArtistTitle(rawSong);
-      if (parsed.artistName) {
-        mainArtist = parsed.artistName;
-        trackName = parsed.trackName;
-      }
-    }
-
-    setLookupLoading(true);
-    setLookupError(null);
-    setLookupResult(null);
-
-    try {
-      // Query: combine artist + song if available, otherwise just song name
-      const query = mainArtist ? `${mainArtist} ${trackName}` : trackName;
-      const lrcResults = await searchLrcLib(query);
-      const lrcResult = pickBestLrcResult(lrcResults, trackName);
-      const rawLyrics = lrcResult?.syncedLyrics || lrcResult?.plainLyrics || "";
-
-      // Use LRCLIB track name for correct casing; fall back to user input
-      const resolvedTrackName = lrcResult?.trackName || trackName;
-      // Use LRCLIB artist name for pipeline; fall back to user input or empty
-      const artistForPipeline = lrcResult?.artistName || mainArtist || "";
-      const metadata = await getFullMetadata(artistForPipeline, resolvedTrackName, lrcResult);
-
-      setLookupResult({ metadata, rawLyrics, lrcResult });
-    } catch (e) {
-      setLookupError(e instanceof Error ? e.message : "Lookup failed");
-    } finally {
-      setLookupLoading(false);
-    }
-  };
-
-  const applyLookup = () => {
-    if (!lookupResult) return;
-    const { metadata, rawLyrics } = lookupResult;
-
-    setSongName(metadata.trackName);
-    setArtists(metadata.artistName.length > 0 ? metadata.artistName : artists);
-    setAlbumName(metadata.albumName ?? "");
-    setCoverUrl(metadata.coverUrl ?? "");
-    setSongLinkUrl(metadata.songLinkUrl ?? "");
-
-    if (rawLyrics) {
-      setLyricsText(rawLyrics);
-    }
-
-    if (metadata.recommendedSocialLinks && metadata.recommendedSocialLinks.length > 0) {
-      setSocialEntries(
-        metadata.recommendedSocialLinks.map((link) => ({
-          artistIndex: Math.max(
-            0,
-            (metadata.artistName ?? artists).indexOf(link.artistName ?? ""),
-          ),
-          platform: link.platform,
-          url: link.url,
-        })),
-      );
-    }
-
-    // Reset artist tab to show the first artist's social links
-    setActiveArtistTab(0);
-
-    // Store non-editable metadata for inclusion in ProjectCreateInput
-    discoveredMetaRef.current = {
-      isrcs: metadata.isrcs,
-      streamingSites: metadata.streamingSites,
-      artistLinks: metadata.artistLinks,
-    };
-
-    setLookupResult(null);
-  };
-
-  const handleSubmit = async () => {
-    const validArtists = artists.filter((a) => a.trim());
-    if (!songName.trim() || validArtists.length === 0) return;
-
-    const discovered = discoveredMetaRef.current;
-    const input: ProjectCreateInput = {
-      artistName: validArtists,
-      trackName: songName.trim(),
-      lyrics: (lyricsValidation?.valid && lyricsValidation?.lines)
-        ? Object.fromEntries(toLyricLineMap(lyricsValidation.lines))
-        : {},
-      coverUrl: coverUrl.trim() || undefined,
-      originLanguage,
-      translationLanguage,
-      albumName: albumName.trim() || undefined,
-      songLinkUrl: songLinkUrl.trim() || undefined,
-      wallpaperArtistName: wallpaperArtistName.trim() || undefined,
-      wallpaperSource: wallpaperSource.trim() || undefined,
-      wallpaperUrl: wallpaperUrl.trim() || undefined,
-      isrcs: discovered.isrcs,
-      streamingSites: discovered.streamingSites,
-      artistLinks: discovered.artistLinks,
-      recommendedSocialLinks:
-        socialEntries.length > 0
-          ? socialEntries.map((e) => ({
-              platform: e.platform,
-              url: e.url,
-              artistName: artists[e.artistIndex],
-            }))
-          : undefined,
-    };
-
-    if (isEditing) {
-      await updateProject(Number(editId), {
-        artistName: validArtists,
-        trackName: songName.trim(),
-        coverUrl: input.coverUrl,
-        originLanguage,
-        translationLanguage,
-        albumName: input.albumName,
-        songLinkUrl: input.songLinkUrl,
-        wallpaperArtistName: input.wallpaperArtistName,
-        wallpaperSource: input.wallpaperSource,
-        wallpaperUrl: input.wallpaperUrl,
-        recommendedSocialLinks:
-          socialEntries.length > 0
-            ? socialEntries.map((e) => ({
-                platform: e.platform,
-                url: e.url,
-                artistName: artists[e.artistIndex],
-              }))
-            : undefined,
-      });
-      navigate(`/editor/${editId}`);
-    } else {
-      const id = await createProject(input);
-      navigate(`/editor/${id}`, { replace: true });
-    }
-  };
 
   const rotatingOriginIcon = useMemo(
     () => makeRotatingFlagIcon(originLanguage),
@@ -358,8 +106,8 @@ export function ProjectSetupPage() {
     [translationLanguage],
   );
 
-  const latestRef = useRef({ handleSubmit, songName, artists, setDeleteOpen });
-  latestRef.current = { handleSubmit, songName, artists, setDeleteOpen };
+  const latestRef = useRef({ submit, songName, artists, setDeleteOpen });
+  latestRef.current = { submit, songName, artists, setDeleteOpen };
 
   usePageShell({
     title: isEditing ? t("setup.editTitle") : t("setup.title"),
@@ -386,7 +134,7 @@ export function ProjectSetupPage() {
             </button>
           )}
           <Button
-            onClick={() => latestRef.current.handleSubmit()}
+            onClick={() => latestRef.current.submit()}
             disabled={!latestRef.current.songName.trim() || !latestRef.current.artists[0]?.trim()}
             className="bg-primary-container !text-on-primary-container font-label-lg text-label-lg px-6 h-12 rounded-full hover:bg-primary hover:text-on-primary transition-all flex items-center gap-2 disabled:opacity-50 shadow-md"
           >
@@ -494,12 +242,6 @@ export function ProjectSetupPage() {
                   onChange={setCoverUrl}
                   className="flex-grow"
                 />
-                {/*<Button
-                  variant="secondary"
-                  className="bg-primary-container !text-on-primary-container font-label-lg text-label-lg py-3 px-6 rounded-full hover:shadow-md transition-all h-[52px]"
-                >
-                  {t("setup.verify")}
-                </Button>*/}
               </div>
               <div
                 className="w-full aspect-square bg-surface-container-highest rounded-3xl flex items-center justify-center mt-2 relative overflow-hidden border border-outline-variant/30"

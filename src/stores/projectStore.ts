@@ -14,16 +14,10 @@ import {
   updateNotes,
 } from "@/db/projectRepository";
 
-export interface AudioPlaybackPosition {
-  src: string;
-  timeMs: number;
-}
-
 interface ProjectState {
   currentProject: Project | null;
   isLoading: boolean;
   localAudioSrc: string | undefined;
-  audioPlayback: AudioPlaybackPosition | null;
   loadProject: (id: number) => Promise<void>;
   updateLine: (key: string, field: keyof LyricLine, value: string | number) => Promise<void>;
   updateAllLines: (lyrics: Record<string, LyricLine>) => Promise<void>;
@@ -41,25 +35,20 @@ interface ProjectState {
   updateAudioUrl: (audioUrl: string | undefined) => Promise<void>;
   setLocalAudioSrc: (src: string | undefined) => void;
   clearLocalAudio: () => void;
-  setAudioPlayback: (src: string, timeMs: number) => void;
-  clearAudioPlayback: () => void;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   currentProject: null,
   isLoading: false,
   localAudioSrc: undefined,
-  audioPlayback: null,
   loadProject: async (id) => {
     const previous = get().currentProject;
     const isProjectSwitch = previous !== null && previous.id !== id;
 
     if (isProjectSwitch) {
-      // Reset per-project audio state: playback position and local file
-      // must never leak from one project into another.
       const { localAudioSrc } = get();
       if (localAudioSrc) URL.revokeObjectURL(localAudioSrc);
-      set({ audioPlayback: null, localAudioSrc: undefined });
+      set({ localAudioSrc: undefined });
     }
 
     set({ isLoading: true });
@@ -190,7 +179,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   clearProject: () => {
     const { localAudioSrc } = get();
     if (localAudioSrc) URL.revokeObjectURL(localAudioSrc);
-    set({ currentProject: null, localAudioSrc: undefined, audioPlayback: null });
+    set({ currentProject: null, localAudioSrc: undefined });
   },
   updateAudioUrl: async (audioUrl) => {
     const project = get().currentProject;
@@ -202,8 +191,6 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   clearLocalAudio: () => {
     const { localAudioSrc } = get();
     if (localAudioSrc) URL.revokeObjectURL(localAudioSrc);
-    set({ localAudioSrc: undefined, audioPlayback: null });
+    set({ localAudioSrc: undefined });
   },
-  setAudioPlayback: (src, timeMs) => set({ audioPlayback: { src, timeMs } }),
-  clearAudioPlayback: () => set({ audioPlayback: null }),
 }));

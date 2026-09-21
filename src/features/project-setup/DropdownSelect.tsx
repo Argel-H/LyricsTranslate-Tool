@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import type { ComponentType, SVGProps } from "react";
 import { ChevronDown, X as XIcon, Check, Plus } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
+import { useClickOutside } from "@/hooks/useClickOutside";
 
 interface DropdownSelectProps {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
@@ -35,20 +36,7 @@ export function DropdownSelect({
   const containerRef = useRef<HTMLDivElement>(null);
   const [committedValue, setCommittedValue] = useState(value);
 
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-      }
-    };
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
+  useClickOutside(containerRef, () => setOpen(false), open);
 
   useEffect(() => {
     if (!open) return;

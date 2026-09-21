@@ -1,28 +1,29 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { Play, Pause, Upload, X, Volume2 } from "lucide-react";
 import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 import { useI18n } from "@/hooks/useI18n";
-import { findActiveLine, formatMillisecondsToTimestamp } from "@/lib/timeUtils";
-import type { TimestampedLine } from "@/lib/timeUtils";
+import { formatMillisecondsToTimestamp } from "@/lib/timeUtils";
 import { cn } from "@/lib/utils";
-import { useProjectStore } from "@/stores/projectStore";
 import { WavyProgressBar } from "@/components/shared/WavyProgressBar";
 
 interface AudioPlayerBarProps {
-  audioSrc: string | undefined;
-  syncOffsetMs: number;
-  sortedLines: TimestampedLine[];
-  onActiveLineChange: (key: string | null) => void;
-  onAudioUrlChange: (url: string) => void;
-  onLocalFileSelect: (file: File) => void;
-  onClearAudio: () => void;
+  playing: boolean;
+  currentTimeMs: number;
+  durationMs: number;
+  error: boolean;
+  buffering: boolean;
+  volume: number;
+  onTogglePlay: () => void;
+  onSeek: (ms: number) => void;
+  onVolumeChange: (v: number) => void;
+  src: string | undefined;
   readOnly?: boolean;
-  audioRef?: React.MutableRefObject<HTMLAudioElement | null>;
+  onAudioUrlChange?: (url: string) => void;
+  onLocalFileSelect?: (file: File) => void;
+  onClearAudio?: () => void;
+  onDismissError?: () => void;
 }
 
-/**
- * Formats milliseconds to "m:ss" display format (e.g., "1:23").
- */
 function formatTime(ms: number): string {
   if (ms <= 0 || !isFinite(ms)) return "0:00";
   const totalSec = Math.floor(ms / 1000);
@@ -31,20 +32,11 @@ function formatTime(ms: number): string {
   return `${min}:${String(sec).padStart(2, "0")}`;
 }
 
-/**
- * Formats milliseconds to "m:ss.cs" precise display format (e.g., "1:23.45").
- * Used for tooltip on hover.
- */
 function formatTimePrecise(ms: number): string {
   if (ms <= 0 || !isFinite(ms)) return "0:00.00";
   return formatMillisecondsToTimestamp(ms);
 }
 
-/**
- * Extracts a human-readable filename from the audio source.
- * For blob URLs (local files), uses the tracked localFileName.
- * For regular URLs, extracts the last path segment.
- */
 function getSourceLabel(
   src: string | undefined,
   localName: string | null,
@@ -64,217 +56,30 @@ function getSourceLabel(
 }
 
 export function AudioPlayerBar({
-  audioSrc,
-  syncOffsetMs,
-  sortedLines,
-  onActiveLineChange,
+  playing,
+  currentTimeMs,
+  durationMs,
+  error,
+  buffering,
+  volume,
+  onTogglePlay,
+  onSeek,
+  onVolumeChange,
+  src,
+  readOnly,
   onAudioUrlChange,
   onLocalFileSelect,
   onClearAudio,
-  readOnly,
-  audioRef: externalAudioRef,
+  onDismissError,
 }: AudioPlayerBarProps) {
-  const [playing, setPlaying] = useState(false);
-  const [currentTimeMs, setCurrentTimeMs] = useState(0);
-  const [durationMs, setDurationMs] = useState(0);
-  const [audioError, setAudioError] = useState(false);
-  const [buffering, setBuffering] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [urlInputValue, setUrlInputValue] = useState("");
-  const [volume, setVolume] = useState(80);
   const [localFileName, setLocalFileName] = useState<string | null>(null);
 
   const { t } = useI18n();
 
-  const internalAudioRef = useRef<HTMLAudioElement | null>(null);
-  const audioRef = externalAudioRef ?? internalAudioRef;
-  const rafRef = useRef<number>(0);
-  const lastActiveKeyRef = useRef<string | null>(null);
-  const durationMsRef = useRef(0);
-  const hasLoadedRef = useRef(false);
-
-  useEffect(() => {
-    durationMsRef.current = durationMs;
-  }, [durationMs]);
-
-  // ──────────────────────────────────────────────
-  // Audio element lifecycle
-  // ──────────────────────────────────────────────
-  useEffect(() => {
-    if (!audioSrc) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current.removeAttribute("src");
-        audioRef.current.load();
-      }
-      setPlaying(false);
-      setCurrentTimeMs(0);
-      setDurationMs(0);
-      setAudioError(false);
-      setBuffering(false);
-      lastActiveKeyRef.current = null;
-      return;
-    }
-
-    hasLoadedRef.current = false;
-
-    const audio = new Audio();
-    audioRef.current = audio;
-
-    audio.preload = "auto";
-    audio.src = audioSrc;
-
-    const onLoadedMetadata = () => {
-      hasLoadedRef.current = true;
-      setDurationMs(audio.duration * 1000);
-      setAudioError(false);
-      // Restore saved playback position only if it belongs to THIS audio source.
-      // Positions saved for a different src (e.g., another project) are ignored.
-      const saved = useProjectStore.getState().audioPlayback;
-      if (
-        saved &&
-        saved.src === audioSrc &&
-        saved.timeMs > 0 &&
-        saved.timeMs < audio.duration * 1000
-      ) {
-        audio.currentTime = saved.timeMs / 1000;
-        setCurrentTimeMs(saved.timeMs);
-        useProjectStore.getState().clearAudioPlayback();
-      }
-    };
-
-    const onTimeUpdate = () => {
-      const timeMs = audio.currentTime * 1000;
-      setCurrentTimeMs(timeMs);
-      // Persist position keyed by audio source so it survives route changes
-      useProjectStore.getState().setAudioPlayback(audioSrc, timeMs);
-    };
-
-    const onEnded = () => {
-      setPlaying(false);
-      setCurrentTimeMs(durationMsRef.current);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-
-    const onError = () => {
-      if (hasLoadedRef.current) {
-        // Recoverable network error - audio was already loaded once
-        setBuffering(false);
-        setPlaying(false);
-      } else {
-        // Source never loaded - truly invalid URL or file
-        setAudioError(true);
-        setPlaying(false);
-      }
-    };
-
-    const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
-    const onWaiting = () => setBuffering(true);
-    const onPlaying = () => { setBuffering(false); setPlaying(true); };
-    const onCanPlay = () => setBuffering(false);
-    const onStalled = () => setBuffering(true);
-
-    audio.addEventListener("loadedmetadata", onLoadedMetadata);
-    audio.addEventListener("timeupdate", onTimeUpdate);
-    audio.addEventListener("ended", onEnded);
-    audio.addEventListener("error", onError);
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
-    audio.addEventListener("waiting", onWaiting);
-    audio.addEventListener("playing", onPlaying);
-    audio.addEventListener("canplay", onCanPlay);
-    audio.addEventListener("stalled", onStalled);
-
-    return () => {
-      // Save playback position keyed by audio source before destroying (use ref for safety)
-      const el = audioRef.current;
-      if (el && el.currentTime > 0 && !el.ended) {
-        useProjectStore.getState().setAudioPlayback(audioSrc, el.currentTime * 1000);
-      }
-      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
-      audio.removeEventListener("timeupdate", onTimeUpdate);
-      audio.removeEventListener("ended", onEnded);
-      audio.removeEventListener("error", onError);
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-      audio.removeEventListener("waiting", onWaiting);
-      audio.removeEventListener("playing", onPlaying);
-      audio.removeEventListener("canplay", onCanPlay);
-      audio.removeEventListener("stalled", onStalled);
-      audio.pause();
-      audio.removeAttribute("src");
-      audio.load();
-      audioRef.current = null;
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [audioSrc]);
-
-  useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = Math.pow(volume / 100, 2);
-    }
-  }, [volume]);
-
-  // ──────────────────────────────────────────────
-  // RAF loop for smooth progress during playback
-  // ──────────────────────────────────────────────
-  useEffect(() => {
-    if (!playing || !audioRef.current) {
-      lastActiveKeyRef.current = null;
-      return;
-    }
-
-    const tick = () => {
-      if (audioRef.current) {
-        setCurrentTimeMs(audioRef.current.currentTime * 1000);
-
-        const effectiveTimeMs =
-          audioRef.current.currentTime * 1000 - syncOffsetMs;
-        const activeKey = findActiveLine(sortedLines, effectiveTimeMs);
-
-        if (activeKey !== lastActiveKeyRef.current) {
-          lastActiveKeyRef.current = activeKey;
-          onActiveLineChange(activeKey);
-        }
-      }
-      rafRef.current = requestAnimationFrame(tick);
-    };
-
-    rafRef.current = requestAnimationFrame(tick);
-
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
-  }, [playing, syncOffsetMs, sortedLines, onActiveLineChange]);
-
-  // ──────────────────────────────────────────────
-  // Handlers
-  // ──────────────────────────────────────────────
-
-  const handlePlayPause = () => {
-    if (!audioRef.current) return;
-    if (playing) {
-      audioRef.current.pause();
-    } else {
-      audioRef.current.play().catch((err: DOMException) => {
-        if (err.name === "AbortError") return;
-        if (!hasLoadedRef.current) setAudioError(true);
-      });
-    }
-  };
-
-  function syncActiveLineOnSeek(timeMs: number): void {
-    const effectiveTime = timeMs - syncOffsetMs;
-    const activeKey = findActiveLine(sortedLines, effectiveTime);
-    if (activeKey !== lastActiveKeyRef.current) {
-      lastActiveKeyRef.current = activeKey;
-      onActiveLineChange(activeKey ?? null);
-    }
-  }
-
   const progressPercent =
-    audioSrc && durationMs > 0 ? (currentTimeMs / durationMs) * 100 : 0;
+    src && durationMs > 0 ? (currentTimeMs / durationMs) * 100 : 0;
 
   return (
     <div className="flex-1 flex flex-col justify-center gap-0 relative min-w-0">
@@ -309,7 +114,7 @@ export function AudioPlayerBar({
                     onChange={(e) => setUrlInputValue(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && urlInputValue.trim()) {
-                        onAudioUrlChange(urlInputValue.trim());
+                        onAudioUrlChange?.(urlInputValue.trim());
                         setLocalFileName(null);
                         setUrlInputValue("");
                         setSettingsOpen(false);
@@ -321,7 +126,7 @@ export function AudioPlayerBar({
                   <button
                     onClick={() => {
                       if (urlInputValue.trim()) {
-                        onAudioUrlChange(urlInputValue.trim());
+                        onAudioUrlChange?.(urlInputValue.trim());
                         setLocalFileName(null);
                         setUrlInputValue("");
                         setSettingsOpen(false);
@@ -352,7 +157,7 @@ export function AudioPlayerBar({
                       const file = e.target.files?.[0];
                       if (file) {
                         setLocalFileName(file.name);
-                        onLocalFileSelect(file);
+                        onLocalFileSelect?.(file);
                         setSettingsOpen(false);
                       }
                       e.target.value = "";
@@ -361,10 +166,10 @@ export function AudioPlayerBar({
                   />
                 </label>
 
-                {audioSrc && (
+                {src && (
                   <button
                     onClick={() => {
-                      onClearAudio();
+                      onClearAudio?.();
                       setSettingsOpen(false);
                     }}
                     className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-error hover:bg-error/10 text-xs font-medium transition-colors pressable"
@@ -380,8 +185,8 @@ export function AudioPlayerBar({
         )}
 
         <button
-          onClick={handlePlayPause}
-          disabled={!audioSrc || audioError}
+          onClick={onTogglePlay}
+          disabled={!src || error}
           className={cn(
             "size-10 flex items-center justify-center pressable",
             "disabled:opacity-40 disabled:cursor-not-allowed",
@@ -407,26 +212,19 @@ export function AudioPlayerBar({
         <WavyProgressBar
           progress={progressPercent}
           isPlaying={playing}
-          interactive={!!audioSrc && durationMs > 0 && !audioError}
-          onSeek={(percent) => {
-            if (!audioRef.current || durationMs <= 0) return;
-            const time = (percent / 100) * durationMs;
-            audioRef.current.currentTime = time / 1000;
-            setCurrentTimeMs(time);
-            if (audioSrc) useProjectStore.getState().setAudioPlayback(audioSrc, time);
-            syncActiveLineOnSeek(time);
-          }}
+          interactive={!!src && durationMs > 0 && !error}
+          onSeek={(percent) => onSeek((percent / 100) * durationMs)}
           leftLabel={formatTime(currentTimeMs)}
           rightLabel={formatTime(durationMs)}
           leftLabelTooltip={formatTimePrecise(currentTimeMs)}
           rightLabelTooltip={formatTimePrecise(durationMs)}
         />
 
-        {!audioSrc ? (
+        {!src ? (
           <span className="text-[10px] font-medium text-on-surface-variant bg-surface-container-highest px-2 py-0.5 rounded-full shrink-0">
             {t("player.sourceNone")}
           </span>
-        ) : audioSrc.startsWith("blob:") ? (
+        ) : src.startsWith("blob:") ? (
           <span className="text-[10px] font-medium text-green-400 bg-green-400/10 px-2 py-0.5 rounded-full shrink-0">
             {t("player.sourceLocal")}
           </span>
@@ -443,7 +241,7 @@ export function AudioPlayerBar({
             min={0}
             max={100}
             value={volume}
-            onChange={(e) => setVolume(Number(e.target.value))}
+            onChange={(e) => onVolumeChange(Number(e.target.value))}
             className="w-24 h-1 rounded-full appearance-none bg-surface-container-highest cursor-pointer
             [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:size-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:cursor-pointer
             [&::-moz-range-thumb]:size-3 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-primary [&::-moz-range-thumb]:border-none [&::-moz-range-thumb]:cursor-pointer"
@@ -451,23 +249,23 @@ export function AudioPlayerBar({
         </div>
       </div>
 
-      {audioSrc && (
+      {src && (
         <div className="flex justify-center items-center -mt-3 min-w-0">
           <span className="text-[10px] font-mono text-on-surface-variant/60 truncate max-w-[320px]">
-            {getSourceLabel(audioSrc, localFileName)}
+            {getSourceLabel(src, localFileName)}
           </span>
         </div>
       )}
 
-      {audioError && (
+      {error && (
         <div className="absolute inset-0 flex items-center justify-center bg-surface-container-high/80 backdrop-blur-sm rounded-lg">
           <div className="flex items-center gap-2 text-error text-sm">
             <Volume2 className="size-4" />
             <span>{t("player.unavailable")}</span>
             <button
               onClick={() => {
-                setAudioError(false);
-                onClearAudio();
+                onDismissError?.();
+                onClearAudio?.();
               }}
               className="ml-2 px-2 py-1 rounded-full bg-error/10 hover:bg-error/20 text-xs font-medium transition-colors"
             >

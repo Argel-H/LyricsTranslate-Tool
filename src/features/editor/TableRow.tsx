@@ -7,6 +7,7 @@ import { Trash2, Lock, LockOpen } from "lucide-react";
 import type { TranslationSuggestion } from "@/lib/suggestionUtils";
 import { useI18n } from "@/hooks/useI18n";
 import { useViewportShift } from "@/hooks/useViewportShift";
+import { useHoverTooltip } from "@/hooks/useHoverTooltip";
 import { CommentButton } from "./CommentButton";
 
 interface TableRowProps {
@@ -36,9 +37,8 @@ interface TableRowProps {
   isLocked?: boolean;
   onToggleLock?: () => void;
   showLock?: boolean;
-  /** Raw markdown comment for this lyric line (undefined = no comment). */
   comment?: string;
-  /** Persists the raw markdown comment once, when the editor is committed. */
+  /** Persists once when the editor is committed, not per keystroke. */
   onCommentSave?: (value: string) => void;
   isAudioActive?: boolean;
   className?: string;
@@ -82,21 +82,19 @@ export function TableRow({
   const { t } = useI18n();
 
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [tooltipVisible, setTooltipVisible] = useState(false);
-  const tooltipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tooltipCardRef = useRef<HTMLDivElement>(null);
-  const tooltipShift = useViewportShift(tooltipVisible, tooltipCardRef);
 
-  const showTooltip = () => {
-    tooltipTimerRef.current = setTimeout(
-      () => setTooltipVisible(true),
-      TOOLTIP_SHOW_DELAY_MS,
-    );
-  };
-  const hideTooltip = () => {
-    if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
-    setTooltipVisible(false);
-  };
+  // Delayed show / immediate hide; cleanup lives inside the hook.
+  const {
+    visible: tooltipVisible,
+    onMouseEnter: showTooltip,
+    onMouseLeave: hideTooltip,
+  } = useHoverTooltip({
+    showDelayMs: TOOLTIP_SHOW_DELAY_MS,
+    hideDelayMs: 0,
+    disabled: false,
+  });
+  const tooltipShift = useViewportShift(tooltipVisible, tooltipCardRef);
 
   const suggestionsCount = suggestions?.length ?? 0;
   const isTranslationFocused = isActive && focusedColumn === "translation";
@@ -104,19 +102,12 @@ export function TableRow({
     !translation?.trim() && !isTranslationFocused && !isActive;
   const isBothEmpty = !lyric?.trim() && !translation?.trim() && !isActive;
 
-  // Reset index when the number of suggestions changes (e.g., new translations added)
   useEffect(() => {
     setCurrentIndex(0);
   }, [suggestionsCount]);
 
-  useEffect(() => {
-    return () => {
-      if (tooltipTimerRef.current) clearTimeout(tooltipTimerRef.current);
-    };
-  }, []);
-
-  // When suggestions exist and field is empty, suppress native placeholder
-  // (TranslationSuggestions renders the overlay instead)
+  // With suggestions present and the field empty, the overlay replaces the
+  // native placeholder.
   const textareaPlaceholder =
     suggestions && suggestionsCount > 0 && !translation?.trim()
       ? undefined
@@ -218,17 +209,14 @@ export function TableRow({
         className,
       )}
     >
-      {/* Active row indicator */}
       {isActive && (
         <div className="absolute left-0.5 top-6 bottom-6 w-1 bg-primary rounded-full" />
       )}
 
-      {/* Audio-active indicator (pulsing, only when NOT click-active) */}
       {isAudioActive && !isActive && (
         <div className="absolute left-0.5 top-6 bottom-6 w-1 bg-primary rounded-full animate-pulse" />
       )}
 
-      {/* Timestamps */}
       {isActive ? (
         <>
           <TimeControl
@@ -255,7 +243,6 @@ export function TableRow({
         </>
       )}
 
-      {/* Lyric */}
       <div
         data-column="lyric"
         className="flex items-center"
@@ -282,7 +269,6 @@ export function TableRow({
         )}
       </div>
 
-      {/* Translation */}
       <div className="flex items-center gap-2" data-column="translation">
         {isBothEmpty ? (
           <div
@@ -302,7 +288,6 @@ export function TableRow({
             {translation}
           </div>
         ) : (
-          // Edit mode: textarea with suggestion support
           <div className="relative flex-1">
             <TranslationTextarea
               value={translation}
@@ -354,7 +339,6 @@ export function TableRow({
             </button>
             {tooltipVisible && (
               <>
-                {/* Tooltip card - shifts horizontally to stay in viewport */}
                 <div
                   ref={tooltipCardRef}
                   className="absolute bottom-full z-50 mb-3"
@@ -369,7 +353,6 @@ export function TableRow({
                       : t("editor.lockTooltip")}
                   </div>
                 </div>
-                {/* Arrow - always centered on the button, above the card */}
                 <div
                   className="absolute bottom-full left-1/2 -translate-x-1/2 z-50"
                   style={{ marginBottom: "11px" }}
@@ -384,7 +367,6 @@ export function TableRow({
         <CommentButton comment={comment} onCommentSave={onCommentSave} />
       </div>
 
-      {/* Delete button */}
       <button
         onClick={(e) => {
           e.stopPropagation();

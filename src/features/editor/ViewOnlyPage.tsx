@@ -1,8 +1,10 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useI18n } from "@/hooks/useI18n";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
 import { useModalStore } from "@/stores/modalStore";
 import { useSharedProjectLoader } from "@/hooks/useSharedProjectLoader";
+import { useScrollToActiveLine } from "@/hooks/useScrollToActiveLine";
 import { createProject } from "@/db/projectRepository";
 import { M3LoadingIndicator } from "@alerix/m3-loading-indicator/react";
 import { getSortedLyricLines } from "@/lib/timeUtils";
@@ -10,6 +12,7 @@ import { useEditorShortcuts } from "@/hooks/useEditorShortcuts";
 import { AppShell } from "@/features/shell/AppShell";
 import { MasterCard } from "@/features/shell/MasterCard";
 import { AudioPlayerBar } from "@/features/editor/AudioPlayerBar";
+import { useAudioPlayer } from "@/features/editor/useAudioPlayer";
 import { Music, RefreshCw } from "lucide-react";
 import { LyricsReadOnlyTable } from "@/features/editor/viewonly/LyricsReadOnlyTable";
 import { ProjectDetailsModal } from "@/components/shared/ProjectDetailsModal";
@@ -25,15 +28,10 @@ export function ViewOnlyPage() {
   const [modalOpen, setModalOpen] = useState(false);
 
   const [activeLineKey, setActiveLineKey] = useState<string | null>(null);
-  const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => {
-    if (!modalOpen) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setModalOpen(false); };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [modalOpen]);
+  const { scrollNow } = useScrollToActiveLine(activeLineKey);
+
+  useEscapeKey(modalOpen, () => setModalOpen(false));
 
   async function handleImport() {
     if (!project) return;
@@ -55,22 +53,38 @@ export function ViewOnlyPage() {
     return buildCommentIndex(project.lyrics);
   }, [project]);
 
-  const handlePlayPause = useCallback(() => {
-    if (!audioRef.current) return;
-    if (audioRef.current.paused) {
-      audioRef.current.play().catch(() => {});
-    } else {
-      audioRef.current.pause();
-    }
-  }, []);
+  // projectId null => persistence skipped.
+  const {
+    audioRef,
+    playing,
+    currentTimeMs,
+    durationMs,
+    error: audioError,
+    buffering,
+    volume,
+    togglePlay,
+    seekTo,
+    seekRelative,
+    setVolume,
+    dismissError,
+  } = useAudioPlayer({
+    projectId: null,
+    src: project?.audioUrl,
+    syncOffsetMs: project?.syncOffsetMs ?? 0,
+    sortedLines: sortedLinesForAudio,
+    onActiveLineChange: setActiveLineKey,
+  });
 
-  const handleSeekRelative = useCallback((deltaMs: number) => {
-    if (!audioRef.current) return;
-    audioRef.current.currentTime = Math.max(
-      0,
-      audioRef.current.currentTime + deltaMs / 1000,
-    );
-  }, []);
+  const handlePlayPause = useCallback(() => {
+    togglePlay();
+  }, [togglePlay]);
+
+  const handleSeekRelative = useCallback(
+    (deltaMs: number) => {
+      seekRelative(deltaMs);
+    },
+    [seekRelative],
+  );
 
   const handleNavigateToLine = useCallback(
     (key: string) => {
@@ -78,22 +92,16 @@ export function ViewOnlyPage() {
       const line = project.lyrics[key];
       if (line) {
         const syncOffset = project.syncOffsetMs ?? 0;
-        audioRef.current.currentTime = (line.time_start + syncOffset) / 1000;
+        seekTo(line.time_start + syncOffset);
         setActiveLineKey(key);
       }
     },
-    [project],
+    [audioRef, project, seekTo],
   );
 
   const handleSync = useCallback(() => {
-    if (!activeLineKey) return;
-    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    scrollTimeoutRef.current = setTimeout(() => {
-      const el = document.querySelector(`[data-row-key="${activeLineKey}"]`);
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
-      scrollTimeoutRef.current = null;
-    }, 50);
-  }, [activeLineKey]);
+    scrollNow();
+  }, [scrollNow]);
 
   useEditorShortcuts(
     {
@@ -109,23 +117,6 @@ export function ViewOnlyPage() {
     sortedLinesForAudio,
     true,             // enabled
   );
-
-  const scrollToActiveLine = useCallback(() => {
-    if (!activeLineKey) return;
-    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    scrollTimeoutRef.current = setTimeout(() => {
-      const el = document.querySelector(`[data-row-key="${activeLineKey}"]`);
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
-      scrollTimeoutRef.current = null;
-    }, 50);
-  }, [activeLineKey]);
-
-  useEffect(() => {
-    scrollToActiveLine();
-    return () => {
-      if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
-    };
-  }, [activeLineKey, scrollToActiveLine]);
 
   const loading = status === "loading";
   const error = status === "error" ? (errorKey ? t(errorKey) : t("share.missing")) : null;
@@ -182,14 +173,17 @@ export function ViewOnlyPage() {
 
   const bottomBarContent = project?.audioUrl ? (
       <AudioPlayerBar
-        audioSrc={project.audioUrl}
-        audioRef={audioRef}
-        syncOffsetMs={project.syncOffsetMs ?? 0}
-        sortedLines={sortedLinesForAudio}
-        onActiveLineChange={setActiveLineKey}
-        onAudioUrlChange={() => {}}
-        onLocalFileSelect={() => {}}
-        onClearAudio={() => {}}
+        src={project.audioUrl}
+        playing={playing}
+        currentTimeMs={currentTimeMs}
+        durationMs={durationMs}
+        error={audioError}
+        buffering={buffering}
+        volume={volume}
+        onTogglePlay={togglePlay}
+        onSeek={seekTo}
+        onVolumeChange={setVolume}
+        onDismissError={dismissError}
         readOnly
       />
   ) : (
@@ -244,7 +238,7 @@ export function ViewOnlyPage() {
 
       {activeLineKey && (
         <button
-          onClick={scrollToActiveLine}
+          onClick={scrollNow}
           className="fixed bottom-24 right-8 z-50 h-14 w-14 rounded-full bg-tertiary-container text-on-tertiary-container shadow-xl flex items-center justify-center hover:brightness-110 transition-[filter] border border-tertiary-container/50 pressable"
           title={t("player.syncTooltip")}
         >

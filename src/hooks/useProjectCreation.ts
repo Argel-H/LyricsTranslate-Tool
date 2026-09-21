@@ -14,10 +14,6 @@ export interface UseProjectCreationReturn {
   ) => Promise<void>;
 }
 
-/**
- * Manages the project creation pipeline orchestration:
- *   search select → getFullMetadata → createProject → navigate.
- */
 export function useProjectCreation(): UseProjectCreationReturn {
   const navigate = useNavigate();
   const { t } = useI18n();
@@ -42,7 +38,8 @@ export function useProjectCreation(): UseProjectCreationReturn {
       setCreationStatus(t("dashboard.creatingProjectDesc"));
       const projectId = await createProject(metadata);
       navigate(`/editor/${projectId}`);
-    } catch {
+    } catch (err) {
+      console.error("Failed to create project:", err);
       setIsCreating(false);
     }
   };

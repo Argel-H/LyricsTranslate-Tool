@@ -1,8 +1,10 @@
 import { MoreVertical, Music, Edit3, Trash2, ExternalLink, Download, CheckCircle, Archive, ArrowRight, MessageSquare } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { cn } from "@/lib/utils"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef } from "react"
 import { useI18n } from "@/hooks/useI18n"
+import { useClickOutside } from "@/hooks/useClickOutside"
+import { useCoverTilt } from "@/hooks/useCoverTilt"
 import { StatusBadge } from "./StatusBadge"
 import { ProjectProgressBar } from "./ProjectProgressBar"
 import type { ProjectStatus } from "@/lib/config/constants"
@@ -53,44 +55,15 @@ export function ProjectCard({
 }: ProjectCardProps) {
   const { t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false)
-  const [tilt, setTilt] = useState({ x: 0, y: 0 })
   const menuRef = useRef<HTMLDivElement>(null)
-  const menuBtnRef = useRef<HTMLButtonElement>(null)
-  const rafRef = useRef<number>(0)
 
-  // 3D parallax on hover (throttled via requestAnimationFrame)
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (rafRef.current) return
-    const target = e.currentTarget
-    const clientX = e.clientX
-    const clientY = e.clientY
-    rafRef.current = requestAnimationFrame(() => {
-      const rect = target.getBoundingClientRect()
-      const x = (clientX - rect.left) / rect.width - 0.5
-      const y = (clientY - rect.top) / rect.height - 0.5
-      setTilt({ x: y * -8, y: x * 8 })
-      rafRef.current = 0
-    })
-  }
+  const {
+    tilt,
+    handlers: { onMouseMove: handleMouseMove, onMouseLeave: handleMouseLeave },
+  } = useCoverTilt(8)
 
-  const handleMouseLeave = () => {
-    cancelAnimationFrame(rafRef.current)
-    rafRef.current = 0
-    setTilt({ x: 0, y: 0 })
-  }
-
-  // Click-outside to close menu (but not when clicking the toggle button)
-  useEffect(() => {
-    if (!menuOpen) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (menuBtnRef.current?.contains(e.target as Node)) return
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => document.removeEventListener("mousedown", handleClickOutside)
-  }, [menuOpen])
+  // Click-outside to close menu (toggle button is exempted via [data-menu-toggle])
+  useClickOutside(menuRef, () => setMenuOpen(false), menuOpen, "[data-menu-toggle]")
 
   const hasFlags = !!(originLanguage && translationLanguage)
   const hasAnnotations = (annotationCount ?? 0) > 0
@@ -109,7 +82,6 @@ export function ProjectCard({
         className
       )}
     >
-      {/* Cover Image */}
       <div className="w-full aspect-square rounded-2xl bg-surface-container-highest overflow-visible relative">
         <div className="w-full h-full rounded-2xl overflow-hidden">
           {coverUrl ? (
@@ -126,7 +98,7 @@ export function ProjectCard({
         </div>
         <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity bg-surface-container/80 backdrop-blur-md rounded-full size-8 flex items-center justify-center">
           <button
-            ref={menuBtnRef}
+            data-menu-toggle
             onClick={(e) => {
               e.stopPropagation()
               if (onMoreClick) {
@@ -159,7 +131,6 @@ export function ProjectCard({
           </div>
         )}
 
-        {/* Dropdown menu */}
         <AnimatePresence>
           {menuOpen && (
             <motion.div
@@ -254,7 +225,6 @@ export function ProjectCard({
         </AnimatePresence>
       </div>
 
-      {/* Info */}
       <div className="flex-1 flex flex-col">
         <h3 className="font-title-lg text-title-lg text-on-surface truncate mb-1 group-hover:text-primary transition-colors">
           {title}
@@ -263,7 +233,6 @@ export function ProjectCard({
           {artist}
         </p>
 
-        {/* Progress */}
         <div className="mt-auto space-y-3">
           <div className="flex justify-between items-center">
             <StatusBadge status={status} label={statusLabel} />

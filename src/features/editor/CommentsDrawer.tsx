@@ -8,6 +8,8 @@ import type { Note } from "@/types/project";
 import type { I18nKey } from "@/i18n";
 import { CommentEditor } from "./CommentEditor";
 import { CommentMarkdown } from "./CommentMarkdown";
+import { useEscapeKey } from "@/hooks/useEscapeKey";
+import { useBodyScrollLock } from "@/hooks/useBodyScrollLock";
 
 interface CommentsDrawerProps {
   open: boolean;
@@ -157,22 +159,8 @@ export function CommentsDrawer({
     setOrderedNotes(notes);
   };
 
-  useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    }
-    return () => {
-      document.body.style.overflow = "";
-    };
-  }, [open]);
-
-  useEffect(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    if (open) window.addEventListener("keydown", handleEsc);
-    return () => window.removeEventListener("keydown", handleEsc);
-  }, [open, onClose]);
+  useBodyScrollLock(open);
+  useEscapeKey(open, onClose);
 
   useEffect(() => {
     if (open) setEditingTarget(null);

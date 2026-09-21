@@ -1,3 +1,5 @@
+import { useEscapeKey } from "@/hooks/useEscapeKey";
+
 interface MessageModalProps {
   open: boolean;
   title: string;
@@ -13,6 +15,9 @@ export function MessageModal({
   confirmLabel = "OK",
   onClose,
 }: MessageModalProps) {
+  // Hook must run before the early return.
+  useEscapeKey(open, onClose);
+
   if (!open) return null;
 
   return (
