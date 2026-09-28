@@ -3,6 +3,9 @@ import { encodeShareUrl, decodeShareUrl } from '@/lib/share/shareProtocol';
 import { getShareBaseUrl } from '@/types/share';
 import type { Project, LyricLine } from '@/types/project';
 import { makeProject } from '@/test/factories/project';
+import { BinaryWriter } from '@/lib/share/binary/BinaryWriter';
+import { brotliCompress } from '@/lib/share/compressionUtils';
+import { arrayBufferToBase64URL } from '@/lib/share/base64Utils';
 
 function makeRichProject(overrides: Partial<Project> = {}): Project {
   const lyrics: Record<string, LyricLine> = {};
@@ -220,4 +223,113 @@ describe('shareProtocol', () => {
     const lockedCount = Object.values(decoded.lyrics).filter(l => l.locked).length;
     expect(lockedCount).toBe(2);
   });
+
+  it('round-trips v6 lyrics whose first line starts after 65.5s with >65.5s gaps and durations', async () => {
+    const lyrics: Record<string, LyricLine> = {
+      lrc_00: { time_start: 70950, time_end: 83520, lyric: 'How', translation: 'Cómo', locked: false },
+      lrc_01: { time_start: 83520, time_end: 90000, lyric: 'are you', translation: 'estás', locked: false },
+      // Gap of 116480 ms (> 65535) and a 120000 ms duration (> 65535).
+      lrc_02: { time_start: 200000, time_end: 320000, lyric: 'After a long gap', translation: 'Tras un gran hueco', locked: true },
+    };
+    const project = makeRichProject({ lyrics });
+    const url = await encodeShareUrl(project);
+    const decoded = await decodeShareUrl(url);
+
+    const decodedLines = Object.values(decoded.lyrics).sort((a, b) => a.time_start - b.time_start);
+    const originalLines = Object.values(project.lyrics).sort((a, b) => a.time_start - b.time_start);
+    expect(decodedLines.length).toBe(originalLines.length);
+    for (let i = 0; i < originalLines.length; i++) {
+      expect(decodedLines[i].time_start).toBe(originalLines[i].time_start);
+      expect(decodedLines[i].time_end).toBe(originalLines[i].time_end);
+      expect(decodedLines[i].lyric).toBe(originalLines[i].lyric);
+      expect(decodedLines[i].translation).toBe(originalLines[i].translation);
+    }
+    // 70950 must NOT wrap to 5414 (−65536).
+    expect(decodedLines[0].time_start).toBe(70950);
+    expect(decodedLines[2].time_start - decodedLines[1].time_start).toBe(116480);
+  });
+
+  it('decodes a manually-built legacy v5 payload (u16 timings)', async () => {
+    const legacyRows: LyricLine[] = [
+      { time_start: 0, time_end: 1000, lyric: 'Hello', translation: 'Hola', locked: false },
+      { time_start: 1000, time_end: 2500, lyric: 'World', translation: 'Mundo', locked: true },
+    ];
+    const lyricsBuffer = buildLegacyU16LyricsBuffer(legacyRows);
+
+    // Documented v5 layout (see shareProtocol.ts header comment).
+    const writer = new BinaryWriter();
+    writer.writeU8(0x05);
+    writer.writeU8(0x00);
+    writer.writeStr1B('Legacy Song');
+    writer.writeStr1B('');
+    writer.writeStr1B('');
+    writer.writeStr2B('');
+    writer.writeStr2B('');
+    writer.writeStr2B('');
+    writer.writeI16LE(0);
+    writer.writeU8(0);
+    writer.writeU8(0);
+    writer.writeStr1B('0');
+    writer.writeStr1B('0');
+    writer.writeStr1B('0');
+    writer.writeU8(0);
+    writer.writeU16LE(legacyRows.length);
+    writer.writeBytes(lyricsBuffer);
+
+    const compressed = await brotliCompress(writer.toArrayBuffer());
+    const base64 = arrayBufferToBase64URL(compressed);
+    const decoded = await decodeShareUrl(getShareBaseUrl() + base64);
+
+    expect(decoded.trackName).toBe('Legacy Song');
+    const lines = Object.values(decoded.lyrics).sort((a, b) => a.time_start - b.time_start);
+    expect(lines).toHaveLength(2);
+    expect(lines[0].time_start).toBe(0);
+    expect(lines[0].time_end).toBe(1000);
+    expect(lines[0].lyric).toBe('Hello');
+    expect(lines[0].translation).toBe('Hola');
+    expect(lines[1].time_start).toBe(1000);
+    expect(lines[1].time_end).toBe(2500);
+    expect(lines[1].locked).toBe(true);
+  });
 });
+
+/**
+ * Builds a legacy v5-style lyrics buffer: [u16 deltas][u16 durations]
+ * [locks ceil(N/8)B][text], with THREE text fields per row
+ * (translation, lyric, comment) and `\`/newline escaping.
+ */
+function buildLegacyU16LyricsBuffer(rows: LyricLine[]): Uint8Array {
+  const N = rows.length;
+  const sorted = [...rows].sort((a, b) => a.time_start - b.time_start);
+  const esc = (s: string): string => s.replace(/\\/g, '\\\\').replace(/\n/g, '\\n');
+
+  const deltaBuf = new Uint8Array(N * 2);
+  const durBuf = new Uint8Array(N * 2);
+  const lockBuf = new Uint8Array(Math.ceil(N / 8));
+  const dv = new DataView(deltaBuf.buffer, deltaBuf.byteOffset, deltaBuf.byteLength);
+  const drv = new DataView(durBuf.buffer, durBuf.byteOffset, durBuf.byteLength);
+
+  let prevSt = 0;
+  for (let i = 0; i < N; i++) {
+    const r = sorted[i];
+    dv.setUint16(i * 2, i === 0 ? r.time_start : r.time_start - prevSt, true);
+    drv.setUint16(i * 2, Math.max(0, r.time_end - r.time_start), true);
+    if (r.locked) lockBuf[i >> 3] |= 1 << (i & 7);
+    prevSt = r.time_start;
+  }
+
+  const textParts: string[] = [];
+  for (const r of sorted) {
+    textParts.push(esc(r.translation), esc(r.lyric), esc(r.comment ?? ''));
+  }
+  const textBytes = new TextEncoder().encode(textParts.join('\n'));
+
+  const total = deltaBuf.length + durBuf.length + lockBuf.length + textBytes.length;
+  const result = new Uint8Array(total);
+  let off = 0;
+  result.set(deltaBuf, off); off += deltaBuf.length;
+  result.set(durBuf, off);   off += durBuf.length;
+  result.set(lockBuf, off);  off += lockBuf.length;
+  result.set(textBytes, off);
+  return result;
+}

@@ -90,14 +90,21 @@ export function downloadTextFile(
 function escapeYamlValue(value: string): string {
   if (value === "") return '""';
 
+  // Normalize CRLF so the emitted scalar is deterministically single-line.
+  const normalized = value.replace(/\r\n/g, "\n");
+
   // Check if quoting is required
-  const needsQuoting = /[:#"\n]|^\s|\s$/.test(value) || value.startsWith("'");
+  const needsQuoting = /[:#"\n]|^\s|\s$/.test(normalized) || normalized.startsWith("'");
   if (!needsQuoting) {
-    return value;
+    return normalized;
   }
 
-  // Escape backslashes first, then double quotes
-  const escaped = value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  // Escape backslashes first, then double quotes, then encode newlines as the
+  // two-character `\n` escape so the value never spans multiple physical lines.
+  const escaped = normalized
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, "\\n");
   return `"${escaped}"`;
 }
 

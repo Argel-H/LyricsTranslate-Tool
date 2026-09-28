@@ -8,7 +8,7 @@
 // ---------------------------------------------------------------------------
 
 /** Protocol version byte. Must be the first byte of every encoded buffer. */
-export const SHARE_VERSION = 0x05;
+export const SHARE_VERSION = 0x06;
 
 // ---------------------------------------------------------------------------
 // Language Dictionary (4-bit, max 15)
@@ -117,8 +117,8 @@ export const MAX_STRING_BYTES = 255;
 /** Max URL length with 2-byte length prefix */
 export const MAX_URL_BYTES = 65535;
 
-/** Max delta between consecutive time_start values (ms). Lines >65s apart unsupported. */
-export const MAX_DELTA_MS = 65535;
+/** Max representable timing value (ms) for v6+ u32 timings (~49.7 days). Legacy v2–v5 used u16 (65535 ms). */
+export const MAX_DELTA_MS = 0xffffffff;
 
 /** Max lyrics rows */
 export const MAX_ROW_COUNT = 65535;

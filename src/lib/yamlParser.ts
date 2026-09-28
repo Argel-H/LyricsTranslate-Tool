@@ -74,13 +74,11 @@ function parseScalar(raw: string): RawYamlValue {
 }
 
 /**
- * Unquotes a double-quoted YAML string, handling `\"` and `\\` escapes.
- * Expects the string to start and end with `"`.
+ * Decodes the INNER content of a double-quoted YAML string (without the
+ * surrounding quotes), handling `\"`, `\\`, and `\n` escapes. Any other
+ * escape sequence is passed through unchanged.
  */
-function unquoteYamlString(raw: string): string {
-  // Strip surrounding quotes
-  const inner = raw.slice(1, -1);
-
+function unescapeYamlString(inner: string): string {
   const result: string[] = [];
   let i = 0;
   while (i < inner.length) {
@@ -97,6 +95,11 @@ function unquoteYamlString(raw: string): string {
         i += 2;
         continue;
       }
+      if (next === "n") {
+        result.push("\n");
+        i += 2;
+        continue;
+      }
       // Any other escape sequence - pass through as-is
       result.push(ch);
       i += 1;
@@ -106,6 +109,84 @@ function unquoteYamlString(raw: string): string {
     i += 1;
   }
   return result.join("");
+}
+
+/**
+ * Unquotes a double-quoted YAML string, handling `\"`, `\\`, and `\n` escapes.
+ * Expects the string to start and end with `"`.
+ */
+function unquoteYamlString(raw: string): string {
+  return unescapeYamlString(raw.slice(1, -1));
+}
+
+/**
+ * Returns the index of the first unescaped `"` at or after `from`, or -1 if
+ * none exists. A quote is considered escaped if it is preceded by an odd
+ * number of consecutive backslashes.
+ */
+function findClosingQuote(s: string, from: number): number {
+  let i = from;
+  while (i < s.length) {
+    if (s[i] === '"') {
+      // Count consecutive backslashes immediately preceding this quote.
+      let backslashes = 0;
+      let j = i - 1;
+      while (j >= 0 && s[j] === "\\") {
+        backslashes++;
+        j--;
+      }
+      if (backslashes % 2 === 0) return i;
+    }
+    i++;
+  }
+  return -1;
+}
+
+/**
+ * Reads a scalar value that may span multiple physical lines because it is a
+ * double-quoted string containing a real newline. Starting from `lineIdx` (the
+ * line whose content after the colon is `rawAfterColon`), returns the decoded
+ * value and the index of the first line NOT consumed.
+ *
+ * Non-quoted scalars and single-line quoted scalars consume exactly one line.
+ * An opening quote with no matching closing quote throws.
+ */
+function parseScalarFromLines(
+  lines: string[],
+  lineIdx: number,
+  rawAfterColon: string,
+): { value: RawYamlValue; nextIdx: number } {
+  const trimmed = rawAfterColon.trim();
+
+  if (!trimmed.startsWith('"')) {
+    return { value: parseScalar(rawAfterColon), nextIdx: lineIdx + 1 };
+  }
+
+  const close = findClosingQuote(trimmed, 1);
+  if (close !== -1) {
+    return {
+      value: unescapeYamlString(trimmed.slice(1, close)),
+      nextIdx: lineIdx + 1,
+    };
+  }
+
+  // The quote spans onto subsequent lines: accumulate until we find the
+  // matching unescaped closing quote.
+  let buffer = trimmed.slice(1);
+  let j = lineIdx + 1;
+  while (j < lines.length) {
+    const c = findClosingQuote(lines[j]!, 0);
+    if (c !== -1) {
+      buffer += "\n" + lines[j]!.slice(0, c);
+      return { value: unescapeYamlString(buffer), nextIdx: j + 1 };
+    }
+    buffer += "\n" + lines[j]!;
+    j++;
+  }
+
+  throw new Error(
+    `Unterminated quoted string starting at line ${lineIdx + 1}`,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -161,6 +242,12 @@ function parseBlock(
     // Array items: lines starting with "- "
     // ---------------------------------------------------------------
     if (content.startsWith("- ")) {
+      // A block is homogeneous: either a map or a list. If we have already
+      // parsed map keys, hitting a list item means malformed/leaked input;
+      // fail loudly rather than silently discarding the keys parsed so far.
+      if (Object.keys(result).length > 0) {
+        throw new Error(`Malformed YAML: unexpected list item at line ${i + 1}`);
+      }
       const items: RawYamlValue[] = [];
       i = parseArrayItems(lines, i, indent, items);
       return { result: items, nextIdx: i };
@@ -188,9 +275,10 @@ function parseBlock(
         result[key] = subResult.result;
         i = subResult.nextIdx;
       } else {
-        // "key: value" → scalar
-        result[key] = parseScalar(afterColon);
-        i++;
+        // "key: value" → scalar (possibly a multi-line quoted string)
+        const scalar = parseScalarFromLines(lines, i, afterColon);
+        result[key] = scalar.value;
+        i = scalar.nextIdx;
       }
     } else {
       // Line that doesn't match any expected pattern - skip
@@ -247,20 +335,22 @@ function parseArrayItems(
         itemObj[key] = subResult.result;
         i = subResult.nextIdx;
       } else {
-        // "- key: value" → first property on this line
-        itemObj[key] = parseScalar(afterColon);
+        // "- key: value" → first property on this line (may be multi-line)
+        const scalar = parseScalarFromLines(lines, i, afterColon);
+        itemObj[key] = scalar.value;
 
         // Collect sub-properties at deeper indent
-        const subResult = parseBlock(lines, i + 1, indent);
+        const subResult = parseBlock(lines, scalar.nextIdx, indent);
         Object.assign(itemObj, subResult.result as Record<string, RawYamlValue>);
         i = subResult.nextIdx;
       }
 
       items.push(itemObj);
     } else {
-      // Simple value item
-      items.push(parseScalar(body));
-      i++;
+      // Simple value item (may be a multi-line quoted string)
+      const scalar = parseScalarFromLines(lines, i, body);
+      items.push(scalar.value);
+      i = scalar.nextIdx;
     }
   }
 

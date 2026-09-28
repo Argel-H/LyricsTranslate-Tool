@@ -164,6 +164,40 @@ describe("generateYamlContent", () => {
     expect(decodeAudioUrl(emitted)).toBe(plainUrl);
   });
 
+  it("encodes multi-line comments and notes as single-line scalars that round-trip", () => {
+    const project = makeProject({
+      lyrics: {
+        l1: makeLyricLine({
+          lyric: "line",
+          translation: "línea",
+          comment: "one\ntwo",
+        }),
+      },
+      notes: [{ id: 0, text: "alpha\nbeta" }],
+    });
+
+    const result = generateYamlContent(project);
+    const lines = result.split("\n");
+
+    // The comment field must occupy exactly one physical line, with the
+    // two-character `\n` escape rather than a real line break.
+    const commentLine = lines.find((l) => l.trim().startsWith("comment:"));
+    expect(commentLine).toBeDefined();
+    expect(commentLine).toBe('    comment: "one\\ntwo"');
+
+    // Same for the note entry.
+    const noteLine = lines.find(
+      (l) => l.startsWith("  - ") && l.includes("alpha"),
+    );
+    expect(noteLine).toBeDefined();
+    expect(noteLine).toBe('  - "alpha\\nbeta"');
+
+    // And the emitted YAML round-trips back to the original strings.
+    const parsed = parseProjectYaml(result);
+    expect(parsed.lyrics.lrc_00?.comment).toBe("one\ntwo");
+    expect(parsed.notes).toEqual(["alpha\nbeta"]);
+  });
+
 });
 
 describe("existing export functions remain intact", () => {

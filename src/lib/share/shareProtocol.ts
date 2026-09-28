@@ -1,11 +1,11 @@
 // ═══════════════════════════════════════════════════════════════════════════════
-// BINARY FORMAT v5 - LyricsTranslate Share Protocol  (SHARE_VERSION = 0x05)
+// BINARY FORMAT v6 - LyricsTranslate Share Protocol  (SHARE_VERSION = 0x06)
 // ═══════════════════════════════════════════════════════════════════════════════
 //
 // An entire Project is serialized into a compact binary buffer, Brotli-compressed
 // (quality 11), and Base64URL-encoded for embedding in a shareable URL. The
-// decoder also supports the legacy v2, v3, and v4 formats for backwards
-// compatibility.
+// decoder also supports the legacy v2, v3, v4, and v5 formats for backwards
+// compatibility (v2–v5 use u16 lyric timings; v6 uses u32 lyric timings).
 //
 // All integers are little-endian and unsigned unless explicitly noted otherwise.
 //
@@ -20,7 +20,7 @@
 // ╠══════════════════════════════════════════════════════════════════════════════
 // ║                                    │                   │
 // ║  ─── HEADER ───
-// ║  VERSION                           │  1 byte (u8)      │  0x05
+// ║  VERSION                           │  1 byte (u8)      │  0x06
 // ║  LANGUAGE PAIR                     │  1 byte (u8)      │  bits 7:4 = origin
 // ║                                    │                   │  bits 3:0 = trans
 // ║  track name                        │                   │
@@ -88,12 +88,13 @@
 // ║                                    │                   │
 // ║  ─── LYRICS (compact buffer) ───
 // ║  row count N                       │  2 bytes (u16 LE) │  max 65535 rows
-// ║  DELTAS                            │  N × 2 bytes      │  u16 LE
+// ║  DELTAS                            │  N × 4 bytes      │  u32 LE
 // ║    · row 0 = absolute time_start (ms)
 // ║    · row i = time_start[i] − time_start[i−1]
-// ║    · max delta = 65535 ms (~65 s between lines)
-// ║  DURATIONS                         │  N × 2 bytes      │  u16 LE
+// ║    · legacy v3–v5 buffers use u16 (2-byte) deltas
+// ║  DURATIONS                         │  N × 4 bytes      │  u32 LE
 // ║    · time_end − time_start per row
+// ║    · legacy v3–v5 buffers use u16 (2-byte) durations
 // ║  LOCK FLAGS                        │  ceil(N/8) bytes  │  1 bit/row, LSB-1st
 // ║    · bit (i & 7) of byte (i >> 3) = row i locked
 // ║  TEXT BLOCK                        │  X bytes (UTF-8)  │
@@ -130,6 +131,7 @@ import { arrayBufferToBase64URL, base64URLToArrayBuffer } from "@/lib/share/base
 import { stripShareBase } from "@/lib/share/shareRouting";
 import { stripUrlPrefix, reconstructUrl } from "@/lib/share/urlTemplateUtils";
 import { buildLyricsBuffer, parseLyricsBuffer } from "@/lib/share/transcoder/lyrics";
+import type { TimingEncoding } from "@/lib/share/transcoder/lyrics";
 import { API } from "@/lib/config/apiConfig";
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -246,7 +248,7 @@ function writeLyrics(writer: BinaryWriter, project: Project): void {
   const sortedLyrics = Object.values(project.lyrics).sort((a, b) => a.time_start - b.time_start);
   writer.writeU16LE(sortedLyrics.length);
   if (sortedLyrics.length > 0) {
-    writer.writeBytes(new Uint8Array(buildLyricsBuffer(sortedLyrics)));
+    writer.writeBytes(new Uint8Array(buildLyricsBuffer(sortedLyrics, "u32")));
   }
 }
 
@@ -267,9 +269,9 @@ function readHeader(reader: BinaryReader): {
   syncOffsetMs: number | undefined;
 } {
   const version = reader.readU8();
-  if (version !== 0x02 && version !== 0x03 && version !== 0x04 && version !== 0x05) {
+  if (version !== 0x02 && version !== 0x03 && version !== 0x04 && version !== 0x05 && version !== 0x06) {
     throw new Error(
-      `Unsupported share version: ${version}. Expected 0x02, 0x03, 0x04, or 0x05.`,
+      `Unsupported share version: ${version}. Expected 0x02, 0x03, 0x04, 0x05, or 0x06.`,
     );
   }
 
@@ -398,7 +400,8 @@ function readLyrics(reader: BinaryReader, rowCount: number, version: number): Re
     if (rowCount > 0) {
       const lyricsData = reader.readBytes(reader.remaining);
       const fieldsPerRow = version === 0x03 ? 2 : 3;
-      const parsed = parseLyricsBuffer(rowCount, lyricsData, fieldsPerRow);
+      const timing: TimingEncoding = version >= 0x06 ? "u32" : "u16";
+      const parsed = parseLyricsBuffer(rowCount, lyricsData, fieldsPerRow, timing);
       for (let i = 0; i < parsed.length; i++) {
         lyrics[`lrc_${String(i).padStart(2, "0")}`] = parsed[i];
       }

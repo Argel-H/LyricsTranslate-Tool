@@ -218,3 +218,113 @@ lyrics: []
 
 
 });
+
+describe("multi-line quoted scalars", () => {
+  // Reproduces the production file `How_project (4).yaml`, whose lyric comment
+  // contains a real newline inside a double-quoted scalar.
+  const MULTILINE_COMMENT_YAML = `version: 1
+
+project:
+  track_name: How
+  artists:
+    - The Neighbourhood
+
+metadata:
+  created_at: 1
+  updated_at: 1
+  exported_at: 1
+
+lyrics:
+  - time_start: 108360
+    time_end: 112200
+    original: When I'm on, I believe you
+    translated: Cuando me siento bien, vuelvo a creer en ti
+    comment: "\\"When I'm on\\" se refiere a estar funcional (por ejemplo en una maquina es estar encendido) o en un estado de lucidez emocional. 
+La parte de \\"vuelvo a creer\\" es un reflejo del ciclo repetitivo de ruptura y fe de la codependencia."
+  - time_start: 112200
+    time_end: 122990
+    original: When I'm not
+    translated: y cuando no
+
+notes:
+  - hola
+`;
+
+  it("parses a multi-line quoted comment without losing top-level keys", () => {
+    let result: ReturnType<typeof parseProjectYaml> | undefined;
+    expect(() => {
+      result = parseProjectYaml(MULTILINE_COMMENT_YAML);
+    }).not.toThrow();
+
+    expect(result!.trackName).toBe("How");
+    expect(Object.keys(result!.lyrics).length).toBe(2);
+
+    const comment = result!.lyrics.lrc_00?.comment;
+    expect(comment).toBeDefined();
+    expect(comment).toContain('"When I\'m on"');
+    expect(comment).toContain("codependencia");
+    expect(comment).toContain("\n");
+
+    expect(result!.notes).toEqual(["hola"]);
+  });
+
+  it("decodes an explicit \\n escape within a quoted scalar", () => {
+    const yaml = `version: 1
+project:
+  track_name: "T"
+  artists:
+    - "A"
+metadata:
+  created_at: 0
+  updated_at: 0
+  exported_at: 0
+lyrics:
+  - time_start: 0
+    time_end: 1000
+    original: "O"
+    translated: "T"
+    comment: "line1\\nline2"
+`;
+    const result = parseProjectYaml(yaml);
+    expect(result.lyrics.lrc_00?.comment).toBe("line1\nline2");
+  });
+
+  it("decodes a notes array item whose quoted scalar spans lines", () => {
+    const yaml = `version: 1
+project:
+  track_name: "T"
+  artists:
+    - "A"
+metadata:
+  created_at: 0
+  updated_at: 0
+  exported_at: 0
+lyrics: []
+notes:
+  - "first
+second"
+`;
+    const result = parseProjectYaml(yaml);
+    expect(result.notes).toEqual(["first\nsecond"]);
+  });
+
+  it("throws on an unterminated quoted string", () => {
+    const yaml = `version: 1
+project:
+  track_name: "T"
+  artists:
+    - "A"
+metadata:
+  created_at: 0
+  updated_at: 0
+  exported_at: 0
+lyrics:
+  - time_start: 0
+    time_end: 1000
+    original: "O"
+    translated: "T"
+    comment: "unterminated
+`;
+    expect(() => parseProjectYaml(yaml)).toThrow(/Unterminated quoted string/);
+  });
+});
