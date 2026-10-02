@@ -1,5 +1,20 @@
 [
   {
+    "version": "0.0.7",
+    "date": "2026-10-01",
+    "changes": [
+      "Long-press the +/- time controls to snap a line's start or end to the audio playhead",
+      "Look up metadata by typing \"Artist - Title\" in the song field, no need to fill the artist field",
+      "Fixed the audio highlight bouncing between two lines that share the exact boundary",
+      "Fixed auto-translation applying the wrong translation to untimed lyrics",
+      "Share links now work for songs with lines more than a minute apart",
+      "Fixed YAML export/import of values containing line breaks",
+      "Notes are saved without leading or trailing whitespace",
+      "Metadata lookups that return incomplete results are retried sooner",
+      "Time controls now follow the real chronological order of lines"
+    ]
+  },
+  {
     "version": "0.0.6",
     "date": "2026-08-17",
     "changes": [

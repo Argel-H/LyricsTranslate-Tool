@@ -33,6 +33,8 @@ interface TableRowProps {
   onTimeStartRemove?: () => void;
   onTimeEndAdd?: () => void;
   onTimeEndRemove?: () => void;
+  onTimeStartLongPress?: () => void;
+  onTimeEndLongPress?: () => void;
   onDelete?: () => void;
   isLocked?: boolean;
   onToggleLock?: () => void;
@@ -69,6 +71,8 @@ export function TableRow({
   onTimeStartRemove,
   onTimeEndAdd,
   onTimeEndRemove,
+  onTimeStartLongPress,
+  onTimeEndLongPress,
   onDelete,
   isLocked = false,
   onToggleLock,
@@ -224,12 +228,14 @@ export function TableRow({
             active
             onAdd={onTimeStartAdd}
             onRemove={onTimeStartRemove}
+            onLongPress={onTimeStartLongPress}
           />
           <TimeControl
             time={timeEnd}
             active
             onAdd={onTimeEndAdd}
             onRemove={onTimeEndRemove}
+            onLongPress={onTimeEndLongPress}
           />
         </>
       ) : (

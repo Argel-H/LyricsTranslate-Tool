@@ -3,6 +3,7 @@ import {
   parseTimestampToMilliseconds,
   formatMillisecondsToTimestamp,
   findActiveLine,
+  findStableActiveLine,
   getSortedLyricLines,
 } from './timeUtils';
 import type { TimestampedLine } from './timeUtils';
@@ -168,5 +169,49 @@ describe('getSortedLyricLines', () => {
 
   it('returns empty array for empty lyrics record', () => {
     expect(getSortedLyricLines({})).toEqual([]);
+  });
+});
+
+describe("findStableActiveLine", () => {
+  const contiguous: TimestampedLine[] = [
+    { key: 'x', timeMs: 0, timeEndMs: 3000 },
+    { key: 'y', timeMs: 3000, timeEndMs: 6000 },
+    { key: 'z', timeMs: 6000, timeEndMs: 9000 },
+  ];
+  const TOL = 30;
+
+  it('returns candidate when currentKey is null', () => {
+    expect(findStableActiveLine(contiguous, 3000, null, TOL)).toBe('y');
+  });
+
+  it('holds the previous line across the shared boundary within tolerance', () => {
+    expect(findStableActiveLine(contiguous, 3000, 'x', TOL)).toBe('x');
+    expect(findStableActiveLine(contiguous, 3029, 'x', TOL)).toBe('x');
+  });
+
+  it('switches once beyond the tolerance', () => {
+    expect(findStableActiveLine(contiguous, 3030, 'x', TOL)).toBe('y');
+  });
+
+  it('holds when moving backward into the boundary', () => {
+    expect(findStableActiveLine(contiguous, 3000, 'y', TOL)).toBe('y');
+    expect(findStableActiveLine(contiguous, 2971, 'y', TOL)).toBe('y');
+  });
+
+  it('switches backward once beyond tolerance', () => {
+    expect(findStableActiveLine(contiguous, 2969, 'y', TOL)).toBe('x');
+  });
+
+  it('bypasses hysteresis on a far jump', () => {
+    expect(findStableActiveLine(contiguous, 7000, 'x', TOL)).toBe('z');
+  });
+
+  it('holds the last line briefly past its end', () => {
+    expect(findStableActiveLine(contiguous, 9000, 'z', TOL)).toBe('z');
+    expect(findStableActiveLine(contiguous, 9030, 'z', TOL)).toBeNull();
+  });
+
+  it('falls back to candidate for an unknown current key', () => {
+    expect(findStableActiveLine(contiguous, 3000, 'ghost', TOL)).toBe('y');
   });
 });

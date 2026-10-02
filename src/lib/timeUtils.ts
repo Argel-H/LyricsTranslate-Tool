@@ -31,11 +31,6 @@ export interface TimestampedLine {
   timeEndMs: number;
 }
 
-/**
- * Returns ALL lyric lines sorted by time_start, with millisecond values precomputed.
- * Every line in the lyrics map is included - including blank-timestamped lines
- * (instrumental breaks, pauses) - so they participate in audio sync and highlighting.
- */
 export function getSortedLyricLines(lyrics: Record<string, LyricLine>): TimestampedLine[] {
   return Object.entries(lyrics)
     .map(([key, line]) => ({
@@ -46,43 +41,47 @@ export function getSortedLyricLines(lyrics: Record<string, LyricLine>): Timestam
     .sort((a, b) => a.timeMs - b.timeMs);
 }
 
-/**
- * Finds the active lyric line for a given audio time using [timeMs, timeEndMs) intervals.
- *
- * Returns the key of the line where `timeMs <= audioTimeMs < timeEndMs`, or `null` if
- * the audio time falls outside all intervals (before the first line, in a gap between
- * lines, or after the last line ends).
- *
- * Uses binary search for O(log n) efficiency on sorted lines.
- *
- * @param sortedLines - Lyric lines sorted by `timeMs` ascending
- * @param audioTimeMs - Current audio time in milliseconds
- * @returns The key of the active line, or `null` if no line covers this time
- */
 export function findActiveLine(
   sortedLines: TimestampedLine[],
   audioTimeMs: number,
 ): string | null {
   if (sortedLines.length === 0) return null;
+  if (audioTimeMs < sortedLines[0]!.timeMs) return sortedLines[0]!.key;
 
   let low = 0;
   let high = sortedLines.length - 1;
 
   while (low <= high) {
-    const mid = Math.floor((low + high) / 2);
-    if (sortedLines[mid]!.timeMs <= audioTimeMs) {
-      low = mid + 1;
+    const middle = Math.floor((low + high) / 2);
+    if (sortedLines[middle]!.timeMs <= audioTimeMs) {
+      low = middle + 1;
     } else {
-      high = mid - 1;
+      high = middle - 1;
     }
   }
 
-  if (high < 0) return sortedLines[0].key;
+  const line = sortedLines[high]!;
+  const isInsideLine = audioTimeMs < line.timeEndMs;
+  return isInsideLine ? line.key : null;
+}
 
-  const candidate = sortedLines[high]!;
-  if (audioTimeMs < candidate.timeEndMs) {
-    return candidate.key;
-  }
+export const ACTIVE_LINE_TOLERANCE_MS = 30;
 
-  return null;
+export function findStableActiveLine(
+  sortedLines: TimestampedLine[],
+  audioTimeMs: number,
+  currentKey: string | null,
+  toleranceMs: number,
+): string | null {
+  const candidateKey = findActiveLine(sortedLines, audioTimeMs);
+  if (currentKey === null || candidateKey === currentKey) return candidateKey;
+
+  const currentLine = sortedLines.find((line) => line.key === currentKey);
+  if (!currentLine) return candidateKey;
+
+  const withinBoundaryTolerance =
+    audioTimeMs >= currentLine.timeMs - toleranceMs &&
+    audioTimeMs < currentLine.timeEndMs + toleranceMs;
+
+  return withinBoundaryTolerance ? currentKey : candidateKey;
 }

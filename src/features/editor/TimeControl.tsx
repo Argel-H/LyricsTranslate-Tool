@@ -1,15 +1,50 @@
 import { cn } from "@/lib/utils"
 import { Plus, Minus } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
+import { useLongPress } from "@/hooks/useLongPress"
 
 interface TimeControlProps {
   time: string
   onAdd?: () => void
   onRemove?: () => void
+  onLongPress?: () => void
   active?: boolean
   className?: string
 }
 
-export function TimeControl({ time, onAdd, onRemove, active, className }: TimeControlProps) {
+interface TimeButtonProps {
+  icon: LucideIcon
+  onPress?: () => void
+  onLongPress?: () => void
+}
+
+function TimeButton({ icon: Icon, onPress, onLongPress }: TimeButtonProps) {
+  const { pressHandlers, wasLongPress } = useLongPress({ onLongPress })
+
+  return (
+    <button
+      type="button"
+      {...pressHandlers}
+      onClick={(event) => {
+        event.stopPropagation()
+        if (wasLongPress()) return
+        onPress?.()
+      }}
+      className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface hover:bg-primary hover:text-on-primary transition-colors shadow-sm select-none touch-none active:scale-95"
+    >
+      <Icon className="size-5" />
+    </button>
+  )
+}
+
+export function TimeControl({
+  time,
+  onAdd,
+  onRemove,
+  onLongPress,
+  active,
+  className,
+}: TimeControlProps) {
   return (
     <div className={cn("flex flex-col gap-3 items-center justify-start pt-2", className)}>
       <div className={cn(
@@ -22,18 +57,8 @@ export function TimeControl({ time, onAdd, onRemove, active, className }: TimeCo
       </div>
       {active && (
         <div className="flex gap-2">
-          <button
-            onClick={onRemove}
-            className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface hover:bg-primary hover:text-on-primary transition-colors shadow-sm"
-          >
-            <Minus className="size-5" />
-          </button>
-          <button
-            onClick={onAdd}
-            className="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-on-surface hover:bg-primary hover:text-on-primary transition-colors shadow-sm"
-          >
-            <Plus className="size-5" />
-          </button>
+          <TimeButton icon={Minus} onPress={onRemove} onLongPress={onLongPress} />
+          <TimeButton icon={Plus} onPress={onAdd} onLongPress={onLongPress} />
         </div>
       )}
     </div>

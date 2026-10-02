@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { findActiveLine } from "@/lib/timeUtils";
+import {
+  ACTIVE_LINE_TOLERANCE_MS,
+  findActiveLine,
+  findStableActiveLine,
+} from "@/lib/timeUtils";
 import type { TimestampedLine } from "@/lib/timeUtils";
 import { usePlaybackStore } from "@/stores/playbackStore";
 
@@ -184,7 +188,12 @@ export function useAudioPlayer(
 
         const effectiveTimeMs =
           audioRef.current.currentTime * 1000 - syncOffsetMs;
-        const activeKey = findActiveLine(sortedLines, effectiveTimeMs);
+        const activeKey = findStableActiveLine(
+          sortedLines,
+          effectiveTimeMs,
+          lastActiveKeyRef.current,
+          ACTIVE_LINE_TOLERANCE_MS,
+        );
 
         if (activeKey !== lastActiveKeyRef.current) {
           lastActiveKeyRef.current = activeKey;

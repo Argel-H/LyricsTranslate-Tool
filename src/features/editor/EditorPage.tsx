@@ -29,6 +29,11 @@ import { useAutoTranslate } from "@/hooks/useAutoTranslate";
 import { downloadProjectAsYaml, generateLrcContent, generateSrtContent, type TextCase } from "@/lib/exportUtils";
 import { ExportDialog } from "./ExportDialog";
 import {
+  getTimeBounds,
+  getSnappedTime,
+  type TimeField,
+} from "./timeAdjustment";
+import {
   Edit,
   Sparkles,
   Loader2,
@@ -155,31 +160,40 @@ export function EditorPage() {
 
   const handleTimeAdjust = (
     key: string,
-    field: "time_start" | "time_end",
+    field: TimeField,
     direction: 1 | -1,
   ) => {
     if (!currentProject) return;
+    const line = currentProject.lyrics[key];
+    if (!line) return;
+    const bounds = getTimeBounds(
+      currentProject.lyrics,
+      key,
+      field,
+      STEP_MS,
+    );
+    if (!bounds) return;
+
+    const newValue = line[field] + direction * STEP_MS;
+    if (newValue < bounds.min || newValue > bounds.max) return;
+
     snapshotProject();
-    const lyrics = currentProject.lyrics;
-    const keys = Object.keys(lyrics);
-    const idx = keys.indexOf(key);
-    if (idx === -1) return;
+    updateLine(key, field, newValue);
+  };
 
-    const current = lyrics[key]![field];
-    const newValue = current + direction * STEP_MS;
-
-    if (field === "time_start") {
-      const min = idx > 0 ? lyrics[keys[idx - 1]!]!.time_end : 0;
-      const max = lyrics[key]!.time_end - STEP_MS;
-      if (newValue < min || newValue > max) return;
-      updateLine(key, "time_start", newValue);
-    } else {
-      const min = lyrics[key]!.time_start + STEP_MS;
-      const max =
-        idx < keys.length - 1 ? lyrics[keys[idx + 1]!]!.time_start : Infinity;
-      if (newValue < min || newValue > max) return;
-      updateLine(key, "time_end", newValue);
-    }
+  const snapTimeToPlayhead = (key: string, field: TimeField) => {
+    if (!currentProject) return;
+    const playheadMs = currentTimeMs - (currentProject.syncOffsetMs ?? 0);
+    const snapped = getSnappedTime({
+      lyrics: currentProject.lyrics,
+      key,
+      field,
+      targetMs: playheadMs,
+      minGapMs: STEP_MS,
+    });
+    if (!snapped?.changed) return;
+    snapshotProject();
+    updateLine(key, field, snapped.value);
   };
 
   const handleRowClick = (key: string, column?: string) => {
@@ -667,6 +681,12 @@ export function EditorPage() {
                     onTimeEndAdd={() => handleTimeAdjust(key, "time_end", 1)}
                     onTimeEndRemove={() =>
                       handleTimeAdjust(key, "time_end", -1)
+                    }
+                    onTimeStartLongPress={() =>
+                      snapTimeToPlayhead(key, "time_start")
+                    }
+                    onTimeEndLongPress={() =>
+                      snapTimeToPlayhead(key, "time_end")
                     }
                     isLocked={line.locked ?? false}
                     onToggleLock={() => handleToggleLock(key)}
