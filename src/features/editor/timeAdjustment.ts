@@ -72,3 +72,41 @@ export function getSnappedTime({
 
   return { value, changed: valueChanged };
 }
+
+export interface SteppedTime {
+  value: number;
+  changed: boolean;
+}
+
+export interface StepTimeArgs {
+  lyrics: Record<string, LyricLine>;
+  key: string;
+  field: TimeField;
+  direction: 1 | -1;
+  stepMs: number;
+  minGapMs: number;
+}
+
+export function getSteppedTime({
+  lyrics,
+  key,
+  field,
+  direction,
+  stepMs,
+  minGapMs,
+}: StepTimeArgs): SteppedTime | null {
+  const line = lyrics[key];
+  const bounds = getTimeBounds(lyrics, key, field, minGapMs);
+  if (!line || !bounds) return null;
+
+  const boundsAreInverted = bounds.min > bounds.max;
+  if (boundsAreInverted) return { value: line[field], changed: false };
+
+  const stepped = line[field] + direction * stepMs;
+  const value = direction > 0
+    ? Math.min(stepped, bounds.max)
+    : Math.max(stepped, bounds.min);
+  const movedInDirection = direction > 0 ? value > line[field] : value < line[field];
+
+  return { value: movedInDirection ? value : line[field], changed: movedInDirection };
+}

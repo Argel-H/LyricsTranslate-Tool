@@ -29,8 +29,8 @@ import { useAutoTranslate } from "@/hooks/useAutoTranslate";
 import { downloadProjectAsYaml, generateLrcContent, generateSrtContent, type TextCase } from "@/lib/exportUtils";
 import { ExportDialog } from "./ExportDialog";
 import {
-  getTimeBounds,
   getSnappedTime,
+  getSteppedTime,
   type TimeField,
 } from "./timeAdjustment";
 import {
@@ -164,21 +164,17 @@ export function EditorPage() {
     direction: 1 | -1,
   ) => {
     if (!currentProject) return;
-    const line = currentProject.lyrics[key];
-    if (!line) return;
-    const bounds = getTimeBounds(
-      currentProject.lyrics,
+    const stepped = getSteppedTime({
+      lyrics: currentProject.lyrics,
       key,
       field,
-      STEP_MS,
-    );
-    if (!bounds) return;
-
-    const newValue = line[field] + direction * STEP_MS;
-    if (newValue < bounds.min || newValue > bounds.max) return;
-
+      direction,
+      stepMs: STEP_MS,
+      minGapMs: STEP_MS,
+    });
+    if (!stepped?.changed) return;
     snapshotProject();
-    updateLine(key, field, newValue);
+    updateLine(key, field, stepped.value);
   };
 
   const snapTimeToPlayhead = (key: string, field: TimeField) => {

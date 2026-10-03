@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { LyricLine } from "@/types/project";
 import {
   getSnappedTime,
+  getSteppedTime,
   getTimeBounds,
   SNAP_STEP_MS,
   type TimeField,
@@ -35,6 +36,22 @@ function snap(
     key,
     field,
     targetMs,
+    minGapMs: MIN_GAP_MS,
+  });
+}
+
+function step(
+  lyrics: Record<string, LyricLine>,
+  key: string,
+  field: TimeField,
+  direction: 1 | -1,
+) {
+  return getSteppedTime({
+    lyrics,
+    key,
+    field,
+    direction,
+    stepMs: MIN_GAP_MS,
     minGapMs: MIN_GAP_MS,
   });
 }
@@ -143,5 +160,73 @@ describe("getSnappedTime", () => {
   it("returns null for an unknown key", () => {
     const lyrics = lyricsOf({ a: makeLine(0, 1000) });
     expect(snap(lyrics, "missing", "time_start", 500)).toBeNull();
+  });
+});
+
+describe("getSteppedTime", () => {
+  it("steps within bounds in both directions", () => {
+    const lyrics = lyricsOf({ a: makeLine(1000, 5000) });
+    expect(step(lyrics, "a", "time_start", -1)).toEqual({
+      value: 900,
+      changed: true,
+    });
+    expect(step(lyrics, "a", "time_start", 1)).toEqual({
+      value: 1100,
+      changed: true,
+    });
+  });
+
+  it("drags time_start back to the previous line's time_end", () => {
+    const lyrics = lyricsOf({
+      first: makeLine(0, 671150),
+      second: makeLine(671200, 675000),
+    });
+    expect(step(lyrics, "second", "time_start", -1)).toEqual({
+      value: 671150,
+      changed: true,
+    });
+  });
+
+  it("reports no change when already at the bound", () => {
+    const lyrics = lyricsOf({
+      first: makeLine(0, 2000),
+      second: makeLine(2000, 5000),
+    });
+    expect(step(lyrics, "second", "time_start", -1)).toEqual({
+      value: 2000,
+      changed: false,
+    });
+  });
+
+  it("drags time_end forward to the next line's time_start", () => {
+    const lyrics = lyricsOf({
+      first: makeLine(0, 2450),
+      second: makeLine(2500, 5000),
+    });
+    expect(step(lyrics, "first", "time_end", 1)).toEqual({
+      value: 2500,
+      changed: true,
+    });
+  });
+
+  it("drags time_end back to its own minimum gap", () => {
+    const lyrics = lyricsOf({ a: makeLine(1000, 1150) });
+    expect(step(lyrics, "a", "time_end", -1)).toEqual({
+      value: 1100,
+      changed: true,
+    });
+  });
+
+  it("reports no change when time_start is blocked by its own gap bound", () => {
+    const lyrics = lyricsOf({ a: makeLine(4900, 5000) });
+    expect(step(lyrics, "a", "time_start", 1)).toEqual({
+      value: 4900,
+      changed: false,
+    });
+  });
+
+  it("returns null for an unknown key", () => {
+    const lyrics = lyricsOf({ a: makeLine(0, 1000) });
+    expect(step(lyrics, "missing", "time_start", 1)).toBeNull();
   });
 });
