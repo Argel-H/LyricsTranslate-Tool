@@ -78,7 +78,7 @@ export interface MusicBrainzBatchSocialResponse {
 
 /** Request body for the Worker's /metadata/full endpoint. */
 export interface FullMetadataRequest {
-  artistName: string;
+  artistNames: string[];
   trackName: string;
   albumName?: string;
 }

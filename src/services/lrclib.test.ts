@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest";
-import { pickBestLrcResult } from "./lrclib";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import axios from "axios";
+import { pickBestLrcResult, searchLrcLib } from "./lrclib";
 import type { LRCLibResult } from "@/types/music";
 
 function makeResult(overrides: Partial<LRCLibResult>): LRCLibResult {
@@ -44,5 +45,35 @@ describe("pickBestLrcResult", () => {
 
   it("returns undefined for empty results", () => {
     expect(pickBestLrcResult([], "hiraeth")).toBeUndefined();
+  });
+});
+
+describe("searchLrcLib", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns the search results", async () => {
+    vi.spyOn(axios, "get").mockResolvedValue({
+      data: [{ trackName: "Song" }],
+    } as unknown as never);
+
+    const results = await searchLrcLib("song");
+    expect(results).toEqual([{ trackName: "Song" }]);
+  });
+
+  it("filters out results with junk video markers in the track name", async () => {
+    vi.spyOn(axios, "get").mockResolvedValue({
+      data: [{ trackName: "Song" }, { trackName: "Song (Lyric Video)" }],
+    } as unknown as never);
+
+    const results = await searchLrcLib("song");
+    expect(results).toEqual([{ trackName: "Song" }]);
+  });
+
+  it("rejects when the request fails instead of returning an empty array", async () => {
+    vi.spyOn(axios, "get").mockRejectedValue(new Error("network error"));
+
+    await expect(searchLrcLib("song")).rejects.toThrow("network error");
   });
 });

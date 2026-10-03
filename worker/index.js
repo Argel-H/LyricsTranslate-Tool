@@ -9,13 +9,13 @@ const CORS_HEADERS = {
   "Access-Control-Max-Age": "86400",
 };
 
-const MAX_MBIDS_PER_REQUEST = 2;
+const MAX_QUERY_ARTISTS = 3;
 const FETCH_DELAY_MS = 1100;
 const MB_CACHE_TTL_SECONDS = 86400;
 const INCOMPLETE_CACHE_TTL_SECONDS = 3600;
 const MB_CACHE_KEY_PREFIX = "https://mb-social/";
 const MUSICBRAINZ_ARTIST_URL = "https://musicbrainz.org/ws/2/artist";
-const MUSICBRAINZ_USER_AGENT_BASE = "LyricsTranslate-Tool/0.0.6 (lyricstranslate@tool.com)";
+const MUSICBRAINZ_USER_AGENT_BASE = "LyricsTranslate-Tool/0.0.7 (lyricstranslate@tool.com)";
 
 // MusicBrainz serves requests from shared Cloudflare IPs, so we append a short
 // per-request suffix to avoid being grouped into a single rate-limit bucket.
@@ -46,12 +46,13 @@ const RELATION_TYPE_MAP = {
   "social network": "Social",
 };
 
-const FULL_METADATA_CACHE_KEY_PREFIX = "https://full-metadata/";
+const FULL_METADATA_CACHE_KEY_PREFIX = "https://full-metadata/v2/";
 const MUSICBRAINZ_RECORDING_URL = "https://musicbrainz.org/ws/2/recording/";
 const DEEZER_TRACK_URL = "https://api.deezer.com/2.0/track/isrc:";
 const DEEZER_SEARCH_URL = "https://api.deezer.com/search/track";
 const DEEZER_TRACK_BY_ID_URL = "https://api.deezer.com/track/";
 const ODESLI_LINKS_URL = "https://api.song.link/v1-alpha.1/links";
+const COVER_ART_ARCHIVE_BASE = "https://coverartarchive.org/release/";
 
 const DEEZER_CDN_RE = /^https:\/\/cdn-images\.dzcdn\.net\/images\/cover\/([a-f0-9]+)\//;
 const COVER_HEAD_TIMEOUT_MS = 5000;
@@ -65,6 +66,92 @@ function json(data, status = 200) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function cacheableJsonResponse(data, ttlSeconds) {
+  return new Response(JSON.stringify(data), {
+    status: 200,
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Cache-Control": `public, max-age=${ttlSeconds}`,
+    },
+  });
+}
+
+export function normalizeForMatch(value) {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim();
+}
+
+function nameSimilarity(candidate, wanted) {
+  if (!candidate || !wanted) return 0;
+  if (candidate === wanted) return 2;
+  if (candidate.includes(wanted) || wanted.includes(candidate)) return 1;
+  return 0;
+}
+
+function bestArtistSimilarity(candidates, wantedArtists) {
+  let best = 0;
+  for (const wanted of wantedArtists) {
+    for (const candidate of candidates) {
+      best = Math.max(best, nameSimilarity(candidate, wanted));
+    }
+  }
+  return best;
+}
+
+function matchScore({ title, artists }, wantedTitle, wantedArtists) {
+  const titleScore = nameSimilarity(normalizeForMatch(title), wantedTitle);
+  if (titleScore === 0) return 0;
+
+  const artistScore = bestArtistSimilarity(artists.map(normalizeForMatch), wantedArtists);
+  if (wantedArtists.length > 0 && artistScore === 0) return 0;
+  if (wantedArtists.length === 0 && titleScore < 2) return 0;
+
+  return titleScore * 10 + artistScore;
+}
+
+function pickBestMatch(items, artistNames, trackName, toMatchInfo) {
+  const wantedTitle = normalizeForMatch(trackName);
+  const wantedArtists = artistNames.map(normalizeForMatch).filter(Boolean);
+  let best = null;
+  let bestScore = 0;
+
+  for (const item of items) {
+    const score = matchScore(toMatchInfo(item), wantedTitle, wantedArtists);
+    if (score > bestScore) {
+      best = item;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
+function deezerTrackMatchInfo(track) {
+  return {
+    title: track.title,
+    artists: [track.artist?.name, ...(track.contributors ?? []).map((contributor) => contributor.name)],
+  };
+}
+
+function musicBrainzRecordingMatchInfo(recording) {
+  return {
+    title: recording.title,
+    artists: (recording["artist-credit"] ?? []).map((credit) => credit.name ?? credit.artist?.name),
+  };
+}
+
+export function pickBestDeezerTrack(tracks, artistNames, trackName) {
+  return pickBestMatch(tracks, artistNames, trackName, deezerTrackMatchInfo);
+}
+
+export function pickBestRecording(recordings, artistNames, trackName) {
+  return pickBestMatch(recordings, artistNames, trackName, musicBrainzRecordingMatchInfo);
 }
 
 function platformFromUrl(url) {
@@ -177,7 +264,8 @@ async function handleFullMetadata(request) {
       return json({ error: "Invalid JSON body" }, 400);
     }
 
-    const artistName = typeof body?.artistName === "string" ? body.artistName.trim() : "";
+    const rawArtistNames = Array.isArray(body?.artistNames) ? body.artistNames : [];
+    const artistNames = rawArtistNames.map((name) => String(name).trim()).filter(Boolean);
     const trackName = typeof body?.trackName === "string" ? body.trackName.trim() : "";
     if (!trackName) {
       return json({ error: "Missing trackName" }, 400);
@@ -189,7 +277,7 @@ async function handleFullMetadata(request) {
 
     const cacheKey =
       FULL_METADATA_CACHE_KEY_PREFIX +
-      encodeURIComponent(artistName) +
+      encodeURIComponent(artistNames.join("|")) +
       ":" +
       encodeURIComponent(trackName);
     const cached = await caches.default.match(cacheKey);
@@ -197,63 +285,40 @@ async function handleFullMetadata(request) {
       return cached;
     }
 
-    const { isrc, artistMbids, artistNames, trackTitle, rateLimited: recordingRateLimited } =
-      await fetchMusicBrainzRecording(artistName, trackName);
+    const {
+      isrc,
+      artistMbids,
+      artistNames: mbArtistNames,
+      trackTitle,
+      releaseId,
+      rateLimited: recordingRateLimited,
+    } = await fetchMusicBrainzRecording(artistNames, trackName);
 
-    // NOTE: MusicBrainz politely asks for ~1 request per second. This endpoint
-    // issues 1 recording search + up to 2 artist fetches (~2.2s worst case).
-    // Acceptable for single-user usage; for production scale, move MB fetches
-    // behind a proper rate limiter/queue before adding this endpoint to
-    // high-traffic paths.
     const [socialResult, isrcResult] = await Promise.all([
       artistMbids.length > 0
         ? resolveSocialLinksBatch(artistMbids)
         : Promise.resolve({ results: {}, rateLimited: false }),
-      isrc
-        ? (async () => {
-            const deezer = await fetchDeezerByISRC(isrc);
-            if (!deezer?.link) return { deezer: null, odesli: null };
-            const odesli = await fetchOdesliUrls(deezer.link);
-            return { deezer, odesli };
-          })()
-        : Promise.resolve({ deezer: null, odesli: null }),
+      isrc ? resolveDeezerByIsrc(isrc) : Promise.resolve({ deezer: null, odesli: null }),
     ]);
     const socialByMbid = socialResult.results;
     const socialRateLimited = socialResult.rateLimited;
 
-    // ISRC path produced no cover - fall back to search by name.
-    let coverUrl = isrcResult.deezer?.cover ?? "";
-    let nameDeezer = null;
-    let nameOdesli = null;
-    let finalIsrc = isrc; // Start with MusicBrainz's ISRC; Deezer fills gaps.
-
-    if (!coverUrl) {
-      const searchArtist = artistNames[0] ?? artistName;
-      const searchTrack = trackTitle ?? trackName;
-      nameDeezer = await fetchDeezerByName(searchArtist, searchTrack);
-      if (nameDeezer?.link) {
-        nameOdesli = await fetchOdesliUrls(nameDeezer.link);
-      }
-      if (nameDeezer) {
-        coverUrl = nameDeezer.cover ?? "";
-        // If MusicBrainz had no ISRC but Deezer's track does, adopt Deezer's.
-        if (!finalIsrc && nameDeezer.isrc) {
-          finalIsrc = nameDeezer.isrc;
-        }
-      }
-    }
-
-    if (coverUrl) {
-      coverUrl = await optimizeCoverUrl(coverUrl);
-    }
+    const { coverUrl, nameDeezer, nameOdesli, isrcFromDeezer } = await resolveCover({
+      isrcResult,
+      artistNames,
+      trackTitle,
+      trackName,
+      releaseId,
+    });
+    const finalIsrc = isrc || isrcFromDeezer;
 
     const result = assembleFullMetadata({
-      inputArtistName: artistName,
+      inputArtistName: artistNames[0] ?? "",
       inputTrackName: trackName,
       inputAlbumName: albumName,
       isrc: finalIsrc,
       artistMbids,
-      artistNames,
+      artistNames: mbArtistNames,
       trackTitle,
       socialByMbid,
       isrcDeezer: isrcResult.deezer,
@@ -263,30 +328,12 @@ async function handleFullMetadata(request) {
       coverUrl,
     });
 
-    // If MusicBrainz rate-limited any request, the assembled result may be
-    // missing data. Do not cache it so a retry in a few minutes re-fetches.
     const rateLimited = recordingRateLimited || socialRateLimited;
+    const isIncomplete = !finalIsrc && !coverUrl;
+    const cacheTtlSeconds = isIncomplete ? INCOMPLETE_CACHE_TTL_SECONDS : MB_CACHE_TTL_SECONDS;
 
-    // A result with neither an ISRC nor a cover is likely a brand-new release
-    // that MusicBrainz/Deezer haven't fully indexed yet. Caching it for the
-    // full 24h would lock in stale empty data, so give incomplete results a
-    // short TTL so a retry can pick up the ISRC/cover once they appear.
-    const incomplete = !finalIsrc && !coverUrl;
-    const cacheTtl = incomplete ? INCOMPLETE_CACHE_TTL_SECONDS : MB_CACHE_TTL_SECONDS;
-
-    // Store the assembled response. A separate Response is used (instead of
-    // sharing `json(result)`'s body) so the cached copy never shares a
-    // consumed stream with the one we return.
-    const cacheResponse = new Response(JSON.stringify(result), {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-        "Cache-Control": `public, max-age=${cacheTtl}`,
-      },
-    });
     if (!rateLimited) {
-      await caches.default.put(cacheKey, cacheResponse);
+      await caches.default.put(cacheKey, cacheableJsonResponse(result, cacheTtlSeconds));
     }
 
     return json(result);
@@ -296,70 +343,110 @@ async function handleFullMetadata(request) {
   }
 }
 
-async function fetchMusicBrainzRecording(artistName, trackName) {
-  try {
-    const url = new URL(MUSICBRAINZ_RECORDING_URL);
-    const query = artistName
-      ? `artist:'${artistName}' AND recording:'${trackName}'`
-      : `recording:'${trackName}'`;
-    url.searchParams.set("query", query);
-    url.searchParams.set("fmt", "json");
-    url.searchParams.set("limit", "1");
-    const response = await fetch(url, {
-      headers: {
-        "User-Agent": musicBrainzUserAgent(),
-        Accept: "application/json",
-      },
-    });
-    if (!response.ok) {
-      // Preserve the rate-limit signal so the orchestrator can avoid caching
-      // incomplete data instead of discarding it.
-      return {
-        isrc: null,
-        artistMbids: [],
-        artistNames: [],
-        trackTitle: null,
-        rateLimited: isMusicBrainzRateLimited(response.status),
-      };
-    }
-    const data = await response.json();
-    const recording = data?.recordings?.[0];
+async function resolveDeezerByIsrc(isrc) {
+  const deezer = await fetchDeezerByISRC(isrc);
+  if (!deezer?.link) return { deezer: null, odesli: null };
+  const odesli = await fetchOdesliUrls(deezer.link);
+  return { deezer, odesli };
+}
 
-    const artistMbids = [];
-    const artistNames = [];
-    recording?.["artist-credit"]?.forEach((ac) => {
-      if (ac.artist?.id) {
-        artistMbids.push(ac.artist.id);
-        artistNames.push(ac.name);
-      }
-    });
-
+async function resolveCover({ isrcResult, artistNames, trackTitle, trackName, releaseId }) {
+  if (isrcResult.deezer?.cover) {
     return {
-      isrc: recording?.isrcs?.[0] ?? null,
-      artistMbids,
-      artistNames,
-      trackTitle: recording?.title ?? null,
-      rateLimited: false,
-    };
-  } catch (err) {
-    console.error("fetchMusicBrainzRecording failed:", err);
-    return {
-      isrc: null,
-      artistMbids: [],
-      artistNames: [],
-      trackTitle: null,
-      rateLimited: false,
+      coverUrl: await optimizeCoverUrl(isrcResult.deezer.cover),
+      nameDeezer: null,
+      nameOdesli: null,
+      isrcFromDeezer: null,
     };
   }
+
+  const nameDeezer = await fetchDeezerByName(artistNames, trackTitle ?? trackName);
+  const nameOdesli = nameDeezer?.link ? await fetchOdesliUrls(nameDeezer.link) : null;
+  const rawCoverUrl = nameDeezer?.cover || (await fetchCoverArtArchiveUrl(releaseId));
+
+  return {
+    coverUrl: rawCoverUrl ? await optimizeCoverUrl(rawCoverUrl) : "",
+    nameDeezer,
+    nameOdesli,
+    isrcFromDeezer: nameDeezer?.isrc ?? null,
+  };
+}
+
+async function searchMusicBrainzRecordings(query, limit) {
+  const url = new URL(MUSICBRAINZ_RECORDING_URL);
+  url.searchParams.set("query", query);
+  url.searchParams.set("fmt", "json");
+  url.searchParams.set("limit", String(limit));
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": musicBrainzUserAgent(),
+      Accept: "application/json",
+    },
+  });
+  if (isMusicBrainzRateLimited(response.status)) {
+    return { recordings: [], rateLimited: true };
+  }
+  if (!response.ok) {
+    return { recordings: [], rateLimited: false };
+  }
+  const data = await response.json();
+  return { recordings: data?.recordings ?? [], rateLimited: false };
+}
+
+function emptyMusicBrainzResult(rateLimited = false) {
+  return { isrc: null, artistMbids: [], artistNames: [], trackTitle: null, releaseId: null, rateLimited };
+}
+
+function recordingToResult(recording) {
+  const artistMbids = [];
+  const artistNames = [];
+  recording["artist-credit"]?.forEach((credit) => {
+    if (credit.artist?.id) {
+      artistMbids.push(credit.artist.id);
+      artistNames.push(credit.name);
+    }
+  });
+  return {
+    isrc: recording.isrcs?.[0] ?? null,
+    artistMbids,
+    artistNames,
+    trackTitle: recording.title ?? null,
+    releaseId: recording.releases?.[0]?.id ?? null,
+    rateLimited: false,
+  };
+}
+
+async function fetchMusicBrainzRecording(artistNames, trackName) {
+  const searches = artistNames
+    .slice(0, MAX_QUERY_ARTISTS)
+    .map((artist) => ({ query: `artist:'${artist}' AND recording:'${trackName}'`, artists: [artist] }));
+  searches.push({ query: `recording:'${trackName}'`, artists: artistNames });
+
+  for (const [index, search] of searches.entries()) {
+    if (index > 0) await sleep(FETCH_DELAY_MS);
+
+    let found;
+    try {
+      found = await searchMusicBrainzRecordings(search.query, 5);
+    } catch (err) {
+      console.error("fetchMusicBrainzRecording failed:", err);
+      continue;
+    }
+    if (found.rateLimited) return emptyMusicBrainzResult(true);
+
+    const best = pickBestRecording(found.recordings, search.artists, trackName);
+    if (best) return recordingToResult(best);
+  }
+
+  return emptyMusicBrainzResult();
 }
 
 async function resolveSocialLinksBatch(mbids) {
-  const limited = mbids.slice(0, MAX_MBIDS_PER_REQUEST);
   const results = {};
   let rateLimited = false;
   let hasPendingFetch = false;
 
-  for (const mbid of limited) {
+  for (const mbid of mbids) {
     try {
       const cacheKey = MB_CACHE_KEY_PREFIX + mbid;
       const cached = await caches.default.match(cacheKey);
@@ -369,7 +456,6 @@ async function resolveSocialLinksBatch(mbids) {
         continue;
       }
 
-      // Pace non-cached MusicBrainz fetches ~1100ms apart (respect MB's 1 req/sec limit).
       if (hasPendingFetch) {
         await sleep(FETCH_DELAY_MS);
       }
@@ -429,38 +515,60 @@ async function fetchDeezerByISRC(isrc) {
   }
 }
 
-async function fetchDeezerByName(artistName, trackName) {
+async function searchDeezerTracks(query, limit) {
+  const url = new URL(DEEZER_SEARCH_URL);
+  url.searchParams.set("q", query);
+  url.searchParams.set("limit", String(limit));
+  const response = await fetch(url);
+  if (!response.ok) return [];
+  const data = await response.json();
+  return Array.isArray(data?.data) ? data.data : [];
+}
+
+async function hydrateDeezerTrack(trackId) {
+  const response = await fetch(DEEZER_TRACK_BY_ID_URL + trackId);
+  if (!response.ok) return null;
+  const track = await response.json();
+  if (!track || track.error) return null;
+  const { artists, artistLinks } = extractDeezerArtists(track);
+  return {
+    isrc: track.isrc ?? null,
+    link: track.link ?? null,
+    cover: track.album?.cover_xl ?? "",
+    albumName: track.album?.title ?? null,
+    artists,
+    artistLinks,
+  };
+}
+
+function deezerQueries(artistNames, trackName) {
+  const primaryArtist = artistNames[0] ?? "";
+  const queries = [];
+  if (primaryArtist) {
+    queries.push(`artist:"${primaryArtist}" track:"${trackName}"`);
+    queries.push(`${primaryArtist} ${trackName}`);
+  }
+  queries.push(trackName);
+  return queries;
+}
+
+async function findBestDeezerTrack(query, artistNames, trackName) {
   try {
-    const url = new URL(DEEZER_SEARCH_URL);
-    const q = artistName ? `artist:"${artistName}" track:"${trackName}"` : trackName;
-    url.searchParams.set("q", q);
-    url.searchParams.set("limit", "1");
-    const response = await fetch(url);
-    if (!response.ok) return null;
-
-    const data = await response.json();
-    const searchTrack = data?.data?.[0];
-    if (!searchTrack) return null;
-
-    // The search payload omits the ISRC; the direct track endpoint returns it.
-    const trackResponse = await fetch(DEEZER_TRACK_BY_ID_URL + searchTrack.id);
-    if (!trackResponse.ok) return null;
-    const track = await trackResponse.json();
-    if (!track || track.error) return null;
-
-    const { artists, artistLinks } = extractDeezerArtists(track);
-    return {
-      isrc: track.isrc ?? null,
-      link: track.link ?? null,
-      cover: track.album?.cover_xl ?? "",
-      albumName: track.album?.title ?? null,
-      artists,
-      artistLinks,
-    };
+    const tracks = await searchDeezerTracks(query, 10);
+    const best = pickBestDeezerTrack(tracks, artistNames, trackName);
+    return best ? await hydrateDeezerTrack(best.id) : null;
   } catch (err) {
     console.error("fetchDeezerByName failed:", err);
     return null;
   }
+}
+
+async function fetchDeezerByName(artistNames, trackName) {
+  for (const query of deezerQueries(artistNames, trackName)) {
+    const best = await findBestDeezerTrack(query, artistNames, trackName);
+    if (best) return best;
+  }
+  return null;
 }
 
 async function fetchOdesliUrls(deezerLink) {
@@ -487,6 +595,20 @@ async function fetchOdesliUrls(deezerLink) {
   } catch (err) {
     console.error("fetchOdesliUrls failed:", err);
     return null;
+  }
+}
+
+async function fetchCoverArtArchiveUrl(releaseId) {
+  if (!releaseId) return "";
+  const url = `${COVER_ART_ARCHIVE_BASE}${releaseId}/front-500`;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), COVER_HEAD_TIMEOUT_MS);
+    const response = await fetch(url, { method: "HEAD", signal: controller.signal });
+    clearTimeout(timeoutId);
+    return response.ok ? url : "";
+  } catch {
+    return "";
   }
 }
 

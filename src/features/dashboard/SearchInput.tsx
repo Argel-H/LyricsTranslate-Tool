@@ -22,6 +22,7 @@ interface SearchInputProps {
   results?: SearchResult[];
   onSelect?: (index: number) => void;
   isLoading?: boolean;
+  isError?: boolean;
 }
 
 const dropdownAnimation = {
@@ -38,6 +39,7 @@ export function SearchInput({
   results,
   onSelect,
   isLoading,
+  isError,
 }: SearchInputProps) {
   const { t } = useI18n();
   const [focused, setFocused] = useState(false);
@@ -73,7 +75,7 @@ export function SearchInput({
     setTimeout(() => setFocused(false), 150);
   };
 
-  const showDropdown = focused && (isLoading || results !== undefined);
+  const showDropdown = focused && (isLoading || isError || results !== undefined);
 
   return (
     <div
@@ -110,6 +112,10 @@ export function SearchInput({
               {isLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <M3LoadingIndicator size={72} style={{ color: "rgb(208, 188, 255)" }} />
+                </div>
+              ) : isError ? (
+                <div className="p-6 text-center text-error font-body-md">
+                  {t("common.searchError")}
                 </div>
               ) : results && results.length > 0 ? (
                 results.map((result, index) => (

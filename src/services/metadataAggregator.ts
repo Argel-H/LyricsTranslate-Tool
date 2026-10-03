@@ -1,4 +1,5 @@
 import { processLyricsMap } from "@/lib/lyricsParser";
+import { getArtistName } from "@/lib/artistParser";
 import { API } from "@/lib/config/apiConfig";
 import type { LyricLine, ProjectCreateInput } from "@/types/project";
 import type { LRCLibResult, FullMetadataRequest, FullMetadataResponse } from "@/types/music";
@@ -19,8 +20,10 @@ export async function getFullMetadata(
   trackName: string,
   lrcResult?: LRCLibResult,
 ): Promise<ProjectCreateInput> {
+  const splitArtists = getArtistName(artistName);
+  const artistNames = splitArtists.length > 0 ? splitArtists : [artistName].filter(Boolean);
   const metadata = await fetchFullMetadataFromWorker({
-    artistName,
+    artistNames,
     trackName,
     albumName: lrcResult?.albumName,
   });
@@ -36,7 +39,7 @@ export async function getFullMetadata(
   }
 
   return {
-    artistName: metadata.artistNames.length > 0 ? metadata.artistNames : [artistName],
+    artistName: metadata.artistNames.length > 0 ? metadata.artistNames : artistNames,
     trackName: metadata.trackName || trackName,
     lyrics,
     coverUrl: metadata.coverUrl || "",
@@ -57,44 +60,13 @@ export async function getFullMetadata(
 async function fetchFullMetadataFromWorker(
   params: FullMetadataRequest,
 ): Promise<FullMetadataResponse> {
-  try {
-    const response = await fetch(API.metadataFull, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(params),
-    });
-
-    if (!response.ok) {
-      console.error("fetchFullMetadataFromWorker failed with status:", response.status);
-      return emptyMetadata();
-    }
-
-    const data: FullMetadataResponse = await response.json();
-    return data;
-  } catch (err) {
-    console.error("fetchFullMetadataFromWorker failed:", err);
-    return emptyMetadata();
+  const response = await fetch(API.metadataFull, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!response.ok) {
+    throw new Error(`Metadata request failed with status ${response.status}`);
   }
-}
-
-/** Sensible defaults when the Worker is unreachable. */
-function emptyMetadata(): FullMetadataResponse {
-  return {
-    trackName: "",
-    artistNames: [],
-    artistMbids: [],
-    isrc: null,
-    coverUrl: "",
-    streamingSites: {
-      deezer: null,
-      spotify: null,
-      appleMusic: null,
-      youtube: null,
-      amazonMusic: null,
-      soundcloud: null,
-      tidal: null,
-    },
-    artistLinks: [],
-    socialLinks: [],
-  };
+  return (await response.json()) as FullMetadataResponse;
 }

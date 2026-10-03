@@ -40,9 +40,10 @@ export function DashboardPage() {
     debouncedSearch,
     searchResults,
     isSearching,
+    isError: isSearchError,
     formattedResults,
   } = useProjectSearch();
-  const { isCreating, creationStatus, handleSearchSelect } =
+  const { isCreating, creationStatus, creationError, clearCreationError, handleSearchSelect } =
     useProjectCreation();
 
   const [importingProject, setImportingProject] = useState(false);
@@ -152,6 +153,7 @@ export function DashboardPage() {
                 void handleSearchSelect(searchResults, index);
               }}
               isSearching={isSearching}
+              isError={isSearchError}
             />
 
             {projects.length > 0 && (
@@ -239,6 +241,14 @@ export function DashboardPage() {
         message={importError ?? ""}
         confirmLabel={t("common.ok")}
         onClose={() => setImportError(null)}
+      />
+
+      <MessageModal
+        open={creationError !== null}
+        title={t("dashboard.createError")}
+        message={creationError ?? ""}
+        confirmLabel={t("common.ok")}
+        onClose={clearCreationError}
       />
     </>
   );

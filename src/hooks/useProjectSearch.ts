@@ -40,6 +40,7 @@ export interface UseProjectSearchReturn {
   debouncedSearch: string;
   searchResults: LRCLibResult[] | undefined;
   isSearching: boolean;
+  isError: boolean;
   formattedResults: FormattedSearchResult[] | undefined;
 }
 
@@ -47,13 +48,17 @@ export function useProjectSearch(): UseProjectSearchReturn {
   const [searchQuery, setSearchQuery] = useState("");
   const debouncedSearch = useDebounce(searchQuery, DEBOUNCE_SEARCH_MS);
 
-  const { data: searchResults, isLoading: isSearching } = useQuery<
-    LRCLibResult[]
-  >({
+  const {
+    data: searchResults,
+    isLoading: isSearching,
+    isError,
+  } = useQuery<LRCLibResult[]>({
     queryKey: ["lrclib-search", debouncedSearch],
     queryFn: () => searchLrcLib(debouncedSearch),
     enabled: debouncedSearch.trim().length > 1,
     staleTime: 60_000,
+    retry: 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 4000),
   });
 
   const formattedResults = formatSearchResults(searchResults);
@@ -64,6 +69,7 @@ export function useProjectSearch(): UseProjectSearchReturn {
     debouncedSearch,
     searchResults,
     isSearching,
+    isError,
     formattedResults,
   };
 }

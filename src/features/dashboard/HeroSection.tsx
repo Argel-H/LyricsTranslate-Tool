@@ -9,6 +9,7 @@ interface HeroSectionProps {
   searchResults?: Array<{ id: number; trackName: string; artistName: string }>;
   onSearchSelect?: (index: number) => void;
   isSearching?: boolean;
+  isError?: boolean;
 }
 
 export function HeroSection({
@@ -17,6 +18,7 @@ export function HeroSection({
   searchResults,
   onSearchSelect,
   isSearching,
+  isError,
 }: HeroSectionProps) {
   const { t } = useI18n();
   return (
@@ -32,6 +34,7 @@ export function HeroSection({
           results={searchResults}
           onSelect={onSearchSelect}
           isLoading={isSearching}
+          isError={isError}
         />
         <div className="flex items-center gap-6 w-full max-w-md">
           <div className="h-px bg-outline-variant/30 flex-1" />

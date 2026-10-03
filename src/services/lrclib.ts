@@ -21,18 +21,12 @@ export async function searchLrcLib(
   options?: { signal?: AbortSignal },
 ): Promise<LRCLibResult[]> {
   if (!query.trim()) return [];
-  try {
-    const response = await axios.get<LRCLibResult[]>(
-      `${LRCLIB_ENDPOINT}${encodeURIComponent(query)}`,
-      { signal: options?.signal },
-    );
-    const results = response.data ?? [];
-    // Filter out results whose trackName contains video-type markers
-    // like "(Lyric Video)", "(Letra)", "(Official Lyric Video)", etc.
-    return results.filter((r) => !JUNK_TRACK_PATTERN.test(r.trackName ?? ""));
-  } catch {
-    return [];
-  }
+  const response = await axios.get<LRCLibResult[]>(
+    `${LRCLIB_ENDPOINT}${encodeURIComponent(query)}`,
+    { signal: options?.signal },
+  );
+  const results = Array.isArray(response.data) ? response.data : [];
+  return results.filter((r) => !JUNK_TRACK_PATTERN.test(r.trackName ?? ""));
 }
 
 /**

@@ -8,6 +8,8 @@ import type { LRCLibResult } from "@/types/music";
 export interface UseProjectCreationReturn {
   isCreating: boolean;
   creationStatus: string;
+  creationError: string | null;
+  clearCreationError: () => void;
   handleSearchSelect: (
     searchResults: LRCLibResult[] | undefined,
     index: number,
@@ -19,11 +21,13 @@ export function useProjectCreation(): UseProjectCreationReturn {
   const { t } = useI18n();
   const [isCreating, setIsCreating] = useState(false);
   const [creationStatus, setCreationStatus] = useState("");
+  const [creationError, setCreationError] = useState<string | null>(null);
 
   const handleSearchSelect = async (
     searchResults: LRCLibResult[] | undefined,
     index: number,
   ) => {
+    setCreationError(null);
     if (!searchResults?.[index]) return;
     setIsCreating(true);
     setCreationStatus(t("dashboard.fetchingLyrics"));
@@ -40,6 +44,7 @@ export function useProjectCreation(): UseProjectCreationReturn {
       navigate(`/editor/${projectId}`);
     } catch (err) {
       console.error("Failed to create project:", err);
+      setCreationError(err instanceof Error ? err.message : "Failed to create project");
       setIsCreating(false);
     }
   };
@@ -47,6 +52,8 @@ export function useProjectCreation(): UseProjectCreationReturn {
   return {
     isCreating,
     creationStatus,
+    creationError,
+    clearCreationError: () => setCreationError(null),
     handleSearchSelect,
   };
 }
